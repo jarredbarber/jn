@@ -181,7 +181,8 @@ def show(rows, fmt):
             print(f"## {r['id']} · {r['created']}\n{fmt_tags(r['tags'])}\n\n{r['content']}\n")
     else:
         for r in rows:
-            head = (r["content"].splitlines() or [""])[0][:60]
+            lines = r["content"].splitlines() or [""]
+            head = lines[0][:59] + "…" if len(lines) > 1 or len(lines[0]) > 60 else lines[0]
             print(f"{r['id']:>5}  {r['created'][:16]}  {head:<60}  {fmt_tags(r['tags'])}")
 
 
