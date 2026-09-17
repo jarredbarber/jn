@@ -31,7 +31,7 @@ config (TOML):
              a name -> list of jn command lines; $1 $2.. and $@ are the action's args
 db: $JN_DB or ~/.jn.db
 """
-import getpass, json, os, re, shlex, sqlite3, subprocess, sys, tempfile, tomllib
+import getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -287,11 +287,16 @@ def show(rows, fmt):
     elif fmt == "md":
         for r in rows:
             print(f"## {r['id']} · {r['created']}\n{fmt_tags(r['tags'])}\n\n{r['content']}\n")
-    else:
+    elif rows:
+        width = shutil.get_terminal_size().columns
+        tagw = min(max(len(fmt_tags(r["tags"])) for r in rows), max(20, width // 3))
+        textw = max(20, width - 5 - 2 - 11 - 2 - tagw - 2)
+        cut = lambda t, w: t if len(t) <= w else t[:w - 1] + "…"
+        print(f"{'id':>5}  {'when':<11}  {'text':<{textw}}  tags")
         for r in rows:
             lines = r["content"].splitlines() or [""]
-            head = lines[0][:59] + "…" if len(lines) > 1 or len(lines[0]) > 60 else lines[0]
-            print(f"{r['id']:>5}  {r['created'][:16]}  {head:<60}  {fmt_tags(r['tags'])}")
+            head = lines[0] + (" …" if len(lines) > 1 else "")
+            print(f"{r['id']:>5}  {r['created'][5:16].replace('T', ' ')}  {cut(head, textw):<{textw}}  {cut(fmt_tags(r['tags']), tagw)}")
 
 
 def main(argv):

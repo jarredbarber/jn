@@ -15,6 +15,7 @@ with tempfile.TemporaryDirectory() as d:
     Path(d, ".jn").write_text('tags = ["global"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[filters]\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
     Path(d, "proj/sub/.jn").write_text('tags_expr = "[\'@evil\']"\n')  # must be ignored
 
+    ids = lambda out: [l.split()[0] for l in out.splitlines()[1:]]      # skip table header
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
     b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=#" + a, **env)
     run("close", a, **env)
@@ -25,9 +26,9 @@ with tempfile.TemporaryDirectory() as d:
     assert "todo" not in t0 and "done" in t0 and t0["project"] == "demo" and "global" in t0, t0
     assert t1["by"] == "claude:s1" and t1["re"] == "#" + a and "Heading" not in t1, t1
     assert run("ls", "--open", **env) == ""                                 # token filter from project .jn, nothing open
-    assert run("ls", "@by=claude:*", **env).split()[0] == b                 # value glob
-    assert run("ls", "pushups", "--since", "today", **env).split()[0] == a  # text + since
-    assert run("ls", "-@done", **env).split()[0] == b                       # negation
+    assert ids(run("ls", "@by=claude:*", **env))[0] == b                 # value glob
+    assert ids(run("ls", "pushups", "--since", "today", **env))[0] == a  # text + since
+    assert ids(run("ls", "-@done", **env))[0] == b                       # negation
     assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
     bl = subprocess.run([sys.executable, JN, "show", a], capture_output=True, text=True, env={**os.environ, **env}, cwd=env["CWD"]).stderr
     assert bl == f"← #{b} @re\n", bl                                       # backlinks on stderr
@@ -48,11 +49,10 @@ with tempfile.TemporaryDirectory() as d:
     c = run("todo", "@due=tomorrow call dentist", **env)
     tc = json.loads(run("ls", c, "--json", **env))[0]["tags"]
     assert tc["due"] == (datetime.date.today() + datetime.timedelta(days=1)).isoformat(), tc
-    assert run("ls", "@due=" + tc["due"], **env).split()[0] == c and run("ls", "@due=tomorrow", **env).split()[0] == c
-    assert run("ls", "--since", "1d", **env).count("\n") == 2                # bare N is past for --since
+    assert ids(run("ls", "@due=" + tc["due"], **env))[0] == c and ids(run("ls", "@due=tomorrow", **env))[0] == c
+    assert len(ids(run("ls", "--since", "1d", **env))) == 3                # bare N is past for --since
     pr = run("log", "see #1 and #2", **env)
     assert json.loads(run("ls", pr, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
-    ids = lambda out: [l.split()[0] for l in out.splitlines()]
     assert b not in ids(run("ls", "--mine", **env)) and a in ids(run("ls", "--mine", **env))
     assert ids(run("ls", "--mine", JN_TAGS="@by=claude:s1", **env)) == [b]
     x = run("todo", "@blocked_by=#" + a + ",#" + c + " ship it", **env)      # a done, c open
