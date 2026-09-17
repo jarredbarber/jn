@@ -66,4 +66,10 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "@blocked_by=#420,vendor", **env)) == [y, z]       # any-of
     assert ids(run("ls", "@blocked_by=#4*", **env)) == [z]                  # glob per item
     assert ids(run("ls", "--fit", **env)) == [a]                            # custom filter from ~/.jn
+    run("tag", z, "@blocked_by+=#7,#420", "@seen+=x", **env)               # append dedup, create on +=
+    tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
+    assert tz["blocked_by"] == "#420,#7" and tz["seen"] == "x", tz
+    run("tag", z, "@blocked_by-=#420,#7", "@nope-=x", **env)               # emptied tag stays; -= on absent is a no-op
+    tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
+    assert tz["blocked_by"] is None and "nope" not in tz, tz
     print("ok")

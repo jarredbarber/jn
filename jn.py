@@ -4,7 +4,7 @@
   jn log [text...]           add entry; no text -> stdin (if piped) or $EDITOR. prints id
   jn todo [text...]          same, plus @todo
   jn close ID                @done -@todo; prints tasks this unblocked
-  jn tag ID @a -@b @k=v      add/remove tags
+  jn tag ID @a -@b @k=v      add/remove tags; @k+=x,y appends items, @k-=x removes items (tag stays, maybe empty)
   jn show [ID]               tags line + blank + content; round-trips through edit. backlinks on stderr. default: last
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
   jn history [ID]            prior versions (tags + content, oldest first), then current
@@ -29,8 +29,8 @@ from pathlib import Path
 DB = Path(os.environ.get("JN_DB", Path.home() / ".jn.db"))
 # sigil must follow start/whitespace and touch a word char, so "# Heading" is not a tag
 # @ must follow start/whitespace, so emails are not tags. # is never a sigil: "#42" is a pointer, "# Heading" is prose
-TAG = re.compile(r"(?:^|(?<=\s))(-?)@([A-Za-z_][\w-]*)(?:=(\S+))?")
-TOK = r"-?@[A-Za-z_][\w-]*(?:=\S+)?"
+TAG = re.compile(r"(?:^|(?<=\s))(-?)@([A-Za-z_]\w*(?:-\w+)*)(?:([+-]?=)(\S+))?")
+TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
 COLS = ("id", "created", "updated", "content")
 FILTERS = {  # ponytail: eval'd python per row. override/extend in [filters] of ~/.jn
@@ -70,10 +70,25 @@ def config():
     return cfg
 
 
-def parse_tags(text):
+def parse_tags(text, current=None):
+    """-> (add: {name: value|None}, rm: {name}). A value is a comma list; bare @name is the empty list.
+    += / -= edit the list in `current` (the entry's tags); without `current`, += acts as = and -= is ignored."""
     add, rm = {}, set()
-    for neg, name, val in TAG.findall(text):
-        (rm.add if neg else lambda n: add.__setitem__(n, dateword(val) if val else None))(name)
+    for neg, name, op, val in TAG.findall(text):
+        if neg:
+            rm.add(name); continue
+        val = ",".join(dateword(i) for i in val.split(",")) if val else None
+        if op in ("+=", "-=") and current is not None:
+            if name not in add and name not in current:
+                if op == "-=": continue
+            else:
+                have = [i for i in ((add if name in add else current)[name] or "").split(",") if i]
+                new = val.split(",")
+                items = have + [i for i in new if i not in have] if op == "+=" else [i for i in have if i not in new]
+                val = ",".join(items) or None
+        elif op == "-=":
+            continue
+        add[name] = val
     return add, rm
 
 
@@ -121,8 +136,8 @@ def versioned(c, eid, write):
 
 
 def retag(eid, text):
-    add, rm = parse_tags(text)
     with db() as c:
+        add, rm = parse_tags(text, dict(c.execute("SELECT name,value FROM tagged WHERE entry=?", (eid,))))
         versioned(c, eid, lambda: (
             c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()]),
             c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])))

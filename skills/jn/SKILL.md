@@ -14,7 +14,8 @@ Always tag entries you write with `@by=<agent>:<tool>`, e.g. `@by=claude:claude-
 ```bash
 jn ls open                      # open tasks in this project (do this at session start)
 jn todo "write tests for X @by=claude:claude-code"   # -> prints id
-jn close 42                      # mark task 42 finished
+jn close 42                     # mark task 42 finished
+jn tag 42 @blocked_by+=#7 -@urgent   # += / -= edit list items, -@ drops the tag
 jn log "milestone: parser works, 3 edge cases left @by=claude:claude-code @re=#42"
 jn ls --since today             # what happened today
 jn show 42                      # full entry (tags line, blank line, content). no id = last entry
