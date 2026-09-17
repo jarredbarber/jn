@@ -7,6 +7,7 @@
   jn tag ID @a -@b @k=v      add/remove tags
   jn edit ID [text...]       replace content ($EDITOR seeded with old); tags in text re-synced
   jn show ID                 full entry
+  jn history ID              prior versions of content (oldest first), then current
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
 
@@ -30,7 +31,8 @@ def db():
     c.executescript("""
     CREATE TABLE IF NOT EXISTS entry(id INTEGER PRIMARY KEY, created TEXT NOT NULL, updated TEXT NOT NULL, content TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS tagged(entry INTEGER NOT NULL REFERENCES entry(id) ON DELETE CASCADE, name TEXT NOT NULL, value TEXT, UNIQUE(entry, name));
-    CREATE INDEX IF NOT EXISTS tagged_name ON tagged(name);""")
+    CREATE INDEX IF NOT EXISTS tagged_name ON tagged(name);
+    CREATE TABLE IF NOT EXISTS history(entry INTEGER NOT NULL REFERENCES entry(id) ON DELETE CASCADE, at TEXT NOT NULL, content TEXT NOT NULL);""")
     c.execute("PRAGMA foreign_keys=ON")
     return c
 
@@ -96,9 +98,19 @@ def edit(eid, args):
     with db() as c:
         old = c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
         new = get_text(args, old[0]) or sys.exit("empty entry")
+        # ponytail: content only; tag flips are not versioned, `updated` says something changed
+        c.execute("INSERT INTO history SELECT id, updated, content FROM entry WHERE id=?", (eid,))
         c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (new, now(), eid))
     # tags typed in old content but gone from new are dropped; tags set via `jn tag` survive
     retag(eid, new + " " + " ".join("-@" + k for k in parse_tags(old[0])[0].keys() - parse_tags(new)[0].keys()))
+
+
+def history(eid):
+    c = db()
+    old = c.execute("SELECT at, content FROM history WHERE entry=? ORDER BY rowid", (eid,)).fetchall()
+    cur = c.execute("SELECT updated, content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
+    for n, (at, content) in enumerate([*old, cur], 1):
+        print(f"## {eid} v{n} · {at}\n\n{content}\n")
 
 
 def since(s):
@@ -170,6 +182,8 @@ def main(argv):
         retag(int(pos[0]), " ".join(pos[1:]))
     elif cmd == "edit":
         edit(int(pos[0]), pos[1:])
+    elif cmd == "history":
+        history(int(pos[0]))
     elif cmd == "show":
         show(query(pos[:1]), "md")
     elif cmd == "ls":

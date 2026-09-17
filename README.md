@@ -15,6 +15,7 @@ jn ls open                              # named query from .jn
 jn ls --since 3d --md                   # today | yesterday | 3d | 2w | ISO
 jn ls --json | jq ...
 jn edit 1                               # $EDITOR seeded with old content
+jn history 1                            # every prior content version
 ```
 
 ## Install
@@ -31,6 +32,7 @@ alias kk=jn                             # optional
 - Entry: `id, created, updated, content`.
 - Tags: `@name` or `@name=value`, `#` works too. Parsed from the text, kept in the text. One name per entry, last write wins.
 - `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.
+- `edit` keeps prior content in a `history` table. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.
 
 ## Config
