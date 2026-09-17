@@ -10,7 +10,9 @@ jn log <<'EOF'
 # multi-line via stdin
 - decided X over Y
 EOF
-jn ls @todo -@done                      # filters: @tag  -@tag  @k=v*  word  ID
+jn ls @todo -@done                      # filters: @tag  -@tag  @k=v  @k=a,b  @k=v*  word  ID
+jn ls @blocked_by=#12                   # #12 is an item of the list (not substring)
+jn ls @by=jarred,claude:*               # any of
 jn ls open                              # named query from .jn
 jn ls --since 3d --md                   # today | yesterday | 3d | 2w | ISO
 jn ls @todo --mine                      # @by = whatever log would stamp right now
@@ -33,7 +35,7 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 ## Model
 
 - Entry: `id, created, updated, content`.
-- Tags: `@name` or `@name=value`. `#` is never a tag sigil. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
+- Tags: `@name` or `@name=value`. A value is a comma list: `@blocked_by=#12,#15`. `#` is never a tag sigil. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
 - Date words in values resolve when written: `@due=tomorrow`, `@due=2w`, `@due=-3d`, `@due=today`. Stored as ISO, so `@due=tomorrow` still means the same day next week.
 - `#42` points at entry 42, in prose or in values: `@parent=#42`, `@re=#42`, `@blocks=#42`. `jn show 42` lists everything pointing at it (on stderr, so stdout still round-trips into `edit`). No relationship types are built in.
 - `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.

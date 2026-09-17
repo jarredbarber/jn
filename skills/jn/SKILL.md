@@ -42,7 +42,8 @@ EOF
 |---|---|
 | `@todo` | has tag |
 | `-@done` | lacks tag |
-| `@by=claude:*` | tag value glob (`*` wildcard) |
+| `@blocked_by=#12` | `#12` is an item of the value's comma list |
+| `@by=jarred,claude:*` | any of, `*` is a wildcard |
 | `pushups` | content contains word |
 | `42` | entry id |
 | `open` | named query from `.jn` |

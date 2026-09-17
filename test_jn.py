@@ -61,4 +61,8 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "@todo", "--unblocked", **env)) == [c]
     assert ids(run("close", c, **env)) == [x]                                 # done prints what it unblocked
     assert ids(run("ls", "@todo", "--unblocked", **env)) == [x]
+    z = run("todo", "@blocked_by=#420 false positive bait", **env)
+    assert ids(run("ls", "@blocked_by=#" + a, **env)) == [x, y]             # item match, not substring
+    assert ids(run("ls", "@blocked_by=#420,vendor", **env)) == [y, z]       # any-of
+    assert ids(run("ls", "@blocked_by=#4*", **env)) == [z]                  # glob per item
     print("ok")

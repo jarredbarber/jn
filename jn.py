@@ -8,12 +8,13 @@
   jn show [ID]               tags line + blank + content; round-trips through edit. backlinks on stderr. default: last
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
   jn history [ID]            prior versions (tags + content, oldest first), then current
-  jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
+  jn ls [filters] [opts]     filters: @tag  -@tag  @k=v  @k=a,b (any of)  @k=v*  word  ID  <query-name>
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --mine  --blocked  --unblocked  --json  --md
                              blocked = any item of @blocked_by=#42,#53,vendor is not a @done entry
                              --mine = @by=<what log would assign now: config, tags_cmd, $JN_TAGS, else $USER>
 
-tags: @name, optional =value. Leading/trailing tags are stripped from content.
+tags: @name, optional =value where value is a comma list (@blocked_by=#12,#15). @k=v filters on "v is an item of k".
+  Leading/trailing tags are stripped from content.
   Values today|tomorrow|yesterday|[+-]N[hdw] become ISO dates at write time (@due=tomorrow, @due=2w).
   #42 points at entry 42: use it in prose or values (@parent=#42, @re=#42); show lists what points here. Defaults come from ~/.jn and nearest ./.jn (TOML:
   tags = ["project=x"]  [queries] open = "@todo -@done") plus $JN_TAGS. @by defaults to $USER.
@@ -180,9 +181,10 @@ def query(tokens, since_=None):
     tokens = [t for tok in tokens for t in queries.get(tok, tok).split()]
     add, rm = parse_tags(" ".join(t for t in tokens if TAG.fullmatch(t)))
     where, params = [], []
-    for k, v in add.items():
-        where.append("id IN (SELECT entry FROM tagged WHERE name=?" + (" AND value LIKE ?)" if v else ")"))
-        params += [k, v.replace("*", "%")] if v else [k]
+    for k, v in add.items():  # value is a comma list; @k=a,b matches if any of a,b is an item of k
+        alts = v.split(",") if v else []
+        where.append("id IN (SELECT entry FROM tagged WHERE name=?" + (" AND (" + " OR ".join(["','||value||',' LIKE ?"] * len(alts)) + "))" if alts else ")"))
+        params += [k] + [f"%,{a.replace('*', '%')},%" for a in alts]
     for k in rm:
         where.append("id NOT IN (SELECT entry FROM tagged WHERE name=?)"); params.append(k)
     for w in (t for t in tokens if not TAG.fullmatch(t)):
@@ -232,9 +234,9 @@ def main(argv):
         print(add_entry(get_text(pos), "@todo"))
     elif cmd == "close":
         eid = int(pos[0])
-        before = {r["id"] for r in query([f"@blocked_by=*#{eid}*"]) if not blocked(r, done_ids())}
+        before = {r["id"] for r in query([f"@blocked_by=#{eid}"]) if not blocked(r, done_ids())}
         retag(eid, "@done -@todo")
-        show([r for r in query([f"@blocked_by=*#{eid}*"]) if not blocked(r, done_ids()) and r["id"] not in before], "")
+        show([r for r in query([f"@blocked_by=#{eid}"]) if not blocked(r, done_ids()) and r["id"] not in before], "")
     elif cmd == "tag":
         retag(int(pos[0]), " ".join(pos[1:]))
     elif cmd in ("edit", "show", "history"):
