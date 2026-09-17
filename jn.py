@@ -8,19 +8,23 @@
   jn show [ID]               tags line + blank + content; round-trips through edit. backlinks on stderr. default: last
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
   jn history [ID]            prior versions (tags + content, oldest first), then current
-  jn ls -h                   show config files in overlay order, named queries and filters
-  jn ls [filters] [opts]     filters: @tag  -@tag  @k=v  @k=a,b (any of)  @k=v*  word  ID  <query-name>
-                             opts: --since today|yesterday|3d|2w|ISO  --last N  --mine  --blocked  --unblocked  --json  --md
-                             blocked = any item of @blocked_by=#42,#53,vendor is not a @done entry
-                             --mine = @by=<what log would assign now: config, tags_cmd, $JN_TAGS, else $USER>
+  jn ls [filters] [opts]     filters: @tag  -@tag  @k=v  @k=a,b (any of)  @k=v*  word  ID  --name
+                             opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
+  jn -h                      this text, then config files in overlay order and every --filter with its source
 
 tags: @name, optional =value where value is a comma list (@blocked_by=#12,#15). @k=v filters on "v is an item of k".
   Leading/trailing tags are stripped from content.
   Values today|tomorrow|yesterday|[+-]N[hdw] become ISO dates at write time (@due=tomorrow, @due=2w).
-  #42 points at entry 42: use it in prose or values (@parent=#42, @re=#42); show lists what points here. Defaults come from ~/.jn and nearest ./.jn (TOML:
-  tags = ["project=x"]  [queries] open = "@todo -@done") plus $JN_TAGS. @by defaults to $USER.
-  ~/.jn only (it may run code, project .jn is data): tags_cmd = "shell snippet" whose stdout is extra tags;
-  [filters] name = "python expression".
+  #42 points at entry 42: use it in prose or values (@parent=#42, @re=#42); show lists what points here.
+  Defaults come from ~/.jn and every .jn walking up to cwd (TOML, nearer wins) plus $JN_TAGS. @by defaults to $USER.
+
+config (TOML):
+  tags = ["project=x"]                       default tags on log/todo
+  [filters]  open = "@todo -@done"           starts with @ or -@: expands into ls tokens
+             mine = "tags.get('by') == me"   otherwise a python expression evaluated per entry (~/.jn only)
+    namespace: id created updated content tags, me (the @by log would stamp), env (os.environ), cwd,
+               E (every entry's tags by id), F(name) (another filter)
+  tags_expr = "python expr"                  ~/.jn only; evaluates to a str or list of extra tags, sees env and cwd
 db: $JN_DB or ~/.jn.db
 """
 import getpass, json, os, re, sqlite3, subprocess, sys, tempfile, tomllib
@@ -34,7 +38,7 @@ TAG = re.compile(r"(?:^|(?<=\s))(-?)@([A-Za-z_]\w*(?:-\w+)*)(?:([+-]?=)(\S+))?")
 TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
 COLS = ("id", "created", "updated", "content")
-FILTERS = {  # ponytail: eval'd python per row. override/extend in [filters] of ~/.jn
+FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
     "mine": "tags.get('by') == me",
     "blocked": "any(i and not (i[0] == '#' and i[1:].isdigit() and 'done' in E.get(int(i[1:]), {})) for i in (tags.get('blocked_by') or '').split(','))",
     "unblocked": "not F('blocked')",
@@ -56,22 +60,25 @@ def now():
     return datetime.now().isoformat(timespec="seconds")
 
 
+def is_tokens(expr):
+    return expr.lstrip("-").startswith("@")
+
+
 def config():
-    """~/.jn, then root/.jn ... ./.jn; nearer wins."""
-    cfg = {"tags": [], "queries": {}, "filters": dict(FILTERS), "files": ["builtin"], "src": {n: "builtin" for n in FILTERS}}
+    """builtin, ~/.jn, then root/.jn ... ./.jn; nearer wins. Only ~/.jn may hold code (python filters, tags_expr)."""
+    cfg = {"tags": [], "filters": dict(FILTERS), "files": ["builtin"], "src": {n: "builtin" for n in FILTERS}}
     home = (Path.home() / ".jn").resolve()
     for f in dict.fromkeys(p.resolve() for p in [home, *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]):
         if f.is_file():
             c = tomllib.loads(f.read_text())
             cfg["files"].append(str(f))
             cfg["tags"] += c.get("tags", [])
-            cfg["queries"].update(c.get("queries", {}))
-            cfg["src"].update({n: str(f) for n in c.get("queries", {})})
-            if f == home:  # only ~/.jn may run code; project .jn is data
-                cfg["filters"].update(c.get("filters", {}))
-                cfg["src"].update({n: str(f) for n in c.get("filters", {})})
-                if "tags_cmd" in c:
-                    cfg["tags"] += subprocess.run(c["tags_cmd"], shell=True, capture_output=True, text=True).stdout.split()
+            for n, expr in c.get("filters", {}).items():
+                if f == home or is_tokens(expr):
+                    cfg["filters"][n], cfg["src"][n] = expr, str(f)
+            if f == home and "tags_expr" in c:
+                extra = eval(c["tags_expr"], {"env": os.environ, "cwd": os.getcwd()})
+                cfg["tags"] += extra.split() if isinstance(extra, str) else list(extra)
     return cfg
 
 
@@ -114,7 +121,7 @@ def get_text(args, seed=""):
 
 
 def default_tags():
-    """config -> tags_cmd -> $JN_TAGS -> @by=$USER, later wins"""
+    """config -> tags_expr -> $JN_TAGS -> @by=$USER, later wins"""
     tags, _ = parse_tags(" ".join(["@" + t.lstrip("@") for t in config()["tags"]] + [os.environ.get("JN_TAGS", "")]))
     tags.setdefault("by", getpass.getuser())
     return tags
@@ -191,8 +198,17 @@ def apply_filters(rows, names):
 
     def ok(r, name):
         expr = filters.get(name) or sys.exit(f"unknown filter --{name}")
-        return bool(eval(expr, dict(r, me=me, E=E, F=lambda n: ok(r, n))))
+        return bool(eval(expr, dict(r, me=me, env=os.environ, cwd=os.getcwd(), E=E, F=lambda n: ok(r, n))))
     return [r for r in rows if all(ok(r, n) for n in names)]
+
+
+def resolve_filters(names):
+    """split requested --names into ls tokens (for @... filters) and python filter names"""
+    filters, tokens, py = config()["filters"], [], []
+    for n in names:
+        expr = filters.get(n) or sys.exit(f"unknown filter --{n}")
+        (tokens.extend(expr.split()) if is_tokens(expr) else py.append(n))
+    return tokens, py
 
 
 def dateword(s, future=True):
@@ -208,8 +224,6 @@ def dateword(s, future=True):
 
 
 def query(tokens, since_=None):
-    queries = config()["queries"]
-    tokens = [t for tok in tokens for t in queries.get(tok, tok).split()]
     add, rm = parse_tags(" ".join(t for t in tokens if TAG.fullmatch(t)))
     where, params = [], []
     for k, v in add.items():  # value is a comma list; @k=a,b matches if any of a,b is an item of k
@@ -279,20 +293,17 @@ def main(argv):
         else:
             print(entry_text(eid), end="")
             print(backlinks(eid), end="", file=sys.stderr)  # ponytail: stderr keeps stdout round-trippable
-    elif cmd == "ls" and ("-h" in pos or "help" in opts):
-        cfg = config()
-        print("config:", ", ".join(cfg["files"]))
-        for kind in ("queries", "filters"):
-            print(f"{kind}:")
-            for n, v in cfg[kind].items():
-                print(f"  {n:<12} {v}   # {cfg['src'][n]}")
     elif cmd == "ls":
-        rows = apply_filters(query(pos, opts.get("since")), [k for k in opts if k not in ("since", "last", "json", "md")])
+        tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md")])
+        rows = apply_filters(query(pos + tokens, opts.get("since")), py)
         if "last" in opts:
             rows = rows[-int(opts["last"]):]
         show(rows, "json" if "json" in opts else "md" if "md" in opts else "")
     else:
-        sys.exit(__doc__)
+        cfg = config()
+        print(__doc__ + "\nconfig: " + ", ".join(cfg["files"]) + "\nfilters:")
+        for n, v in cfg["filters"].items():
+            print(f"  --{n:<12} {v}   # {cfg['src'][n]}")
 
 
 if __name__ == "__main__":

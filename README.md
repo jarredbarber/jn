@@ -13,7 +13,7 @@ EOF
 jn ls @todo -@done                      # filters: @tag  -@tag  @k=v  @k=a,b  @k=v*  word  ID
 jn ls @blocked_by=#12                   # #12 is an item of the list (not substring)
 jn ls @by=jarred,claude:*               # any of
-jn ls open                              # named query from .jn
+jn ls --open                            # named filter from .jn
 jn ls --since 3d --md                   # today | yesterday | 3d | 2w | ISO
 jn ls @todo --mine                      # @by = whatever log would stamp right now
 jn todo "@blocked_by=#12,#15 ship it"   # blocked until 12 and 15 are @done; `jn close 15` prints what it freed
@@ -49,16 +49,16 @@ Everything else is convention. These four have behavior:
 
 | tag | set by | read by |
 |---|---|---|
-| `@by=<who>` | every `log`/`todo`, default `$USER`, override via config, `tags_cmd`, `$JN_TAGS`, or text | `--mine` filter |
+| `@by=<who>` | every `log`/`todo`, default `$USER`, override via config, `tags_expr`, `$JN_TAGS`, or text | `--mine` filter |
 | `@todo` | `jn todo` | removed by `close` |
 | `@done` | `jn close` | `@blocked_by` resolution |
 | `@blocked_by=#12,#15,vendor` | you | `--blocked` / `--unblocked` filters, `close` prints what it freed. Non-`#N` items block until edited out |
 
 Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks whatever the tag name. `@re=#N` for comments and `@parent=#N` for subtasks are conventions only.
 
-## Filters
+## Filters and config
 
-`--name` on `ls` runs a Python expression against each entry. Built in:
+`--name` on `ls` looks up a filter. A filter is either a token string (starts with `@` or `-@`) that expands into `ls` arguments, or a Python expression evaluated per entry. Built in:
 
 ```toml
 mine      = "tags.get('by') == me"
@@ -66,34 +66,30 @@ blocked   = "any(i and not (i[0] == '#' and i[1:].isdigit() and 'done' in E.get(
 unblocked = "not F('blocked')"
 ```
 
-Add your own under `[filters]` in `~/.jn` (same names override). `jn ls -h` prints the config files in overlay order plus every query and filter with its source. Namespace: `id created updated content tags`, `me` (the `@by` that `log` would stamp now), `E` (every entry's tags by id), `F(name)` (another filter).
+Config is TOML, layered: builtin, then `~/.jn`, then every `.jn` from `/` down to the current directory, nearer wins. `jn -h` prints the layers in order and every filter with its source.
 
-```toml
-[filters]
-overdue = "'todo' in tags and (tags.get('due') or '9') < __import__('datetime').date.today().isoformat()"
-```
-
-## Config
-
-Both files are TOML and optional.
-
-`./.jn` (found by walking up from cwd, nearest wins):
+Project `.jn` (data only):
 
 ```toml
 tags = ["project=cube-reps"]
 
-[queries]
+[filters]
 open = "@todo -@done"
 ```
 
-`~/.jn` (global, and the only file allowed to hold code: `tags_cmd`, `[filters]`):
+`~/.jn` (the only file that may hold Python):
 
 ```toml
-tags = []
-tags_cmd = 'case "$PWD" in ~/code/*) echo "@workspace=${PWD#$HOME/code/}" | cut -d/ -f1;; esac'
+tags_expr = "'@workspace=' + cwd.split('/')[4] if cwd.startswith('/Users/jarred/code/') else ''"
+
+[filters]
+overdue = "'todo' in tags and (tags.get('due') or '9') < __import__('datetime').date.today().isoformat()"
+claude  = "(tags.get('by') or '').startswith('claude:')"
 ```
 
-`$JN_TAGS` adds tags per shell/session. `$JN_DB` overrides `~/.jn.db`.
+Python namespace: `id created updated content tags`, `me` (the `@by` that `log` would stamp now), `env` (`os.environ`), `cwd`, `E` (every entry's tags by id), `F(name)` (another filter). `tags_expr` sees `env` and `cwd` and returns a string or list of tags.
+
+`$JN_TAGS` adds tags per shell or session. `$JN_DB` overrides `~/.jn.db`.
 
 ## Agents
 

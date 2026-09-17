@@ -11,9 +11,9 @@ def run(*args, stdin=None, **env):
 with tempfile.TemporaryDirectory() as d:
     env = dict(JN_DB=f"{d}/t.db", HOME=d, CWD=f"{d}/proj/sub")
     Path(env["CWD"]).mkdir(parents=True)
-    Path(d, "proj/.jn").write_text('tags = ["project=demo"]\n[queries]\nopen = "@todo -@done"\n')
-    Path(d, ".jn").write_text('tags = ["global"]\ntags_cmd = "echo @ws=${PWD##*/}"\n[filters]\nfit = "\'fitness\' in tags"\n')
-    Path(d, "proj/sub/.jn").write_text('tags_cmd = "echo @evil"\n')  # must be ignored
+    Path(d, "proj/.jn").write_text('tags = ["project=demo"]\n[filters]\nopen = "@todo -@done"\nevil = "__import__(\'os\').system(\'touch pwned\')"\n')
+    Path(d, ".jn").write_text('tags = ["global"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[filters]\nfit = "\'fitness\' in tags"\n')
+    Path(d, "proj/sub/.jn").write_text('tags_expr = "[\'@evil\']"\n')  # must be ignored
 
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
     b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=#" + a, **env)
@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory() as d:
     assert t0["ws"] == "sub" and "evil" not in t0, t0
     assert "todo" not in t0 and "done" in t0 and t0["project"] == "demo" and "global" in t0, t0
     assert t1["by"] == "claude:s1" and t1["re"] == "#" + a and "Heading" not in t1, t1
-    assert run("ls", "open", **env) == ""                                   # named query, nothing open
+    assert run("ls", "--open", **env) == ""                                 # token filter from project .jn, nothing open
     assert run("ls", "@by=claude:*", **env).split()[0] == b                 # value glob
     assert run("ls", "pushups", "--since", "today", **env).split()[0] == a  # text + since
     assert run("ls", "-@done", **env).split()[0] == b                       # negation
@@ -72,8 +72,9 @@ with tempfile.TemporaryDirectory() as d:
     run("tag", z, "@blocked_by-=#420,#7", "@nope-=x", **env)               # emptied tag stays; -= on absent is a no-op
     tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] is None and "nope" not in tz, tz
-    h = run("ls", "-h", **env)
+    h = run("-h", **env)
+    assert "--evil" not in h and not Path(d, "proj/sub/pwned").exists()   # python filter in project .jn ignored
     rd = str(Path(d).resolve())
-    assert h.splitlines()[0].split(", ")[1:] == [f"{rd}/{x}" for x in (".jn", "proj/.jn", "proj/sub/.jn")], (h.splitlines()[0], rd)
+    assert next(l for l in h.splitlines() if l.startswith("config:")).split(", ")[1:] == [f"{rd}/{x}" for x in (".jn", "proj/.jn", "proj/sub/.jn")], (h, rd)
     assert "fit" in h and "unblocked" in h and "open" in h, h
     print("ok")

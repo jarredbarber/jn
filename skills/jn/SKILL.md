@@ -12,7 +12,7 @@ Always tag entries you write with `@by=<agent>:<tool>`, e.g. `@by=claude:claude-
 ## Commands
 
 ```bash
-jn ls open                      # open tasks in this project (do this at session start)
+jn ls --open                    # open tasks in this project (do this at session start)
 jn todo "write tests for X @by=claude:claude-code"   # -> prints id
 jn close 42                     # mark task 42 finished
 jn tag 42 @blocked_by+=#7 -@urgent   # += / -= edit list items, -@ drops the tag
@@ -47,7 +47,7 @@ EOF
 | `@by=jarred,claude:*` | any of, `*` is a wildcard |
 | `pushups` | content contains word |
 | `42` | entry id |
-| `open` | named query from `.jn` |
+| `--open` | named filter from `.jn`; `jn -h` lists them |
 
 Options: `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--mine`, `--blocked`, `--unblocked`, `--json`, `--md`.
 
