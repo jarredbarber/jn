@@ -9,7 +9,9 @@
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
   jn history [ID]            prior versions (tags + content, oldest first), then current
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v  @k=a,b (any of)  @k=v*  word  ID  --name
-                             opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
+                             opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md  --all
+                             the "default" filter (builtin -@done -@archived) is added unless --all, an ID,
+                             or one of its tags appears in your filters
   jn -h                      this text, then config files in overlay order, every action and --filter with source
 
 tags: @name, optional =value where value is a comma list (@blocked_by=#12,#15). @k=v filters on "v is an item of k".
@@ -47,6 +49,7 @@ ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's arg
     "close": ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"],
 }
 FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
+    "default": "-@done -@archived",
     "mine": "tag('by') == default('by')",
     "blocked": "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])",
     "unblocked": "not F('blocked')",
@@ -322,7 +325,10 @@ def main(argv):
             print(entry_text(eid), end="")
             print(backlinks(eid), end="", file=sys.stderr)  # ponytail: stderr keeps stdout round-trippable
     elif cmd == "ls":
-        tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md")])
+        tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md", "all")])
+        if "all" not in opts and not any(t.isdigit() for t in pos):
+            mentioned = {m[1] for m in TAG.findall(" ".join(pos + tokens))}
+            tokens += [t for t in config()["filters"]["default"].split() if TAG.fullmatch(t)[2] not in mentioned]
         rows = apply_filters(query(pos + tokens, opts.get("since")), py)
         if "last" in opts:
             rows = rows[-int(opts["last"]):]

@@ -10,7 +10,9 @@ jn log <<'EOF'
 # multi-line via stdin
 - decided X over Y
 EOF
-jn ls @todo -@done                      # filters: @tag  -@tag  @k=v  @k=a,b  @k=v*  word  ID
+jn ls                                   # everything not @done/@archived (the "default" filter)
+jn ls @todo                             # filters: @tag  -@tag  @k=v  @k=a,b  @k=v*  word  ID
+jn ls @done --since 1w                  # mentioning a default-filter tag lifts it; --all lifts all
 jn ls @blocked_by=#12                   # #12 is an item of the list (not substring)
 jn ls @by=jarred,claude:*               # any of
 jn ls --open                            # named filter from .jn
@@ -62,9 +64,10 @@ Any `.jn` may add or override them under `[actions]`. If `log`'s arguments are t
 
 ## Filters and config
 
-`--name` on `ls` looks up a filter. A filter is either a token string (starts with `@` or `-@`) that expands into `ls` arguments, or a Python expression evaluated per entry. Built in:
+`--name` on `ls` looks up a filter. The one named `default` is applied to every `ls` unless you pass `--all`, an explicit id, or mention one of its tags yourself, so `jn ls @done` just works. A filter is either a token string (starts with `@` or `-@`) that expands into `ls` arguments, or a Python expression evaluated per entry. Built in:
 
 ```toml
+default   = "-@done -@archived"
 mine      = "tag('by') == default('by')"
 blocked   = "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])"
 unblocked = "not F('blocked')"

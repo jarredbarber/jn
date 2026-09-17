@@ -19,7 +19,7 @@ with tempfile.TemporaryDirectory() as d:
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
     b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=#" + a, **env)
     run("close", a, **env)
-    rows = json.loads(run("ls", "--json", **env))
+    rows = json.loads(run("ls", "--json", "--all", **env))
     assert rows[0]["content"] == "do 10 pushups" and rows[1]["content"] == "# Heading\nwalked", rows
     t0, t1 = rows[0]["tags"], rows[1]["tags"]
     assert t0["ws"] == "sub" and "evil" not in t0, t0
@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory() as d:
     assert t1["by"] == "claude:s1" and t1["re"] == "#" + a and "Heading" not in t1, t1
     assert run("ls", "--open", **env) == ""                                 # token filter from project .jn, nothing open
     assert ids(run("ls", "@by=claude:*", **env))[0] == b                 # value glob
-    assert ids(run("ls", "pushups", "--since", "today", **env))[0] == a  # text + since
+    assert ids(run("ls", "pushups", "--since", "today", "--all", **env))[0] == a  # text + since
     assert ids(run("ls", "-@done", **env))[0] == b                       # negation
     assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
     bl = subprocess.run([sys.executable, JN, "show", a], capture_output=True, text=True, env={**os.environ, **env}, cwd=env["CWD"]).stderr
@@ -50,10 +50,11 @@ with tempfile.TemporaryDirectory() as d:
     tc = json.loads(run("ls", c, "--json", **env))[0]["tags"]
     assert tc["due"] == (datetime.date.today() + datetime.timedelta(days=1)).isoformat(), tc
     assert ids(run("ls", "@due=" + tc["due"], **env))[0] == c and ids(run("ls", "@due=tomorrow", **env))[0] == c
-    assert len(ids(run("ls", "--since", "1d", **env))) == 3                # bare N is past for --since
+    assert len(ids(run("ls", "--since", "1d", "--all", **env))) == 3                # bare N is past for --since
     pr = run("log", "see #1 and #2", **env)
     assert json.loads(run("ls", pr, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
-    assert b not in ids(run("ls", "--mine", **env)) and a in ids(run("ls", "--mine", **env))
+    assert b not in ids(run("ls", "--mine", **env)) and a in ids(run("ls", "--mine", "--all", **env))
+    assert a not in ids(run("ls", **env)) and a in ids(run("ls", "@done", **env)) and ids(run("ls", a, **env)) == [a]   # default filter
     assert ids(run("ls", "--mine", JN_TAGS="@by=claude:s1", **env)) == [b]
     x = run("todo", "@blocked_by=#" + a + ",#" + c + " ship it", **env)      # a done, c open
     y = run("todo", "@blocked_by=#" + a + ",vendor manual block", **env)
@@ -65,7 +66,7 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "@blocked_by=#" + a, **env)) == [x, y]             # item match, not substring
     assert ids(run("ls", "@blocked_by=#420,vendor", **env)) == [y, z]       # any-of
     assert ids(run("ls", "@blocked_by=#4*", **env)) == [z]                  # glob per item
-    assert ids(run("ls", "--fit", **env)) == [a]                            # custom filter from ~/.jn
+    assert ids(run("ls", "--fit", "--all", **env)) == [a]                            # custom filter from ~/.jn
     run("tag", z, "@blocked_by+=#7,#420", "@seen+=x", **env)               # append dedup, create on +=
     tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] == "#420,#7" and tz["seen"] == "x", tz

@@ -49,7 +49,7 @@ EOF
 | `42` | entry id |
 | `--open` | named filter from `.jn`; `jn -h` lists them |
 
-Options: `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--mine`, `--blocked`, `--unblocked`, `--json`, `--md`.
+Options: `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--mine`, `--blocked`, `--unblocked`, `--json`, `--md`, `--all`. Done and archived entries are hidden unless you pass `--all`, an id, or `@done`/`@archived` explicitly.
 
 ```bash
 jn ls @todo -@done @by=claude:*          # open tasks created by any claude agent
