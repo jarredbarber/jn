@@ -35,7 +35,9 @@ with tempfile.TemporaryDirectory() as d:
     run("edit", b, "ran instead @by=claude:s1 @new", **env)   # args = whole entry: tags not mentioned are gone
     t1 = json.loads(run("ls", b, "--json", **env))[0]["tags"]
     assert t1 == {"by": "claude:s1", "new": None}, t1
+    run("edit", b, stdin=run("show", b, **env), **env)         # no-op edit adds no history
     h = run("history", b, **env)
+    assert "v4" not in h, h
     assert h.index("walked") < h.index("ran instead") and "v3" in h, h
     c = run("todo", "@due=tomorrow call dentist", **env)
     tc = json.loads(run("ls", c, "--json", **env))[0]["tags"]

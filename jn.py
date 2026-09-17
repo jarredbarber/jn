@@ -114,8 +114,9 @@ def edit(eid, args):
     new = get_text(args, entry_text(eid))
     tags, content = parse_tags(new)[0], strip_tags(new) or sys.exit("empty entry")
     with db() as c:  # ponytail: content only in history; tag flips leave no trace beyond `updated`
-        c.execute("INSERT INTO history SELECT id, updated, content FROM entry WHERE id=?", (eid,))
-        c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (content, now(), eid))
+        if c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone()[0] != content:
+            c.execute("INSERT INTO history SELECT id, updated, content FROM entry WHERE id=?", (eid,))
+            c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (content, now(), eid))
         c.execute("DELETE FROM tagged WHERE entry=?", (eid,))
         c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])
 
