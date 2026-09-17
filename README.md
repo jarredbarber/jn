@@ -1,6 +1,6 @@
 # jn
 
-Microjournal + task log for humans and agents. One Python file, stdlib only, sqlite underneath.
+Microjournal + task log for humans and agents. One Python file, stdlib only.
 
 ```bash
 jn todo "do 10 pushups @fitness"        # -> 1
@@ -24,7 +24,6 @@ Python 3.11+.
 
 ```bash
 ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
-alias kk=jn                             # optional
 ```
 
 ## Model
@@ -67,4 +66,4 @@ ln -s ~/code/jn/skills/jn ~/.claude/skills/jn
 
 ## Not included
 
-`rm` (use `sqlite3 ~/.jn.db`), tag rename, date comparison on values, sync. All scriptable via `--json`.
+`rm`, tag rename, date comparison on values, sync. All scriptable via `--json`.

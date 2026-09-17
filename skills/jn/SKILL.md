@@ -30,6 +30,30 @@ Finished auth refactor @by=claude:claude-code @re=42
 EOF
 ```
 
+## Querying
+
+`jn ls` takes any mix of filters, all ANDed:
+
+| filter | meaning |
+|---|---|
+| `@todo` | has tag |
+| `-@done` | lacks tag |
+| `@by=claude:*` | tag value glob (`*` wildcard) |
+| `pushups` | content contains word |
+| `42` | entry id |
+| `open` | named query from `.jn` |
+
+Options: `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--json`, `--md`.
+
+```bash
+jn ls @todo -@done @by=claude:*          # open tasks created by any claude agent
+jn ls @re=42                             # everything linking to entry 42
+jn ls --since yesterday --json           # machine-readable, tags as {name: value}
+jn history 42                            # prior content versions after edits
+```
+
+Useful tags: `@todo`/`@done` for tasks, `@re=ID` to link to another entry, `@due=YYYY-MM-DD`, `@blocked`. Invent others freely; tags are just names.
+
 ## When to write
 
 - After completing a task the user asked for: `jn done ID`, then a one-line `jn log` of what changed.
