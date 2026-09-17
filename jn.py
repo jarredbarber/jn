@@ -6,6 +6,7 @@
   jn edit [ID]               replace the whole entry with the document from stdin or $EDITOR (seeded with show)
   jn show [ID]               tags line, blank, content, then "<- #N @tag" backlinks. pipeable into edit
   jn history [ID]            prior versions, then current
+  jn revert [ID] [N]         restore version N from history (default: the one before current). versioned itself
   jn ls [filters] [opts]     filters: @tag -@tag @k=v @k=a,b @k=v* word ID --name
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md  --all
   jn <action> ...            todo, close, ... (see below)
@@ -175,15 +176,22 @@ def tag(eid, args):
             c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])))
 
 
-def edit(eid):
+def edit(eid, text=None):
     """document: the buffer (stdin or $EDITOR) is the whole entry, tags line included. show output round-trips"""
-    text = read_body(entry_text(eid))
+    text = read_body(entry_text(eid)) if text is None else text
     tags, content = parse_tags(text)[0], strip_tags(text) or sys.exit("empty entry")
     with db() as c:
         versioned(c, eid, lambda: (
             c.execute("UPDATE entry SET content=? WHERE id=?", (content, eid)),
             c.execute("DELETE FROM tagged WHERE entry=?", (eid,)),
             c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])))
+
+
+def revert(eid, n=None):
+    versions = [r[0] for r in db().execute("SELECT content FROM history WHERE entry=? ORDER BY rowid", (eid,))]
+    if not versions:
+        sys.exit(f"no history for {eid}")
+    edit(eid, versions[(n or len(versions)) - 1] if 0 < (n or 1) <= len(versions) else sys.exit(f"versions: 1..{len(versions)}"))
 
 
 def last():
@@ -307,10 +315,12 @@ def main(argv):
         print(add_entry(pos))
     elif cmd == "tag":
         tag(int(pos[0]), pos[1:])
-    elif cmd in ("edit", "show", "history"):
+    elif cmd in ("edit", "show", "history", "revert"):
         eid = int(pos.pop(0)) if pos and pos[0].isdigit() else last()
         if cmd == "edit":
             edit(eid) if not pos else sys.exit("edit takes the whole entry from stdin or $EDITOR; use `jn tag` for one-liners")
+        elif cmd == "revert":
+            revert(eid, int(pos[0].lstrip("v")) if pos else None)
         elif cmd == "history":
             history(eid)
         else:

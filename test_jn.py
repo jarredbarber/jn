@@ -84,4 +84,8 @@ with tempfile.TemporaryDirectory() as d:
     e = json.loads(run("ls", n, "--json", **env))[0]
     assert e["content"] == "body from stdin" and e["tags"]["note"] is None and e["tags"]["k"] == "v", e
     assert "  note           log @note $@" in h, h
+    run("revert", b, **env)                                                  # back to previous version
+    assert run("show", b, **env).startswith("@by=claude:s2 @re=#" + a + "\n\nran instead"), run("show", b, **env)
+    run("revert", b, "v1", **env)
+    assert "walked" in run("show", b, **env) and "v6" in run("history", b, **env)   # reverts are versioned
     print("ok")

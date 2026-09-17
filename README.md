@@ -25,6 +25,7 @@ jn show                                 # last entry: tags line, blank, content,
 jn tag 1 @due=tomorrow -@fitness        # patch tags; nothing else changes
 jn edit                                 # document: $EDITOR seeded with show, or stdin; replaces the whole entry
 jn history 1                            # every prior version, tags included
+jn revert 1                             # back one version (or `jn revert 1 v2`); itself versioned
 ```
 
 ## Install
