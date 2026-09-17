@@ -66,7 +66,7 @@ blocked   = "any(i and not (i[0] == '#' and i[1:].isdigit() and 'done' in E.get(
 unblocked = "not F('blocked')"
 ```
 
-Add your own under `[filters]` in `~/.jn` (same names override). Namespace: `id created updated content tags`, `me` (the `@by` that `log` would stamp now), `E` (every entry's tags by id), `F(name)` (another filter).
+Add your own under `[filters]` in `~/.jn` (same names override). `jn ls -h` prints the config files in overlay order plus every query and filter with its source. Namespace: `id created updated content tags`, `me` (the `@by` that `log` would stamp now), `E` (every entry's tags by id), `F(name)` (another filter).
 
 ```toml
 [filters]

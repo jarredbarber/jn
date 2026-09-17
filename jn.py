@@ -8,6 +8,7 @@
   jn show [ID]               tags line + blank + content; round-trips through edit. backlinks on stderr. default: last
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
   jn history [ID]            prior versions (tags + content, oldest first), then current
+  jn ls -h                   show config files in overlay order, named queries and filters
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v  @k=a,b (any of)  @k=v*  word  ID  <query-name>
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --mine  --blocked  --unblocked  --json  --md
                              blocked = any item of @blocked_by=#42,#53,vendor is not a @done entry
@@ -57,14 +58,18 @@ def now():
 
 def config():
     """~/.jn, then root/.jn ... ./.jn; nearer wins."""
-    cfg = {"tags": [], "queries": {}, "filters": {}}
-    for f in [Path.home() / ".jn", *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]:
+    cfg = {"tags": [], "queries": {}, "filters": dict(FILTERS), "files": ["builtin"], "src": {n: "builtin" for n in FILTERS}}
+    home = (Path.home() / ".jn").resolve()
+    for f in dict.fromkeys(p.resolve() for p in [home, *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]):
         if f.is_file():
             c = tomllib.loads(f.read_text())
+            cfg["files"].append(str(f))
             cfg["tags"] += c.get("tags", [])
             cfg["queries"].update(c.get("queries", {}))
-            if f.parent == Path.home():  # only ~/.jn may run code; project .jn is data
+            cfg["src"].update({n: str(f) for n in c.get("queries", {})})
+            if f == home:  # only ~/.jn may run code; project .jn is data
                 cfg["filters"].update(c.get("filters", {}))
+                cfg["src"].update({n: str(f) for n in c.get("filters", {})})
                 if "tags_cmd" in c:
                     cfg["tags"] += subprocess.run(c["tags_cmd"], shell=True, capture_output=True, text=True).stdout.split()
     return cfg
@@ -178,7 +183,7 @@ def history(eid):
 
 
 def apply_filters(rows, names):
-    filters = FILTERS | config()["filters"]
+    filters = config()["filters"]
     E = {}
     for eid, n, v in db().execute("SELECT entry,name,value FROM tagged"):
         E.setdefault(eid, {})[n] = v
@@ -274,6 +279,13 @@ def main(argv):
         else:
             print(entry_text(eid), end="")
             print(backlinks(eid), end="", file=sys.stderr)  # ponytail: stderr keeps stdout round-trippable
+    elif cmd == "ls" and ("-h" in pos or "help" in opts):
+        cfg = config()
+        print("config:", ", ".join(cfg["files"]))
+        for kind in ("queries", "filters"):
+            print(f"{kind}:")
+            for n, v in cfg[kind].items():
+                print(f"  {n:<12} {v}   # {cfg['src'][n]}")
     elif cmd == "ls":
         rows = apply_filters(query(pos, opts.get("since")), [k for k in opts if k not in ("since", "last", "json", "md")])
         if "last" in opts:

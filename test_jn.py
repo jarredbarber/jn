@@ -50,8 +50,8 @@ with tempfile.TemporaryDirectory() as d:
     assert tc["due"] == (datetime.date.today() + datetime.timedelta(days=1)).isoformat(), tc
     assert run("ls", "@due=" + tc["due"], **env).split()[0] == c and run("ls", "@due=tomorrow", **env).split()[0] == c
     assert run("ls", "--since", "1d", **env).count("\n") == 2                # bare N is past for --since
-    d = run("log", "see #1 and #2", **env)
-    assert json.loads(run("ls", d, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
+    pr = run("log", "see #1 and #2", **env)
+    assert json.loads(run("ls", pr, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
     ids = lambda out: [l.split()[0] for l in out.splitlines()]
     assert b not in ids(run("ls", "--mine", **env)) and a in ids(run("ls", "--mine", **env))
     assert ids(run("ls", "--mine", JN_TAGS="@by=claude:s1", **env)) == [b]
@@ -72,4 +72,8 @@ with tempfile.TemporaryDirectory() as d:
     run("tag", z, "@blocked_by-=#420,#7", "@nope-=x", **env)               # emptied tag stays; -= on absent is a no-op
     tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] is None and "nope" not in tz, tz
+    h = run("ls", "-h", **env)
+    rd = str(Path(d).resolve())
+    assert h.splitlines()[0].split(", ")[1:] == [f"{rd}/{x}" for x in (".jn", "proj/.jn", "proj/sub/.jn")], (h.splitlines()[0], rd)
+    assert "fit" in h and "unblocked" in h and "open" in h, h
     print("ok")
