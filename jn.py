@@ -5,6 +5,7 @@
   jn todo [text...]          same, plus @todo
   jn done ID                 @done -@todo
   jn tag ID @a -@b @k=v      add/remove tags
+  jn edit ID [text...]       replace content ($EDITOR seeded with old); tags in text re-synced
   jn show ID                 full entry
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
@@ -55,12 +56,13 @@ def parse_tags(text):
     return add, rm
 
 
-def get_text(args):
+def get_text(args, seed=""):
     if args:
         return " ".join(args)
     if not sys.stdin.isatty():
         return sys.stdin.read().strip()
     with tempfile.NamedTemporaryFile("w+", suffix=".md") as f:
+        f.write(seed); f.flush()
         subprocess.run([*os.environ.get("EDITOR", "vi").split(), f.name])
         return Path(f.name).read_text().strip()
 
@@ -85,6 +87,15 @@ def retag(eid, text):
         c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()])
         c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])
         c.execute("UPDATE entry SET updated=? WHERE id=?", (now(), eid))
+
+
+def edit(eid, args):
+    with db() as c:
+        old = c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
+        new = get_text(args, old[0]) or sys.exit("empty entry")
+        c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (new, now(), eid))
+    # tags typed in old content but gone from new are dropped; tags set via `jn tag` survive
+    retag(eid, new + " " + " ".join("-@" + k for k in parse_tags(old[0])[0].keys() - parse_tags(new)[0].keys()))
 
 
 def since(s):
@@ -154,6 +165,8 @@ def main(argv):
         retag(int(pos[0]), "@done -@todo")
     elif cmd == "tag":
         retag(int(pos[0]), " ".join(pos[1:]))
+    elif cmd == "edit":
+        edit(int(pos[0]), pos[1:])
     elif cmd == "show":
         show(query(pos[:1]), "md")
     elif cmd == "ls":

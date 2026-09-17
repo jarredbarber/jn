@@ -25,4 +25,7 @@ with tempfile.TemporaryDirectory() as d:
     assert run("ls", "@by=claude:*", **env).split()[0] == b                 # value glob
     assert run("ls", "pushups", "--since", "today", **env).split()[0] == a  # text + since
     assert run("ls", "-@done", **env).split()[0] == b                       # negation
+    run("edit", b, "ran instead @by=claude:s1 @new", **env)   # drops @re (gone from text), keeps @global (from config)
+    t1 = json.loads(run("ls", b, "--json", **env))[0]["tags"]
+    assert "re" not in t1 and "new" in t1 and "global" in t1 and t1["by"] == "claude:s1", t1
     print("ok")
