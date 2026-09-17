@@ -12,13 +12,15 @@ with tempfile.TemporaryDirectory() as d:
     env = dict(JN_DB=f"{d}/t.db", HOME=d, CWD=f"{d}/proj/sub")
     Path(env["CWD"]).mkdir(parents=True)
     Path(d, "proj/.jn").write_text('tags = ["project=demo"]\n[queries]\nopen = "@todo -@done"\n')
-    Path(d, ".jn").write_text('tags = ["global"]\n')
+    Path(d, ".jn").write_text('tags = ["global"]\ntags_cmd = "echo @ws=${PWD##*/}"\n')
+    Path(d, "proj/sub/.jn").write_text('tags_cmd = "echo @evil"\n')  # must be ignored
 
     a = run("todo", "do 10 pushups", "#fitness", **env)
     b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=" + a, **env)
     run("done", a, **env)
     rows = json.loads(run("ls", "--json", **env))
     t0, t1 = rows[0]["tags"], rows[1]["tags"]
+    assert t0["ws"] == "sub" and "evil" not in t0, t0
     assert "todo" not in t0 and "done" in t0 and t0["project"] == "demo" and "global" in t0, t0
     assert t1["by"] == "claude:s1" and t1["re"] == a and "Heading" not in t1, t1
     assert run("ls", "open", **env) == ""                                   # named query, nothing open

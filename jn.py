@@ -12,6 +12,7 @@
 
 tags: @name or #name, optional =value. Defaults come from ~/.jn and nearest ./.jn (TOML:
   tags = ["project=x"]  [queries] open = "@todo -@done") plus $JN_TAGS. @by defaults to $USER.
+  ~/.jn only: tags_cmd = "shell snippet" whose stdout is extra tags (e.g. derive @workspace from $PWD).
 db: $JN_DB or ~/.jn.db
 """
 import getpass, json, os, re, sqlite3, subprocess, sys, tempfile, tomllib
@@ -46,6 +47,8 @@ def config():
             c = tomllib.loads(f.read_text())
             cfg["tags"] += c.get("tags", [])
             cfg["queries"].update(c.get("queries", {}))
+            if f.parent == Path.home() and "tags_cmd" in c:  # only ~/.jn may run code; project .jn is data
+                cfg["tags"] += subprocess.run(c["tags_cmd"], shell=True, capture_output=True, text=True).stdout.split()
     return cfg
 
 
