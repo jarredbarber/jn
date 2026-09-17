@@ -5,9 +5,9 @@
   jn todo [text...]          same, plus @todo
   jn done ID                 @done -@todo
   jn tag ID @a -@b @k=v      add/remove tags
-  jn edit ID [text...]       replace content ($EDITOR seeded with old); tags in text re-synced
-  jn show ID                 full entry
-  jn history ID              prior versions of content (oldest first), then current
+  jn show [ID]               tags line + blank + content; round-trips through edit. default: last
+  jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
+  jn history [ID]            prior versions of content (oldest first), then current
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
 
@@ -65,7 +65,7 @@ def parse_tags(text):
 
 def strip_tags(text):
     """drop leading/trailing tag runs; tags mid-sentence stay as prose"""
-    return TRAIL.sub("", LEAD.sub("", text))
+    return TRAIL.sub("", LEAD.sub("", text)).strip()
 
 
 def get_text(args, seed=""):
@@ -102,16 +102,25 @@ def retag(eid, text):
         c.execute("UPDATE entry SET updated=? WHERE id=?", (now(), eid))
 
 
+def entry_text(eid):
+    """what `show` prints and `edit` seeds; parse_tags + strip_tags recover the entry exactly"""
+    c = db()
+    row = c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
+    return f"{fmt_tags(dict(c.execute('SELECT name,value FROM tagged WHERE entry=?', (eid,))))}\n\n{row[0]}\n"
+
+
 def edit(eid, args):
-    with db() as c:
-        old = c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
-        new = get_text(args, old[0]) or sys.exit("empty entry")
-        # ponytail: content only; tag flips are not versioned, `updated` says something changed
+    new = get_text(args, entry_text(eid))
+    tags, content = parse_tags(new)[0], strip_tags(new) or sys.exit("empty entry")
+    with db() as c:  # ponytail: content only in history; tag flips leave no trace beyond `updated`
         c.execute("INSERT INTO history SELECT id, updated, content FROM entry WHERE id=?", (eid,))
-        c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (strip_tags(new) or sys.exit("empty entry"), now(), eid))
-    # only the diff of text tags is applied, so state set via `jn tag`/`done` survives a typo fix
-    a, b = parse_tags(old[0])[0], parse_tags(new)[0]
-    retag(eid, " ".join([f"@{k}={v}" if v else f"@{k}" for k, v in b.items() if a.get(k, 0) != v] + [f"-@{k}" for k in a.keys() - b.keys()]))
+        c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (content, now(), eid))
+        c.execute("DELETE FROM tagged WHERE entry=?", (eid,))
+        c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])
+
+
+def last():
+    return (db().execute("SELECT max(id) FROM entry").fetchone()[0]) or sys.exit("no entries")
 
 
 def history(eid):
@@ -189,12 +198,9 @@ def main(argv):
         retag(int(pos[0]), "@done -@todo")
     elif cmd == "tag":
         retag(int(pos[0]), " ".join(pos[1:]))
-    elif cmd == "edit":
-        edit(int(pos[0]), pos[1:])
-    elif cmd == "history":
-        history(int(pos[0]))
-    elif cmd == "show":
-        show(query(pos[:1]), "md")
+    elif cmd in ("edit", "show", "history"):
+        eid = int(pos.pop(0)) if pos and pos[0].isdigit() else last()
+        {"edit": lambda: edit(eid, pos), "show": lambda: print(entry_text(eid), end=""), "history": lambda: history(eid)}[cmd]()
     elif cmd == "ls":
         rows = query(pos, opts.get("since"))
         if "last" in opts:

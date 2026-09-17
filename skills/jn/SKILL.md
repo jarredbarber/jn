@@ -17,7 +17,11 @@ jn todo "write tests for X @by=claude:claude-code"   # -> prints id
 jn done 42                      # mark task 42 finished
 jn log "milestone: parser works, 3 edge cases left @by=claude:claude-code @re=42"
 jn ls --since today             # what happened today
-jn show 42                      # full entry
+jn show 42                      # full entry (tags line, blank line, content). no id = last entry
+jn edit 42 <<'EOF'              # replaces the WHOLE entry, tags included; to change tags only use `jn tag`
+@todo @by=claude:claude-code @re=7
+rewritten text
+EOF
 ```
 
 Multi-line entries via stdin:

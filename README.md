@@ -14,7 +14,8 @@ jn ls @todo -@done                      # filters: @tag  -@tag  @k=v*  word  ID
 jn ls open                              # named query from .jn
 jn ls --since 3d --md                   # today | yesterday | 3d | 2w | ISO
 jn ls --json | jq ...
-jn edit 1                               # $EDITOR seeded with old content
+jn show                                 # last entry: tags line, blank, content
+jn edit                                 # $EDITOR seeded with show output; replaces whole entry
 jn history 1                            # every prior content version
 ```
 
@@ -31,7 +32,7 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 - Entry: `id, created, updated, content`.
 - Tags: `@name` or `@name=value`, `#` works too. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
 - `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.
-- `edit` keeps prior content in a `history` table. Tag changes are not versioned.
+- `show` output round-trips through `edit`. `edit` replaces tags and content; use `tag` to change tags alone. Prior content lands in `history`. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.
 
 ## Config

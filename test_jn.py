@@ -28,12 +28,13 @@ with tempfile.TemporaryDirectory() as d:
     assert run("ls", "@by=claude:*", **env).split()[0] == b                 # value glob
     assert run("ls", "pushups", "--since", "today", **env).split()[0] == a  # text + since
     assert run("ls", "-@done", **env).split()[0] == b                       # negation
-    run("edit", b, "ran instead @by=claude:s1 @new", **env)   # @re was stripped state, survives; @new added
+    assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
+    run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # round-trip edit keeps tags
+    e = json.loads(run("ls", b, "--json", **env))[0]
+    assert e["content"] == "# Heading\nran" and e["tags"]["re"] == a and "new" in e["tags"] and e["tags"]["by"] == "claude:s1", e
+    run("edit", b, "ran instead @by=claude:s1 @new", **env)   # args = whole entry: tags not mentioned are gone
     t1 = json.loads(run("ls", b, "--json", **env))[0]["tags"]
-    assert t1["re"] == a and "new" in t1 and "global" in t1 and t1["by"] == "claude:s1", t1
-    run("edit", a, "do 11 pushups #fitness", **env)             # typo fix must not reopen a done task
-    ta = json.loads(run("ls", a, "--json", **env))[0]["tags"]
-    assert "todo" not in ta and "done" in ta, ta
+    assert t1 == {"by": "claude:s1", "new": None}, t1
     h = run("history", b, **env)
-    assert h.index("walked") < h.index("ran instead") and "v2" in h, h
+    assert h.index("walked") < h.index("ran instead") and "v3" in h, h
     print("ok")
