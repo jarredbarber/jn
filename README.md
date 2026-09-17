@@ -31,6 +31,7 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 
 - Entry: `id, created, updated, content`.
 - Tags: `@name` or `@name=value`, `#` works too. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
+- Date words in values resolve when written: `@due=tomorrow`, `@due=2w`, `@due=-3d`, `@due=today`. Stored as ISO, so `@due=tomorrow` still means the same day next week.
 - `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.
 - `show` output round-trips through `edit`. `edit` replaces tags and content; use `tag` to change tags alone. Prior content lands in `history`. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.

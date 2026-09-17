@@ -56,7 +56,7 @@ jn ls --since yesterday --json           # machine-readable, tags as {name: valu
 jn history 42                            # prior content versions after edits
 ```
 
-Useful tags: `@todo`/`@done` for tasks, `@re=ID` to link to another entry, `@due=YYYY-MM-DD`, `@blocked`. Invent others freely; tags are just names.
+Useful tags: `@todo`/`@done` for tasks, `@re=ID` to link to another entry, `@due=tomorrow` / `@due=3d` / `@due=2026-10-01` (date words resolve to ISO when written), `@blocked`. Invent others freely; tags are just names.
 
 ## When to write
 

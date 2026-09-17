@@ -11,13 +11,14 @@
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
 
-tags: @name or #name, optional =value. Leading/trailing tags are stripped from content. Defaults come from ~/.jn and nearest ./.jn (TOML:
+tags: @name or #name, optional =value. Leading/trailing tags are stripped from content.
+  Values today|tomorrow|yesterday|[+-]N[hdw] become ISO dates at write time (@due=tomorrow, @due=2w). Defaults come from ~/.jn and nearest ./.jn (TOML:
   tags = ["project=x"]  [queries] open = "@todo -@done") plus $JN_TAGS. @by defaults to $USER.
   ~/.jn only: tags_cmd = "shell snippet" whose stdout is extra tags (e.g. derive @workspace from $PWD).
 db: $JN_DB or ~/.jn.db
 """
 import getpass, json, os, re, sqlite3, subprocess, sys, tempfile, tomllib
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 DB = Path(os.environ.get("JN_DB", Path.home() / ".jn.db"))
@@ -59,7 +60,7 @@ def config():
 def parse_tags(text):
     add, rm = {}, set()
     for neg, name, val in TAG.findall(text):
-        (rm.add if neg else lambda n: add.__setitem__(n, val or None))(name)
+        (rm.add if neg else lambda n: add.__setitem__(n, dateword(val) if val else None))(name)
     return add, rm
 
 
@@ -131,13 +132,16 @@ def history(eid):
         print(f"## {eid} v{n} · {at}\n\n{content}\n")
 
 
-def since(s):
-    if s in ("today", "yesterday"):
-        return (datetime.now().date() - timedelta(days=s == "yesterday")).isoformat()
-    if m := re.fullmatch(r"(\d+)([hdw])", s):
-        unit = {"h": "hours", "d": "days", "w": "weeks"}[m[2]]
-        return (datetime.now() - timedelta(**{unit: int(m[1])})).isoformat(timespec="seconds")
-    return s  # assume ISO
+def dateword(s, future=True):
+    """today|tomorrow|yesterday|[+-]N[hdw] -> ISO; anything else passes through. bare N is future for tag values, past for --since"""
+    words = {"today": 0, "tomorrow": 1, "yesterday": -1}
+    if s in words:
+        return (date.today() + timedelta(days=words[s])).isoformat()
+    if m := re.fullmatch(r"([+-]?)(\d+)([hdw])", s):
+        n = int(m[2]) * (-1 if m[1] == "-" or (not m[1] and not future) else 1)
+        delta = timedelta(**{{"h": "hours", "d": "days", "w": "weeks"}[m[3]]: n})
+        return (datetime.now() + delta).isoformat(timespec="seconds") if m[3] == "h" else (date.today() + delta).isoformat()
+    return s
 
 
 def query(tokens, since_=None):
@@ -156,7 +160,7 @@ def query(tokens, since_=None):
         else:
             where.append("content LIKE ?"); params.append(f"%{w}%")
     if since_:
-        where.append("created>=?"); params.append(since(since_))
+        where.append("created>=?"); params.append(dateword(since_, future=False))
     sql = "SELECT id,created,updated,content FROM entry" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id"
     c = db()
     rows = [dict(zip(COLS, r)) for r in c.execute(sql, params)]

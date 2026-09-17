@@ -1,5 +1,5 @@
 """Smallest check that fails if tag parsing / querying / config discovery breaks. Run: python3 test_jn.py"""
-import json, os, subprocess, sys, tempfile
+import datetime, json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 JN = Path(__file__).with_name("jn.py")
@@ -37,4 +37,9 @@ with tempfile.TemporaryDirectory() as d:
     assert t1 == {"by": "claude:s1", "new": None}, t1
     h = run("history", b, **env)
     assert h.index("walked") < h.index("ran instead") and "v3" in h, h
+    c = run("todo", "@due=tomorrow call dentist", **env)
+    tc = json.loads(run("ls", c, "--json", **env))[0]["tags"]
+    assert tc["due"] == (datetime.date.today() + datetime.timedelta(days=1)).isoformat(), tc
+    assert run("ls", "@due=" + tc["due"], **env).split()[0] == c and run("ls", "@due=tomorrow", **env).split()[0] == c
+    assert run("ls", "--since", "1d", **env).count("\n") == 2                # bare N is past for --since
     print("ok")
