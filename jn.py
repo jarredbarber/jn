@@ -11,7 +11,7 @@
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
 
-tags: @name or #name, optional =value. Defaults come from ~/.jn and nearest ./.jn (TOML:
+tags: @name or #name, optional =value. Leading/trailing tags are stripped from content. Defaults come from ~/.jn and nearest ./.jn (TOML:
   tags = ["project=x"]  [queries] open = "@todo -@done") plus $JN_TAGS. @by defaults to $USER.
   ~/.jn only: tags_cmd = "shell snippet" whose stdout is extra tags (e.g. derive @workspace from $PWD).
 db: $JN_DB or ~/.jn.db
@@ -23,6 +23,8 @@ from pathlib import Path
 DB = Path(os.environ.get("JN_DB", Path.home() / ".jn.db"))
 # sigil must follow start/whitespace and touch a word char, so "# Heading" is not a tag
 TAG = re.compile(r"(?:^|(?<=\s))(-?)[@#]([\w-]+)(?:=(\S+))?")
+TOK = r"-?[@#][\w-]+(?:=\S+)?"
+LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
 COLS = ("id", "created", "updated", "content")
 
 
@@ -61,6 +63,11 @@ def parse_tags(text):
     return add, rm
 
 
+def strip_tags(text):
+    """drop leading/trailing tag runs; tags mid-sentence stay as prose"""
+    return TRAIL.sub("", LEAD.sub("", text))
+
+
 def get_text(args, seed=""):
     if args:
         return " ".join(args)
@@ -78,8 +85,9 @@ def add_entry(text, extra=""):
     defaults = " ".join("@" + t.lstrip("@#") for t in config()["tags"])
     tags, _ = parse_tags(" ".join([defaults, os.environ.get("JN_TAGS", ""), extra, text]))
     tags.setdefault("by", getpass.getuser())
+    content = strip_tags(text) or sys.exit("empty entry")
     with db() as c:
-        eid = c.execute("INSERT INTO entry(created,updated,content) VALUES(?,?,?)", (now(), now(), text)).lastrowid
+        eid = c.execute("INSERT INTO entry(created,updated,content) VALUES(?,?,?)", (now(), now(), content)).lastrowid
         c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])
     return eid
 
@@ -100,7 +108,7 @@ def edit(eid, args):
         new = get_text(args, old[0]) or sys.exit("empty entry")
         # ponytail: content only; tag flips are not versioned, `updated` says something changed
         c.execute("INSERT INTO history SELECT id, updated, content FROM entry WHERE id=?", (eid,))
-        c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (new, now(), eid))
+        c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (strip_tags(new) or sys.exit("empty entry"), now(), eid))
     # only the diff of text tags is applied, so state set via `jn tag`/`done` survives a typo fix
     a, b = parse_tags(old[0])[0], parse_tags(new)[0]
     retag(eid, " ".join([f"@{k}={v}" if v else f"@{k}" for k, v in b.items() if a.get(k, 0) != v] + [f"-@{k}" for k in a.keys() - b.keys()]))

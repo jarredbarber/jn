@@ -29,7 +29,7 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 ## Model
 
 - Entry: `id, created, updated, content`.
-- Tags: `@name` or `@name=value`, `#` works too. Parsed from the text, kept in the text. One name per entry, last write wins.
+- Tags: `@name` or `@name=value`, `#` works too. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
 - `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.
 - `edit` keeps prior content in a `history` table. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.

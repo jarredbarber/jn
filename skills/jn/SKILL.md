@@ -5,7 +5,7 @@ description: Microjournal and task log shared by humans and agents. Use at sessi
 
 # jn
 
-`jn` is a CLI journal. Entries are text plus tags (`@name` or `@name=value`). Project tags come from a `.jn` file automatically, so never add `@project` yourself.
+`jn` is a CLI journal. Entries are text plus tags (`@name` or `@name=value`). Lead with tags, then the text: `jn log "@by=claude:claude-code @re=42 parser handles nested lists"`. Leading and trailing tags are stripped from the saved text. Project tags come from a `.jn` file automatically, so never add `@project` yourself.
 
 Always tag entries you write with `@by=<agent>:<tool>`, e.g. `@by=claude:claude-code` or `@by=gemini:antigravity`.
 
