@@ -48,12 +48,29 @@ Everything else is convention. These four have behavior:
 
 | tag | set by | read by |
 |---|---|---|
-| `@by=<who>` | every `log`/`todo`, default `$USER`, override via config, `tags_cmd`, `$JN_TAGS`, or text | `ls --mine` |
+| `@by=<who>` | every `log`/`todo`, default `$USER`, override via config, `tags_cmd`, `$JN_TAGS`, or text | `--mine` filter |
 | `@todo` | `jn todo` | removed by `close` |
 | `@done` | `jn close` | `@blocked_by` resolution |
-| `@blocked_by=#12,#15,vendor` | you | `ls --blocked` / `--unblocked`, `close` prints what it freed. Non-`#N` items block until edited out |
+| `@blocked_by=#12,#15,vendor` | you | `--blocked` / `--unblocked` filters, `close` prints what it freed. Non-`#N` items block until edited out |
 
 Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks whatever the tag name. `@re=#N` for comments and `@parent=#N` for subtasks are conventions only.
+
+## Filters
+
+`--name` on `ls` runs a Python expression against each entry. Built in:
+
+```toml
+mine      = "tags.get('by') == me"
+blocked   = "any(i and not (i[0] == '#' and i[1:].isdigit() and 'done' in E.get(int(i[1:]), {})) for i in (tags.get('blocked_by') or '').split(','))"
+unblocked = "not F('blocked')"
+```
+
+Add your own under `[filters]` in `~/.jn` (same names override). Namespace: `id created updated content tags`, `me` (the `@by` that `log` would stamp now), `E` (every entry's tags by id), `F(name)` (another filter).
+
+```toml
+[filters]
+overdue = "'todo' in tags and (tags.get('due') or '9') < __import__('datetime').date.today().isoformat()"
+```
 
 ## Config
 
@@ -68,7 +85,7 @@ tags = ["project=cube-reps"]
 open = "@todo -@done"
 ```
 
-`~/.jn` (global, also the only file allowed to run code):
+`~/.jn` (global, and the only file allowed to hold code: `tags_cmd`, `[filters]`):
 
 ```toml
 tags = []

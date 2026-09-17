@@ -18,7 +18,8 @@ tags: @name, optional =value where value is a comma list (@blocked_by=#12,#15). 
   Values today|tomorrow|yesterday|[+-]N[hdw] become ISO dates at write time (@due=tomorrow, @due=2w).
   #42 points at entry 42: use it in prose or values (@parent=#42, @re=#42); show lists what points here. Defaults come from ~/.jn and nearest ./.jn (TOML:
   tags = ["project=x"]  [queries] open = "@todo -@done") plus $JN_TAGS. @by defaults to $USER.
-  ~/.jn only: tags_cmd = "shell snippet" whose stdout is extra tags (e.g. derive @workspace from $PWD).
+  ~/.jn only (it may run code, project .jn is data): tags_cmd = "shell snippet" whose stdout is extra tags;
+  [filters] name = "python expression".
 db: $JN_DB or ~/.jn.db
 """
 import getpass, json, os, re, sqlite3, subprocess, sys, tempfile, tomllib
@@ -32,6 +33,11 @@ TAG = re.compile(r"(?:^|(?<=\s))(-?)@([A-Za-z_][\w-]*)(?:=(\S+))?")
 TOK = r"-?@[A-Za-z_][\w-]*(?:=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
 COLS = ("id", "created", "updated", "content")
+FILTERS = {  # ponytail: eval'd python per row. override/extend in [filters] of ~/.jn
+    "mine": "tags.get('by') == me",
+    "blocked": "any(i and not (i[0] == '#' and i[1:].isdigit() and 'done' in E.get(int(i[1:]), {})) for i in (tags.get('blocked_by') or '').split(','))",
+    "unblocked": "not F('blocked')",
+}
 
 
 def db():
@@ -51,14 +57,16 @@ def now():
 
 def config():
     """~/.jn, then root/.jn ... ./.jn; nearer wins."""
-    cfg = {"tags": [], "queries": {}}
+    cfg = {"tags": [], "queries": {}, "filters": {}}
     for f in [Path.home() / ".jn", *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]:
         if f.is_file():
             c = tomllib.loads(f.read_text())
             cfg["tags"] += c.get("tags", [])
             cfg["queries"].update(c.get("queries", {}))
-            if f.parent == Path.home() and "tags_cmd" in c:  # only ~/.jn may run code; project .jn is data
-                cfg["tags"] += subprocess.run(c["tags_cmd"], shell=True, capture_output=True, text=True).stdout.split()
+            if f.parent == Path.home():  # only ~/.jn may run code; project .jn is data
+                cfg["filters"].update(c.get("filters", {}))
+                if "tags_cmd" in c:
+                    cfg["tags"] += subprocess.run(c["tags_cmd"], shell=True, capture_output=True, text=True).stdout.split()
     return cfg
 
 
@@ -154,14 +162,17 @@ def history(eid):
         print(f"## {eid} v{n} · {at}\n\n{text}")
 
 
-def blocked(row, done):
-    """any @blocked_by item that is not a #N pointing at a @done entry keeps the row blocked"""
-    items = (row["tags"].get("blocked_by") or "").split(",")
-    return any(i and not (i.startswith("#") and i[1:] in done) for i in items)
+def apply_filters(rows, names):
+    filters = FILTERS | config()["filters"]
+    E = {}
+    for eid, n, v in db().execute("SELECT entry,name,value FROM tagged"):
+        E.setdefault(eid, {})[n] = v
+    me = default_tags()["by"]
 
-
-def done_ids():
-    return {str(r[0]) for r in db().execute("SELECT entry FROM tagged WHERE name='done'")}
+    def ok(r, name):
+        expr = filters.get(name) or sys.exit(f"unknown filter --{name}")
+        return bool(eval(expr, dict(r, me=me, E=E, F=lambda n: ok(r, n))))
+    return [r for r in rows if all(ok(r, n) for n in names)]
 
 
 def dateword(s, future=True):
@@ -234,9 +245,9 @@ def main(argv):
         print(add_entry(get_text(pos), "@todo"))
     elif cmd == "close":
         eid = int(pos[0])
-        before = {r["id"] for r in query([f"@blocked_by=#{eid}"]) if not blocked(r, done_ids())}
+        before = {r["id"] for r in apply_filters(query([f"@blocked_by=#{eid}"]), ["unblocked"])}
         retag(eid, "@done -@todo")
-        show([r for r in query([f"@blocked_by=#{eid}"]) if not blocked(r, done_ids()) and r["id"] not in before], "")
+        show([r for r in apply_filters(query([f"@blocked_by=#{eid}"]), ["unblocked"]) if r["id"] not in before], "")
     elif cmd == "tag":
         retag(int(pos[0]), " ".join(pos[1:]))
     elif cmd in ("edit", "show", "history"):
@@ -249,10 +260,7 @@ def main(argv):
             print(entry_text(eid), end="")
             print(backlinks(eid), end="", file=sys.stderr)  # ponytail: stderr keeps stdout round-trippable
     elif cmd == "ls":
-        rows = query(pos + ["@by=" + default_tags()["by"]] * ("mine" in opts), opts.get("since"))
-        if "blocked" in opts or "unblocked" in opts:
-            done = done_ids()
-            rows = [r for r in rows if blocked(r, done) == ("blocked" in opts)]
+        rows = apply_filters(query(pos, opts.get("since")), [k for k in opts if k not in ("since", "last", "json", "md")])
         if "last" in opts:
             rows = rows[-int(opts["last"]):]
         show(rows, "json" if "json" in opts else "md" if "md" in opts else "")

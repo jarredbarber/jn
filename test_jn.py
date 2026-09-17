@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory() as d:
     env = dict(JN_DB=f"{d}/t.db", HOME=d, CWD=f"{d}/proj/sub")
     Path(env["CWD"]).mkdir(parents=True)
     Path(d, "proj/.jn").write_text('tags = ["project=demo"]\n[queries]\nopen = "@todo -@done"\n')
-    Path(d, ".jn").write_text('tags = ["global"]\ntags_cmd = "echo @ws=${PWD##*/}"\n')
+    Path(d, ".jn").write_text('tags = ["global"]\ntags_cmd = "echo @ws=${PWD##*/}"\n[filters]\nfit = "\'fitness\' in tags"\n')
     Path(d, "proj/sub/.jn").write_text('tags_cmd = "echo @evil"\n')  # must be ignored
 
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
@@ -65,4 +65,5 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "@blocked_by=#" + a, **env)) == [x, y]             # item match, not substring
     assert ids(run("ls", "@blocked_by=#420,vendor", **env)) == [y, z]       # any-of
     assert ids(run("ls", "@blocked_by=#4*", **env)) == [z]                  # glob per item
+    assert ids(run("ls", "--fit", **env)) == [a]                            # custom filter from ~/.jn
     print("ok")
