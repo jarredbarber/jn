@@ -21,10 +21,11 @@ tags: @name, optional =value where value is a comma list (@blocked_by=#12,#15). 
 config (TOML):
   tags = ["project=x"]                       default tags on log/todo
   [filters]  open = "@todo -@done"           starts with @ or -@: expands into ls tokens
-             mine = "tags.get('by') == me"   otherwise a python expression evaluated per entry (~/.jn only)
-    namespace: id created updated content tags, me (the @by log would stamp), env (os.environ), cwd,
-               E (every entry's tags by id), F(name) (another filter)
-  tags_expr = "python expr"                  ~/.jn only; evaluates to a str or list of extra tags, sees env and cwd
+             mine = "tag('by') == [me]"      otherwise a python expression evaluated per entry (~/.jn only)
+    namespace: tag('name') -> list[str] | None (absent); tag('name', id) same for another entry
+               env('VAR') -> str | None; cwd; me (the @by log would stamp); F('name') (another filter)
+               id created updated content tags (the raw {name: value} dict)
+  tags_expr = "python expr"                  ~/.jn only; evaluates to a str or list of extra tags, sees env() and cwd
 db: $JN_DB or ~/.jn.db
 """
 import getpass, json, os, re, sqlite3, subprocess, sys, tempfile, tomllib
@@ -39,8 +40,8 @@ TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
 COLS = ("id", "created", "updated", "content")
 FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
-    "mine": "tags.get('by') == me",
-    "blocked": "any(i and not (i[0] == '#' and i[1:].isdigit() and 'done' in E.get(int(i[1:]), {})) for i in (tags.get('blocked_by') or '').split(','))",
+    "mine": "tag('by') == [me]",
+    "blocked": "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])",
     "unblocked": "not F('blocked')",
 }
 
@@ -77,7 +78,7 @@ def config():
                 if f == home or is_tokens(expr):
                     cfg["filters"][n], cfg["src"][n] = expr, str(f)
             if f == home and "tags_expr" in c:
-                extra = eval(c["tags_expr"], {"env": os.environ, "cwd": os.getcwd()})
+                extra = eval(c["tags_expr"], {"env": envf, "cwd": os.getcwd()})
                 cfg["tags"] += extra.split() if isinstance(extra, str) else list(extra)
     return cfg
 
@@ -189,6 +190,10 @@ def history(eid):
         print(f"## {eid} v{n} · {at}\n\n{text}")
 
 
+def envf(k):
+    return os.environ.get(k.lstrip("$"))
+
+
 def apply_filters(rows, names):
     filters = config()["filters"]
     E = {}
@@ -197,8 +202,11 @@ def apply_filters(rows, names):
     me = default_tags()["by"]
 
     def ok(r, name):
+        def tag(n, eid=None):
+            t, n = (r["tags"] if eid is None else E.get(eid, {})), n.lstrip("@")
+            return ([i for i in t[n].split(",") if i] if t[n] else []) if n in t else None
         expr = filters.get(name) or sys.exit(f"unknown filter --{name}")
-        return bool(eval(expr, dict(r, me=me, env=os.environ, cwd=os.getcwd(), E=E, F=lambda n: ok(r, n))))
+        return bool(eval(expr, dict(r, tag=tag, env=envf, cwd=os.getcwd(), me=me, F=lambda n: ok(r, n))))
     return [r for r in rows if all(ok(r, n) for n in names)]
 
 

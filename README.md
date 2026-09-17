@@ -61,8 +61,8 @@ Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks what
 `--name` on `ls` looks up a filter. A filter is either a token string (starts with `@` or `-@`) that expands into `ls` arguments, or a Python expression evaluated per entry. Built in:
 
 ```toml
-mine      = "tags.get('by') == me"
-blocked   = "any(i and not (i[0] == '#' and i[1:].isdigit() and 'done' in E.get(int(i[1:]), {})) for i in (tags.get('blocked_by') or '').split(','))"
+mine      = "tag('by') == [me]"
+blocked   = "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])"
 unblocked = "not F('blocked')"
 ```
 
@@ -80,14 +80,21 @@ open = "@todo -@done"
 `~/.jn` (the only file that may hold Python):
 
 ```toml
-tags_expr = "'@workspace=' + cwd.split('/')[4] if cwd.startswith('/Users/jarred/code/') else ''"
+tags_expr = "'@workspace=' + cwd.split('/')[4] if cwd.startswith(env('HOME') + '/code/') else ''"
 
 [filters]
-overdue = "'todo' in tags and (tags.get('due') or '9') < __import__('datetime').date.today().isoformat()"
-claude  = "(tags.get('by') or '').startswith('claude:')"
+overdue = "tag('todo') is not None and (tag('due') or ['9'])[0] < __import__('datetime').date.today().isoformat()"
+claude  = "(tag('by') or [''])[0].startswith('claude:')"
 ```
 
-Python namespace: `id created updated content tags`, `me` (the `@by` that `log` would stamp now), `env` (`os.environ`), `cwd`, `E` (every entry's tags by id), `F(name)` (another filter). `tags_expr` sees `env` and `cwd` and returns a string or list of tags.
+Python namespace:
+
+- `tag('name')` returns the value as a list of items, `[]` for a bare tag, `None` if absent. `tag('name', id)` reads another entry. The `@` is optional.
+- `env('VAR')` returns the variable or `None`. The `$` is optional.
+- `me` is the `@by` that `log` would stamp now, `cwd` the working directory, `F('name')` evaluates another filter.
+- `id created updated content tags` are the raw entry fields, `tags` being `{name: value}`.
+
+`tags_expr` sees `env()` and `cwd` and returns a string or list of tags.
 
 `$JN_TAGS` adds tags per shell or session. `$JN_DB` overrides `~/.jn.db`.
 

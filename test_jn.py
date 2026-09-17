@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory() as d:
     env = dict(JN_DB=f"{d}/t.db", HOME=d, CWD=f"{d}/proj/sub")
     Path(env["CWD"]).mkdir(parents=True)
     Path(d, "proj/.jn").write_text('tags = ["project=demo"]\n[filters]\nopen = "@todo -@done"\nevil = "__import__(\'os\').system(\'touch pwned\')"\n')
-    Path(d, ".jn").write_text('tags = ["global"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[filters]\nfit = "\'fitness\' in tags"\n')
+    Path(d, ".jn").write_text('tags = ["global"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[filters]\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
     Path(d, "proj/sub/.jn").write_text('tags_expr = "[\'@evil\']"\n')  # must be ignored
 
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
