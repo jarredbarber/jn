@@ -21,9 +21,10 @@ tags: @name, optional =value where value is a comma list (@blocked_by=#12,#15). 
 config (TOML):
   tags = ["project=x"]                       default tags on log/todo
   [filters]  open = "@todo -@done"           starts with @ or -@: expands into ls tokens
-             mine = "tag('by') == [me]"      otherwise a python expression evaluated per entry (~/.jn only)
+             mine = "tag('by') == default('by')"   otherwise a python expression evaluated per entry (~/.jn only)
     namespace: tag('name') -> list[str] | None (absent); tag('name', id) same for another entry
-               env('VAR') -> str | None; cwd; me (the @by log would stamp); F('name') (another filter)
+               default('name') same shape, from the tags log would stamp right now (config, tags_expr, $JN_TAGS, $USER)
+               env('VAR') -> str | None; cwd; F('name') (another filter)
                id created updated content tags (the raw {name: value} dict)
   tags_expr = "python expr"                  ~/.jn only; evaluates to a str or list of extra tags, sees env() and cwd
 db: $JN_DB or ~/.jn.db
@@ -40,7 +41,7 @@ TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
 COLS = ("id", "created", "updated", "content")
 FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
-    "mine": "tag('by') == [me]",
+    "mine": "tag('by') == default('by')",
     "blocked": "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])",
     "unblocked": "not F('blocked')",
 }
@@ -194,19 +195,23 @@ def envf(k):
     return os.environ.get(k.lstrip("$"))
 
 
+def aslist(tags, name):
+    """tag value as a list of items: [] for a bare tag, None if absent"""
+    name = name.lstrip("@")
+    return ([i for i in tags[name].split(",") if i] if tags[name] else []) if name in tags else None
+
+
 def apply_filters(rows, names):
-    filters = config()["filters"]
+    filters, defaults = config()["filters"], default_tags()
     E = {}
     for eid, n, v in db().execute("SELECT entry,name,value FROM tagged"):
         E.setdefault(eid, {})[n] = v
-    me = default_tags()["by"]
 
     def ok(r, name):
-        def tag(n, eid=None):
-            t, n = (r["tags"] if eid is None else E.get(eid, {})), n.lstrip("@")
-            return ([i for i in t[n].split(",") if i] if t[n] else []) if n in t else None
         expr = filters.get(name) or sys.exit(f"unknown filter --{name}")
-        return bool(eval(expr, dict(r, tag=tag, env=envf, cwd=os.getcwd(), me=me, F=lambda n: ok(r, n))))
+        ns = dict(r, tag=lambda n, eid=None: aslist(r["tags"] if eid is None else E.get(eid, {}), n),
+                  default=lambda n: aslist(defaults, n), env=envf, cwd=os.getcwd(), F=lambda n: ok(r, n))
+        return bool(eval(expr, ns))
     return [r for r in rows if all(ok(r, n) for n in names)]
 
 

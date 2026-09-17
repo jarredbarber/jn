@@ -61,7 +61,7 @@ Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks what
 `--name` on `ls` looks up a filter. A filter is either a token string (starts with `@` or `-@`) that expands into `ls` arguments, or a Python expression evaluated per entry. Built in:
 
 ```toml
-mine      = "tag('by') == [me]"
+mine      = "tag('by') == default('by')"
 blocked   = "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])"
 unblocked = "not F('blocked')"
 ```
@@ -91,7 +91,8 @@ Python namespace:
 
 - `tag('name')` returns the value as a list of items, `[]` for a bare tag, `None` if absent. `tag('name', id)` reads another entry. The `@` is optional.
 - `env('VAR')` returns the variable or `None`. The `$` is optional.
-- `me` is the `@by` that `log` would stamp now, `cwd` the working directory, `F('name')` evaluates another filter.
+- `default('name')` has the same shape, read from the tags `log` would stamp right now (config, `tags_expr`, `$JN_TAGS`, `$USER`). So `tag('project') == default('project')` means "in the project I'm standing in".
+- `cwd` is the working directory, `F('name')` evaluates another filter.
 - `id created updated content tags` are the raw entry fields, `tags` being `{name: value}`.
 
 `tags_expr` sees `env()` and `cwd` and returns a string or list of tags.
