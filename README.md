@@ -14,6 +14,8 @@ jn ls @todo -@done                      # filters: @tag  -@tag  @k=v*  word  ID
 jn ls open                              # named query from .jn
 jn ls --since 3d --md                   # today | yesterday | 3d | 2w | ISO
 jn ls @todo --mine                      # @by = whatever log would stamp right now
+jn todo "@blocked_by=#12,#15 ship it"   # blocked until 12 and 15 are @done; `jn done 15` prints what it freed
+jn ls @todo --unblocked                 # actionable now
 jn ls --json | jq ...
 jn show                                 # last entry: tags line, blank, content
 jn edit                                 # $EDITOR seeded with show output; replaces whole entry

@@ -3,13 +3,14 @@
 
   jn log [text...]           add entry; no text -> stdin (if piped) or $EDITOR. prints id
   jn todo [text...]          same, plus @todo
-  jn done ID                 @done -@todo
+  jn done ID                 @done -@todo; prints tasks this unblocked
   jn tag ID @a -@b @k=v      add/remove tags
   jn show [ID]               tags line + blank + content; round-trips through edit. backlinks on stderr. default: last
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
   jn history [ID]            prior versions (tags + content, oldest first), then current
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
-                             opts: --since today|yesterday|3d|2w|ISO  --last N  --mine  --json  --md
+                             opts: --since today|yesterday|3d|2w|ISO  --last N  --mine  --blocked  --unblocked  --json  --md
+                             blocked = any item of @blocked_by=#42,#53,vendor is not a @done entry
                              --mine = @by=<what log would assign now: config, tags_cmd, $JN_TAGS, else $USER>
 
 tags: @name, optional =value. Leading/trailing tags are stripped from content.
@@ -152,6 +153,16 @@ def history(eid):
         print(f"## {eid} v{n} · {at}\n\n{text}")
 
 
+def blocked(row, done):
+    """any @blocked_by item that is not a #N pointing at a @done entry keeps the row blocked"""
+    items = (row["tags"].get("blocked_by") or "").split(",")
+    return any(i and not (i.startswith("#") and i[1:] in done) for i in items)
+
+
+def done_ids():
+    return {str(r[0]) for r in db().execute("SELECT entry FROM tagged WHERE name='done'")}
+
+
 def dateword(s, future=True):
     """today|tomorrow|yesterday|[+-]N[hdw] -> ISO; anything else passes through. bare N is future for tag values, past for --since"""
     words = {"today": 0, "tomorrow": 1, "yesterday": -1}
@@ -220,7 +231,10 @@ def main(argv):
     elif cmd == "todo":
         print(add_entry(get_text(pos), "@todo"))
     elif cmd in ("done", "complete"):
-        retag(int(pos[0]), "@done -@todo")
+        eid = int(pos[0])
+        before = {r["id"] for r in query([f"@blocked_by=*#{eid}*"]) if not blocked(r, done_ids())}
+        retag(eid, "@done -@todo")
+        show([r for r in query([f"@blocked_by=*#{eid}*"]) if not blocked(r, done_ids()) and r["id"] not in before], "")
     elif cmd == "tag":
         retag(int(pos[0]), " ".join(pos[1:]))
     elif cmd in ("edit", "show", "history"):
@@ -234,6 +248,9 @@ def main(argv):
             print(backlinks(eid), end="", file=sys.stderr)  # ponytail: stderr keeps stdout round-trippable
     elif cmd == "ls":
         rows = query(pos + ["@by=" + default_tags()["by"]] * ("mine" in opts), opts.get("since"))
+        if "blocked" in opts or "unblocked" in opts:
+            done = done_ids()
+            rows = [r for r in rows if blocked(r, done) == ("blocked" in opts)]
         if "last" in opts:
             rows = rows[-int(opts["last"]):]
         show(rows, "json" if "json" in opts else "md" if "md" in opts else "")

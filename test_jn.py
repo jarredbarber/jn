@@ -55,4 +55,10 @@ with tempfile.TemporaryDirectory() as d:
     ids = lambda out: [l.split()[0] for l in out.splitlines()]
     assert b not in ids(run("ls", "--mine", **env)) and a in ids(run("ls", "--mine", **env))
     assert ids(run("ls", "--mine", JN_TAGS="@by=claude:s1", **env)) == [b]
+    x = run("todo", "@blocked_by=#" + a + ",#" + c + " ship it", **env)      # a done, c open
+    y = run("todo", "@blocked_by=#" + a + ",vendor manual block", **env)
+    assert ids(run("ls", "@todo", "--blocked", **env)) == [x, y]
+    assert ids(run("ls", "@todo", "--unblocked", **env)) == [c]
+    assert ids(run("done", c, **env)) == [x]                                 # done prints what it unblocked
+    assert ids(run("ls", "@todo", "--unblocked", **env)) == [x]
     print("ok")

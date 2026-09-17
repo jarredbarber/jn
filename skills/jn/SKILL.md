@@ -47,7 +47,7 @@ EOF
 | `42` | entry id |
 | `open` | named query from `.jn` |
 
-Options: `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--json`, `--md`.
+Options: `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--mine`, `--blocked`, `--unblocked`, `--json`, `--md`.
 
 ```bash
 jn ls @todo -@done @by=claude:*          # open tasks created by any claude agent
@@ -56,7 +56,7 @@ jn ls --since yesterday --json           # machine-readable, tags as {name: valu
 jn history 42                            # prior versions (tags + content), e.g. when it was marked done
 ```
 
-Useful tags: `@todo`/`@done` for tasks, `@re=#ID` to comment on / link to another entry (`jn show ID` lists backlinks), `@parent=#ID` for subtasks, `@due=tomorrow` / `@due=3d` / `@due=2026-10-01` (date words resolve to ISO when written), `@blocked`. Invent others freely; tags are just names.
+Useful tags: `@todo`/`@done` for tasks, `@re=#ID` to comment on / link to another entry (`jn show ID` lists backlinks), `@parent=#ID` for subtasks, `@due=tomorrow` / `@due=3d` / `@due=2026-10-01` (date words resolve to ISO when written), `@blocked_by=#12,#15` (any non-done item keeps it blocked; a bare word like `vendor` is a manual block). `jn ls @todo --unblocked` lists actionable tasks, `jn done N` prints what it freed. Invent others freely; tags are just names.
 
 ## When to write
 
