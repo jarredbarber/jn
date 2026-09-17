@@ -52,4 +52,7 @@ with tempfile.TemporaryDirectory() as d:
     assert run("ls", "--since", "1d", **env).count("\n") == 2                # bare N is past for --since
     d = run("log", "see #1 and #2", **env)
     assert json.loads(run("ls", d, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
+    ids = lambda out: [l.split()[0] for l in out.splitlines()]
+    assert b not in ids(run("ls", "--mine", **env)) and a in ids(run("ls", "--mine", **env))
+    assert ids(run("ls", "--mine", JN_TAGS="@by=claude:s1", **env)) == [b]
     print("ok")

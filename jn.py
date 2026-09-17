@@ -9,7 +9,8 @@
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
   jn history [ID]            prior versions (tags + content, oldest first), then current
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
-                             opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
+                             opts: --since today|yesterday|3d|2w|ISO  --last N  --mine  --json  --md
+                             --mine = @by=<what log would assign now: config, tags_cmd, $JN_TAGS, else $USER>
 
 tags: @name, optional =value. Leading/trailing tags are stripped from content.
   Values today|tomorrow|yesterday|[+-]N[hdw] become ISO dates at write time (@due=tomorrow, @due=2w).
@@ -82,12 +83,17 @@ def get_text(args, seed=""):
         return Path(f.name).read_text().strip()
 
 
+def default_tags():
+    """config -> tags_cmd -> $JN_TAGS -> @by=$USER, later wins"""
+    tags, _ = parse_tags(" ".join(["@" + t.lstrip("@") for t in config()["tags"]] + [os.environ.get("JN_TAGS", "")]))
+    tags.setdefault("by", getpass.getuser())
+    return tags
+
+
 def add_entry(text, extra=""):
     if not text:
         sys.exit("empty entry")
-    defaults = " ".join("@" + t.lstrip("@") for t in config()["tags"])
-    tags, _ = parse_tags(" ".join([defaults, os.environ.get("JN_TAGS", ""), extra, text]))
-    tags.setdefault("by", getpass.getuser())
+    tags = default_tags() | parse_tags(extra + " " + text)[0]
     content = strip_tags(text) or sys.exit("empty entry")
     with db() as c:
         eid = c.execute("INSERT INTO entry(created,updated,content) VALUES(?,?,?)", (now(), now(), content)).lastrowid
@@ -227,7 +233,7 @@ def main(argv):
             print(entry_text(eid), end="")
             print(backlinks(eid), end="", file=sys.stderr)  # ponytail: stderr keeps stdout round-trippable
     elif cmd == "ls":
-        rows = query(pos, opts.get("since"))
+        rows = query(pos + ["@by=" + default_tags()["by"]] * ("mine" in opts), opts.get("since"))
         if "last" in opts:
             rows = rows[-int(opts["last"]):]
         show(rows, "json" if "json" in opts else "md" if "md" in opts else "")
