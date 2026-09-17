@@ -53,7 +53,7 @@ Options: `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--json`, `--md
 jn ls @todo -@done @by=claude:*          # open tasks created by any claude agent
 jn ls @re=42                             # everything linking to entry 42
 jn ls --since yesterday --json           # machine-readable, tags as {name: value}
-jn history 42                            # prior content versions after edits
+jn history 42                            # prior versions (tags + content), e.g. when it was marked done
 ```
 
 Useful tags: `@todo`/`@done` for tasks, `@re=ID` to link to another entry, `@due=tomorrow` / `@due=3d` / `@due=2026-10-01` (date words resolve to ISO when written), `@blocked`. Invent others freely; tags are just names.

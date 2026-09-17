@@ -38,6 +38,10 @@ with tempfile.TemporaryDirectory() as d:
     run("edit", b, stdin=run("show", b, **env), **env)         # no-op edit adds no history
     h = run("history", b, **env)
     assert "v4" not in h, h
+    ha = run("history", a, **env)
+    assert "@todo" in ha.split("v2")[0] and "@done" in ha.split("v2")[1], ha   # done flip is versioned
+    run("done", a, **env)                                                     # idempotent flip: no new version
+    assert "v3" not in run("history", a, **env)
     assert h.index("walked") < h.index("ran instead") and "v3" in h, h
     c = run("todo", "@due=tomorrow call dentist", **env)
     tc = json.loads(run("ls", c, "--json", **env))[0]["tags"]

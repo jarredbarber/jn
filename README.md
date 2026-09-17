@@ -16,7 +16,7 @@ jn ls --since 3d --md                   # today | yesterday | 3d | 2w | ISO
 jn ls --json | jq ...
 jn show                                 # last entry: tags line, blank, content
 jn edit                                 # $EDITOR seeded with show output; replaces whole entry
-jn history 1                            # every prior content version
+jn history 1                            # every prior version, tags included
 ```
 
 ## Install
@@ -33,7 +33,7 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 - Tags: `@name` or `@name=value`, `#` works too. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
 - Date words in values resolve when written: `@due=tomorrow`, `@due=2w`, `@due=-3d`, `@due=today`. Stored as ISO, so `@due=tomorrow` still means the same day next week.
 - `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.
-- `show` output round-trips through `edit`. `edit` replaces tags and content; use `tag` to change tags alone. Prior content lands in `history`. Tag changes are not versioned.
+- `show` output round-trips through `edit`. `edit` replaces tags and content; use `tag` to change tags alone. Every change to tags or content keeps the prior version, see `jn history`. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.
 
 ## Config

@@ -7,7 +7,7 @@
   jn tag ID @a -@b @k=v      add/remove tags
   jn show [ID]               tags line + blank + content; round-trips through edit. default: last
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
-  jn history [ID]            prior versions of content (oldest first), then current
+  jn history [ID]            prior versions (tags + content, oldest first), then current
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
 
@@ -93,19 +93,26 @@ def add_entry(text, extra=""):
     return eid
 
 
-def retag(eid, text):
-    add, rm = parse_tags(text)
-    with db() as c:
-        if not c.execute("SELECT 1 FROM entry WHERE id=?", (eid,)).fetchone():
-            sys.exit(f"no entry {eid}")
-        c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()])
-        c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])
+def versioned(c, eid, write):
+    """run write(); if the entry text changed, keep the old version in history and bump updated"""
+    before = entry_text(eid, c)
+    write()
+    if entry_text(eid, c) != before:
+        c.execute("INSERT INTO history SELECT id, updated, ? FROM entry WHERE id=?", (before, eid))
         c.execute("UPDATE entry SET updated=? WHERE id=?", (now(), eid))
 
 
-def entry_text(eid):
+def retag(eid, text):
+    add, rm = parse_tags(text)
+    with db() as c:
+        versioned(c, eid, lambda: (
+            c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()]),
+            c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])))
+
+
+def entry_text(eid, c=None):
     """what `show` prints and `edit` seeds; parse_tags + strip_tags recover the entry exactly"""
-    c = db()
+    c = c or db()
     row = c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
     return f"{fmt_tags(dict(c.execute('SELECT name,value FROM tagged WHERE entry=?', (eid,))))}\n\n{row[0]}\n"
 
@@ -113,12 +120,11 @@ def entry_text(eid):
 def edit(eid, args):
     new = get_text(args, entry_text(eid))
     tags, content = parse_tags(new)[0], strip_tags(new) or sys.exit("empty entry")
-    with db() as c:  # ponytail: content only in history; tag flips leave no trace beyond `updated`
-        if c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone()[0] != content:
-            c.execute("INSERT INTO history SELECT id, updated, content FROM entry WHERE id=?", (eid,))
-            c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (content, now(), eid))
-        c.execute("DELETE FROM tagged WHERE entry=?", (eid,))
-        c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])
+    with db() as c:
+        versioned(c, eid, lambda: (
+            c.execute("UPDATE entry SET content=? WHERE id=?", (content, eid)),
+            c.execute("DELETE FROM tagged WHERE entry=?", (eid,)),
+            c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])))
 
 
 def last():
@@ -128,9 +134,9 @@ def last():
 def history(eid):
     c = db()
     old = c.execute("SELECT at, content FROM history WHERE entry=? ORDER BY rowid", (eid,)).fetchall()
-    cur = c.execute("SELECT updated, content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
-    for n, (at, content) in enumerate([*old, cur], 1):
-        print(f"## {eid} v{n} · {at}\n\n{content}\n")
+    cur = (c.execute("SELECT updated FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}"))[0]
+    for n, (at, text) in enumerate([*old, (cur, entry_text(eid, c))], 1):
+        print(f"## {eid} v{n} · {at}\n\n{text}")
 
 
 def dateword(s, future=True):
