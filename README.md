@@ -42,7 +42,7 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 - Tags: `@name` or `@name=value`. A tag is present or absent; when present its value is a comma list, `@name` alone being the empty list. `#` is never a tag sigil.
 - `jn edit N @k=a,b` replaces the list, `@k+=c` appends, `@k-=a` removes items (tag stays, possibly empty), `-@k` drops the tag. Tags you don't mention are untouched. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
 - Date words in values resolve when written: `@due=tomorrow`, `@due=2w`, `@due=-3d`, `@due=today`. Stored as ISO, so `@due=tomorrow` still means the same day next week.
-- `#42` points at entry 42, in prose or in values: `@parent=#42`, `@re=#42`, `@blocks=#42`. `jn show 42` lists everything pointing at it (on stderr, so stdout still round-trips into `edit`). No relationship types are built in.
+- `#42` points at entry 42, in prose or in values: `@parent=#42`, `@re=#42`, `@blocks=#42`. `jn show 42` lists everything pointing at it as `<- #N @tag` lines, which `edit` ignores when piped back. No relationship types are built in.
 - `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.
 - `show` output pipes into `edit`: the backlink lines are ignored, the tags line merges, the content replaces. Every change to tags or content keeps the prior version, see `jn history`.
 - Timestamps are stored in UTC and shown in local time, or in `tz = "America/New_York"` from config. Tag changes are not versioned.
