@@ -101,8 +101,9 @@ def edit(eid, args):
         # ponytail: content only; tag flips are not versioned, `updated` says something changed
         c.execute("INSERT INTO history SELECT id, updated, content FROM entry WHERE id=?", (eid,))
         c.execute("UPDATE entry SET content=?, updated=? WHERE id=?", (new, now(), eid))
-    # tags typed in old content but gone from new are dropped; tags set via `jn tag` survive
-    retag(eid, new + " " + " ".join("-@" + k for k in parse_tags(old[0])[0].keys() - parse_tags(new)[0].keys()))
+    # only the diff of text tags is applied, so state set via `jn tag`/`done` survives a typo fix
+    a, b = parse_tags(old[0])[0], parse_tags(new)[0]
+    retag(eid, " ".join([f"@{k}={v}" if v else f"@{k}" for k, v in b.items() if a.get(k, 0) != v] + [f"-@{k}" for k in a.keys() - b.keys()]))
 
 
 def history(eid):

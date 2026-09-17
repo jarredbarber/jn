@@ -30,6 +30,9 @@ with tempfile.TemporaryDirectory() as d:
     run("edit", b, "ran instead @by=claude:s1 @new", **env)   # drops @re (gone from text), keeps @global (from config)
     t1 = json.loads(run("ls", b, "--json", **env))[0]["tags"]
     assert "re" not in t1 and "new" in t1 and "global" in t1 and t1["by"] == "claude:s1", t1
+    run("edit", a, "do 11 pushups #fitness", **env)             # typo fix must not reopen a done task
+    ta = json.loads(run("ls", a, "--json", **env))[0]["tags"]
+    assert "todo" not in ta and "done" in ta, ta
     h = run("history", b, **env)
     assert h.index("walked") < h.index("ran instead") and "v2" in h, h
     print("ok")
