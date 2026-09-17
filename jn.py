@@ -3,7 +3,7 @@
 
   jn log [text...]           add entry; no text -> stdin (if piped) or $EDITOR. prints id
   jn todo [text...]          same, plus @todo
-  jn done ID                 @done -@todo; prints tasks this unblocked
+  jn close ID                @done -@todo; prints tasks this unblocked
   jn tag ID @a -@b @k=v      add/remove tags
   jn show [ID]               tags line + blank + content; round-trips through edit. backlinks on stderr. default: last
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
@@ -230,7 +230,7 @@ def main(argv):
         print(add_entry(get_text(pos)))
     elif cmd == "todo":
         print(add_entry(get_text(pos), "@todo"))
-    elif cmd in ("done", "complete"):
+    elif cmd == "close":
         eid = int(pos[0])
         before = {r["id"] for r in query([f"@blocked_by=*#{eid}*"]) if not blocked(r, done_ids())}
         retag(eid, "@done -@todo")

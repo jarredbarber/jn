@@ -14,7 +14,7 @@ Always tag entries you write with `@by=<agent>:<tool>`, e.g. `@by=claude:claude-
 ```bash
 jn ls open                      # open tasks in this project (do this at session start)
 jn todo "write tests for X @by=claude:claude-code"   # -> prints id
-jn done 42                      # mark task 42 finished
+jn close 42                      # mark task 42 finished
 jn log "milestone: parser works, 3 edge cases left @by=claude:claude-code @re=#42"
 jn ls --since today             # what happened today
 jn show 42                      # full entry (tags line, blank line, content). no id = last entry
@@ -56,11 +56,11 @@ jn ls --since yesterday --json           # machine-readable, tags as {name: valu
 jn history 42                            # prior versions (tags + content), e.g. when it was marked done
 ```
 
-Useful tags: `@todo`/`@done` for tasks, `@re=#ID` to comment on / link to another entry (`jn show ID` lists backlinks), `@parent=#ID` for subtasks, `@due=tomorrow` / `@due=3d` / `@due=2026-10-01` (date words resolve to ISO when written), `@blocked_by=#12,#15` (any non-done item keeps it blocked; a bare word like `vendor` is a manual block). `jn ls @todo --unblocked` lists actionable tasks, `jn done N` prints what it freed. Invent others freely; tags are just names.
+Useful tags: `@todo`/`@done` for tasks, `@re=#ID` to comment on / link to another entry (`jn show ID` lists backlinks), `@parent=#ID` for subtasks, `@due=tomorrow` / `@due=3d` / `@due=2026-10-01` (date words resolve to ISO when written), `@blocked_by=#12,#15` (any non-done item keeps it blocked; a bare word like `vendor` is a manual block). `jn ls @todo --unblocked` lists actionable tasks, `jn close N` prints what it freed. Invent others freely; tags are just names.
 
 ## When to write
 
-- After completing a task the user asked for: `jn done ID`, then a one-line `jn log` of what changed.
+- After completing a task the user asked for: `jn close ID`, then a one-line `jn log` of what changed.
 - When you hit a decision point or blocker worth remembering: `jn log`.
 - When you notice follow-up work: `jn todo`. Keep it one line.
 - Don't log routine tool calls. One entry per milestone, not per step.

@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory() as d:
 
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
     b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=#" + a, **env)
-    run("done", a, **env)
+    run("close", a, **env)
     rows = json.loads(run("ls", "--json", **env))
     assert rows[0]["content"] == "do 10 pushups" and rows[1]["content"] == "# Heading\nwalked", rows
     t0, t1 = rows[0]["tags"], rows[1]["tags"]
@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory() as d:
     assert "v4" not in h, h
     ha = run("history", a, **env)
     assert "@todo" in ha.split("v2")[0] and "@done" in ha.split("v2")[1], ha   # done flip is versioned
-    run("done", a, **env)                                                     # idempotent flip: no new version
+    run("close", a, **env)                                                     # idempotent flip: no new version
     assert "v3" not in run("history", a, **env)
     assert h.index("walked") < h.index("ran instead") and "v3" in h, h
     c = run("todo", "@due=tomorrow call dentist", **env)
@@ -59,6 +59,6 @@ with tempfile.TemporaryDirectory() as d:
     y = run("todo", "@blocked_by=#" + a + ",vendor manual block", **env)
     assert ids(run("ls", "@todo", "--blocked", **env)) == [x, y]
     assert ids(run("ls", "@todo", "--unblocked", **env)) == [c]
-    assert ids(run("done", c, **env)) == [x]                                 # done prints what it unblocked
+    assert ids(run("close", c, **env)) == [x]                                 # done prints what it unblocked
     assert ids(run("ls", "@todo", "--unblocked", **env)) == [x]
     print("ok")
