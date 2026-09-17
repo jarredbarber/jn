@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """jn: microjournal + tasks for humans and agents. Single file, stdlib only (py3.11+).
 
-  jn log [text...]           add entry; no text -> stdin (if piped) or $EDITOR. prints id
-  jn todo [text...]          same, plus @todo
-  jn close ID                @done -@todo; prints tasks this unblocked
+  jn log [@tags] [text...]   add entry; no text beyond tags -> stdin (if piped) or $EDITOR. prints id
   jn tag ID @a -@b @k=v      add/remove tags; @k+=x,y appends items, @k-=x removes items (tag stays, maybe empty)
+  jn todo [text...]          action: log @todo $@
+  jn close ID                action: tag $1 @done -@todo, then ls @blocked_by=#$1 --unblocked (what it freed)
   jn show [ID]               tags line + blank + content; round-trips through edit. backlinks on stderr. default: last
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
   jn history [ID]            prior versions (tags + content, oldest first), then current
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v  @k=a,b (any of)  @k=v*  word  ID  --name
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
-  jn -h                      this text, then config files in overlay order and every --filter with its source
+  jn -h                      this text, then config files in overlay order, every action and --filter with source
 
 tags: @name, optional =value where value is a comma list (@blocked_by=#12,#15). @k=v filters on "v is an item of k".
   Leading/trailing tags are stripped from content.
@@ -27,9 +27,11 @@ config (TOML):
                env('VAR') -> str | None; cwd; F('name') (another filter)
                id created updated content tags (the raw {name: value} dict)
   tags_expr = "python expr"                  ~/.jn only; evaluates to a str or list of extra tags, sees env() and cwd
+  [actions]  close = ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"]
+             a name -> list of jn command lines; $1 $2.. and $@ are the action's args
 db: $JN_DB or ~/.jn.db
 """
-import getpass, json, os, re, sqlite3, subprocess, sys, tempfile, tomllib
+import getpass, json, os, re, shlex, sqlite3, subprocess, sys, tempfile, tomllib
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -40,6 +42,10 @@ TAG = re.compile(r"(?:^|(?<=\s))(-?)@([A-Za-z_]\w*(?:-\w+)*)(?:([+-]?=)(\S+))?")
 TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
 COLS = ("id", "created", "updated", "content")
+ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's args. override/extend in [actions]
+    "todo": ["log @todo $@"],
+    "close": ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"],
+}
 FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
     "mine": "tag('by') == default('by')",
     "blocked": "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])",
@@ -68,13 +74,16 @@ def is_tokens(expr):
 
 def config():
     """builtin, ~/.jn, then root/.jn ... ./.jn; nearer wins. Only ~/.jn may hold code (python filters, tags_expr)."""
-    cfg = {"tags": [], "filters": dict(FILTERS), "files": ["builtin"], "src": {n: "builtin" for n in FILTERS}}
+    cfg = {"tags": [], "filters": dict(FILTERS), "actions": dict(ACTIONS), "files": ["builtin"],
+           "src": {n: "builtin" for n in [*FILTERS, *ACTIONS]}}
     home = (Path.home() / ".jn").resolve()
     for f in dict.fromkeys(p.resolve() for p in [home, *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]):
         if f.is_file():
             c = tomllib.loads(f.read_text())
             cfg["files"].append(str(f))
             cfg["tags"] += c.get("tags", [])
+            for n, cmds in c.get("actions", {}).items():
+                cfg["actions"][n], cfg["src"][n] = [cmds] if isinstance(cmds, str) else list(cmds), str(f)
             for n, expr in c.get("filters", {}).items():
                 if f == home or is_tokens(expr):
                     cfg["filters"][n], cfg["src"][n] = expr, str(f)
@@ -112,14 +121,24 @@ def strip_tags(text):
 
 
 def get_text(args, seed=""):
-    if args:
-        return " ".join(args)
+    """args are the text; if they hold nothing but tags, the body comes from stdin (piped) or $EDITOR"""
+    text = " ".join(args)
+    if strip_tags(text):
+        return text
     if not sys.stdin.isatty():
-        return sys.stdin.read().strip()
+        return (text + "\n" + sys.stdin.read()).strip()
     with tempfile.NamedTemporaryFile("w+", suffix=".md") as f:
         f.write(seed); f.flush()
         subprocess.run([*os.environ.get("EDITOR", "vi").split(), f.name])
-        return Path(f.name).read_text().strip()
+        return (text + "\n" + Path(f.name).read_text()).strip()
+
+
+def run_action(cmds, args):
+    for cmd in cmds:
+        argv = []
+        for t in shlex.split(cmd):
+            argv += args if t == "$@" else [re.sub(r"\$(\d+)", lambda m: args[int(m[1]) - 1], t)]
+        main(argv)
 
 
 def default_tags():
@@ -129,10 +148,8 @@ def default_tags():
     return tags
 
 
-def add_entry(text, extra=""):
-    if not text:
-        sys.exit("empty entry")
-    tags = default_tags() | parse_tags(extra + " " + text)[0]
+def add_entry(text):
+    tags = default_tags() | parse_tags(text)[0]
     content = strip_tags(text) or sys.exit("empty entry")
     with db() as c:
         eid = c.execute("INSERT INTO entry(created,updated,content) VALUES(?,?,?)", (now(), now(), content)).lastrowid
@@ -288,13 +305,6 @@ def main(argv):
             pos.append(a)
     if cmd == "log":
         print(add_entry(get_text(pos)))
-    elif cmd == "todo":
-        print(add_entry(get_text(pos), "@todo"))
-    elif cmd == "close":
-        eid = int(pos[0])
-        before = {r["id"] for r in apply_filters(query([f"@blocked_by=#{eid}"]), ["unblocked"])}
-        retag(eid, "@done -@todo")
-        show([r for r in apply_filters(query([f"@blocked_by=#{eid}"]), ["unblocked"]) if r["id"] not in before], "")
     elif cmd == "tag":
         retag(int(pos[0]), " ".join(pos[1:]))
     elif cmd in ("edit", "show", "history"):
@@ -312,9 +322,14 @@ def main(argv):
         if "last" in opts:
             rows = rows[-int(opts["last"]):]
         show(rows, "json" if "json" in opts else "md" if "md" in opts else "")
+    elif cmd in (actions := config()["actions"]):
+        run_action(actions[cmd], args)
     else:
         cfg = config()
-        print(__doc__ + "\nconfig: " + ", ".join(cfg["files"]) + "\nfilters:")
+        print(__doc__ + "\nconfig: " + ", ".join(cfg["files"]) + "\nactions:")
+        for n, v in cfg["actions"].items():
+            print(f"  {n:<14} {' ; '.join(v)}   # {cfg['src'][n]}")
+        print("filters:")
         for n, v in cfg["filters"].items():
             print(f"  --{n:<12} {v}   # {cfg['src'][n]}")
 

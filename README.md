@@ -45,16 +45,20 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 
 ## Tags the code knows about
 
-Everything else is convention. These four have behavior:
-
-| tag | set by | read by |
-|---|---|---|
-| `@by=<who>` | every `log`/`todo`, default `$USER`, override via config, `tags_expr`, `$JN_TAGS`, or text | `--mine` filter |
-| `@todo` | `jn todo` | removed by `close` |
-| `@done` | `jn close` | `@blocked_by` resolution |
-| `@blocked_by=#12,#15,vendor` | you | `--blocked` / `--unblocked` filters, `close` prints what it freed. Non-`#N` items block until edited out |
+Only `@by`: `log` stamps it with `$USER` unless config, `tags_expr`, `$JN_TAGS`, or the text set it. Everything else, including `@todo`, `@done`, and `@blocked_by`, is defined by the default actions and filters below and can be redefined.
 
 Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks whatever the tag name. `@re=#N` for comments and `@parent=#N` for subtasks are conventions only.
+
+## Actions
+
+`jn <name> args` runs a list of `jn` command lines with `$1`, `$2`, and `$@` substituted. Built in:
+
+```toml
+todo  = ["log @todo $@"]
+close = ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"]
+```
+
+Any `.jn` may add or override them under `[actions]`. If `log`'s arguments are tags only, the body is read from stdin or `$EDITOR`, so `jn todo <<EOF` works.
 
 ## Filters and config
 
@@ -66,7 +70,7 @@ blocked   = "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])
 unblocked = "not F('blocked')"
 ```
 
-Config is TOML, layered: builtin, then `~/.jn`, then every `.jn` from `/` down to the current directory, nearer wins. `jn -h` prints the layers in order and every filter with its source.
+Config is TOML, layered: builtin, then `~/.jn`, then every `.jn` from `/` down to the current directory, nearer wins. `jn -h` prints the layers in order and every action and filter with its source.
 
 Project `.jn` (data only):
 
@@ -75,6 +79,9 @@ tags = ["project=cube-reps"]
 
 [filters]
 open = "@todo -@done"
+
+[actions]
+bug = ["log @todo @bug $@"]
 ```
 
 `~/.jn` (the only file that may hold Python):

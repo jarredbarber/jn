@@ -11,7 +11,7 @@ def run(*args, stdin=None, **env):
 with tempfile.TemporaryDirectory() as d:
     env = dict(JN_DB=f"{d}/t.db", HOME=d, CWD=f"{d}/proj/sub")
     Path(env["CWD"]).mkdir(parents=True)
-    Path(d, "proj/.jn").write_text('tags = ["project=demo"]\n[filters]\nopen = "@todo -@done"\nevil = "__import__(\'os\').system(\'touch pwned\')"\n')
+    Path(d, "proj/.jn").write_text('tags = ["project=demo"]\n[actions]\nnote = "log @note $@"\n[filters]\nopen = "@todo -@done"\nevil = "__import__(\'os\').system(\'touch pwned\')"\n')
     Path(d, ".jn").write_text('tags = ["global"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[filters]\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
     Path(d, "proj/sub/.jn").write_text('tags_expr = "[\'@evil\']"\n')  # must be ignored
 
@@ -77,4 +77,8 @@ with tempfile.TemporaryDirectory() as d:
     rd = str(Path(d).resolve())
     assert next(l for l in h.splitlines() if l.startswith("config:")).split(", ")[1:] == [f"{rd}/{x}" for x in (".jn", "proj/.jn", "proj/sub/.jn")], (h, rd)
     assert "fit" in h and "unblocked" in h and "open" in h, h
+    n = run("note", "@k=v", stdin="body from stdin", **env)                  # custom action; tag-only args read stdin
+    e = json.loads(run("ls", n, "--json", **env))[0]
+    assert e["content"] == "body from stdin" and e["tags"]["note"] is None and e["tags"]["k"] == "v", e
+    assert "  note           log @note $@" in h, h
     print("ok")
