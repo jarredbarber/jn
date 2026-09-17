@@ -5,14 +5,15 @@
   jn todo [text...]          same, plus @todo
   jn done ID                 @done -@todo
   jn tag ID @a -@b @k=v      add/remove tags
-  jn show [ID]               tags line + blank + content; round-trips through edit. default: last
+  jn show [ID]               tags line + blank + content, then backlinks. round-trips through edit. default: last
   jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
   jn history [ID]            prior versions (tags + content, oldest first), then current
   jn ls [filters] [opts]     filters: @tag  -@tag  @k=v*  word  ID  <query-name>
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md
 
 tags: @name or #name, optional =value. Leading/trailing tags are stripped from content.
-  Values today|tomorrow|yesterday|[+-]N[hdw] become ISO dates at write time (@due=tomorrow, @due=2w). Defaults come from ~/.jn and nearest ./.jn (TOML:
+  Values today|tomorrow|yesterday|[+-]N[hdw] become ISO dates at write time (@due=tomorrow, @due=2w).
+  #42 points at entry 42: use it in prose or values (@parent=#42, @re=#42); show lists what points here. Defaults come from ~/.jn and nearest ./.jn (TOML:
   tags = ["project=x"]  [queries] open = "@todo -@done") plus $JN_TAGS. @by defaults to $USER.
   ~/.jn only: tags_cmd = "shell snippet" whose stdout is extra tags (e.g. derive @workspace from $PWD).
 db: $JN_DB or ~/.jn.db
@@ -23,8 +24,9 @@ from pathlib import Path
 
 DB = Path(os.environ.get("JN_DB", Path.home() / ".jn.db"))
 # sigil must follow start/whitespace and touch a word char, so "# Heading" is not a tag
-TAG = re.compile(r"(?:^|(?<=\s))(-?)[@#]([\w-]+)(?:=(\S+))?")
-TOK = r"-?[@#][\w-]+(?:=\S+)?"
+# names start with a letter so "#42" stays a pointer to entry 42, not a tag
+TAG = re.compile(r"(?:^|(?<=\s))(-?)[@#]([A-Za-z_][\w-]*)(?:=(\S+))?")
+TOK = r"-?[@#][A-Za-z_][\w-]*(?:=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
 COLS = ("id", "created", "updated", "content")
 
@@ -115,6 +117,11 @@ def entry_text(eid, c=None):
     c = c or db()
     row = c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
     return f"{fmt_tags(dict(c.execute('SELECT name,value FROM tagged WHERE entry=?', (eid,))))}\n\n{row[0]}\n"
+
+
+def backlinks(eid):
+    rows = db().execute("SELECT entry, name FROM tagged WHERE value=? ORDER BY entry", (f"#{eid}",)).fetchall()
+    return "".join(f"\n← #{e} @{n}" for e, n in rows) + ("\n" if rows else "")
 
 
 def edit(eid, args):
@@ -212,7 +219,7 @@ def main(argv):
         retag(int(pos[0]), " ".join(pos[1:]))
     elif cmd in ("edit", "show", "history"):
         eid = int(pos.pop(0)) if pos and pos[0].isdigit() else last()
-        {"edit": lambda: edit(eid, pos), "show": lambda: print(entry_text(eid), end=""), "history": lambda: history(eid)}[cmd]()
+        {"edit": lambda: edit(eid, pos), "show": lambda: print(entry_text(eid) + backlinks(eid), end=""), "history": lambda: history(eid)}[cmd]()
     elif cmd == "ls":
         rows = query(pos, opts.get("since"))
         if "last" in opts:

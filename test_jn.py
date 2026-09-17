@@ -16,7 +16,7 @@ with tempfile.TemporaryDirectory() as d:
     Path(d, "proj/sub/.jn").write_text('tags_cmd = "echo @evil"\n')  # must be ignored
 
     a = run("todo", "@fitness do 10 pushups", "#daily", **env)
-    b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=" + a, **env)
+    b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=#" + a, **env)
     run("done", a, **env)
     rows = json.loads(run("ls", "--json", **env))
     assert rows[0]["content"] == "do 10 pushups" and rows[1]["content"] == "# Heading\nwalked", rows
@@ -29,9 +29,12 @@ with tempfile.TemporaryDirectory() as d:
     assert run("ls", "pushups", "--since", "today", **env).split()[0] == a  # text + since
     assert run("ls", "-@done", **env).split()[0] == b                       # negation
     assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
+    assert run("show", a, **env).endswith(f"← #{b} @re"), run("show", a, **env)   # backlink
+    d = run("log", "see #1 and #2", **env)
+    assert json.loads(run("ls", d, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
     run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # round-trip edit keeps tags
     e = json.loads(run("ls", b, "--json", **env))[0]
-    assert e["content"] == "# Heading\nran" and e["tags"]["re"] == a and "new" in e["tags"] and e["tags"]["by"] == "claude:s1", e
+    assert e["content"] == "# Heading\nran" and e["tags"]["re"] == "#" + a and "new" in e["tags"] and e["tags"]["by"] == "claude:s1", e
     run("edit", b, "ran instead @by=claude:s1 @new", **env)   # args = whole entry: tags not mentioned are gone
     t1 = json.loads(run("ls", b, "--json", **env))[0]["tags"]
     assert t1 == {"by": "claude:s1", "new": None}, t1

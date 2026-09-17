@@ -5,7 +5,7 @@ description: Microjournal and task log shared by humans and agents. Use at sessi
 
 # jn
 
-`jn` is a CLI journal. Entries are text plus tags (`@name` or `@name=value`). Lead with tags, then the text: `jn log "@by=claude:claude-code @re=42 parser handles nested lists"`. Leading and trailing tags are stripped from the saved text. Project tags come from a `.jn` file automatically, so never add `@project` yourself.
+`jn` is a CLI journal. Entries are text plus tags (`@name` or `@name=value`). Lead with tags, then the text: `jn log "@by=claude:claude-code @re=#42 parser handles nested lists"`. Leading and trailing tags are stripped from the saved text. Project tags come from a `.jn` file automatically, so never add `@project` yourself.
 
 Always tag entries you write with `@by=<agent>:<tool>`, e.g. `@by=claude:claude-code` or `@by=gemini:antigravity`.
 
@@ -15,11 +15,11 @@ Always tag entries you write with `@by=<agent>:<tool>`, e.g. `@by=claude:claude-
 jn ls open                      # open tasks in this project (do this at session start)
 jn todo "write tests for X @by=claude:claude-code"   # -> prints id
 jn done 42                      # mark task 42 finished
-jn log "milestone: parser works, 3 edge cases left @by=claude:claude-code @re=42"
+jn log "milestone: parser works, 3 edge cases left @by=claude:claude-code @re=#42"
 jn ls --since today             # what happened today
 jn show 42                      # full entry (tags line, blank line, content). no id = last entry
 jn edit 42 <<'EOF'              # replaces the WHOLE entry, tags included; to change tags only use `jn tag`
-@todo @by=claude:claude-code @re=7
+@todo @by=claude:claude-code @re=#7
 rewritten text
 EOF
 ```
@@ -28,7 +28,7 @@ Multi-line entries via stdin:
 
 ```bash
 jn log <<'EOF'
-Finished auth refactor @by=claude:claude-code @re=42
+Finished auth refactor @by=claude:claude-code @re=#42
 - moved token check to middleware
 - open question: refresh token expiry
 EOF
@@ -51,12 +51,12 @@ Options: `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--json`, `--md
 
 ```bash
 jn ls @todo -@done @by=claude:*          # open tasks created by any claude agent
-jn ls @re=42                             # everything linking to entry 42
+jn ls @re=#42                            # replies to entry 42 (or just `jn show 42`)
 jn ls --since yesterday --json           # machine-readable, tags as {name: value}
 jn history 42                            # prior versions (tags + content), e.g. when it was marked done
 ```
 
-Useful tags: `@todo`/`@done` for tasks, `@re=ID` to link to another entry, `@due=tomorrow` / `@due=3d` / `@due=2026-10-01` (date words resolve to ISO when written), `@blocked`. Invent others freely; tags are just names.
+Useful tags: `@todo`/`@done` for tasks, `@re=#ID` to comment on / link to another entry (`jn show ID` lists backlinks), `@parent=#ID` for subtasks, `@due=tomorrow` / `@due=3d` / `@due=2026-10-01` (date words resolve to ISO when written), `@blocked`. Invent others freely; tags are just names.
 
 ## When to write
 
