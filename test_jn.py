@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory() as d:
     Path(d, ".jn").write_text('tags = ["global"]\ntags_cmd = "echo @ws=${PWD##*/}"\n')
     Path(d, "proj/sub/.jn").write_text('tags_cmd = "echo @evil"\n')  # must be ignored
 
-    a = run("todo", "@fitness do 10 pushups", "#daily", **env)
+    a = run("todo", "@fitness do 10 pushups", "@daily", **env)
     b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=#" + a, **env)
     run("done", a, **env)
     rows = json.loads(run("ls", "--json", **env))
@@ -23,15 +23,14 @@ with tempfile.TemporaryDirectory() as d:
     t0, t1 = rows[0]["tags"], rows[1]["tags"]
     assert t0["ws"] == "sub" and "evil" not in t0, t0
     assert "todo" not in t0 and "done" in t0 and t0["project"] == "demo" and "global" in t0, t0
-    assert t1["by"] == "claude:s1" and t1["re"] == a and "Heading" not in t1, t1
+    assert t1["by"] == "claude:s1" and t1["re"] == "#" + a and "Heading" not in t1, t1
     assert run("ls", "open", **env) == ""                                   # named query, nothing open
     assert run("ls", "@by=claude:*", **env).split()[0] == b                 # value glob
     assert run("ls", "pushups", "--since", "today", **env).split()[0] == a  # text + since
     assert run("ls", "-@done", **env).split()[0] == b                       # negation
     assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
-    assert run("show", a, **env).endswith(f"← #{b} @re"), run("show", a, **env)   # backlink
-    d = run("log", "see #1 and #2", **env)
-    assert json.loads(run("ls", d, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
+    bl = subprocess.run([sys.executable, JN, "show", a], capture_output=True, text=True, env={**os.environ, **env}, cwd=env["CWD"]).stderr
+    assert bl == f"← #{b} @re\n", bl                                       # backlinks on stderr
     run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # round-trip edit keeps tags
     e = json.loads(run("ls", b, "--json", **env))[0]
     assert e["content"] == "# Heading\nran" and e["tags"]["re"] == "#" + a and "new" in e["tags"] and e["tags"]["by"] == "claude:s1", e
@@ -51,4 +50,6 @@ with tempfile.TemporaryDirectory() as d:
     assert tc["due"] == (datetime.date.today() + datetime.timedelta(days=1)).isoformat(), tc
     assert run("ls", "@due=" + tc["due"], **env).split()[0] == c and run("ls", "@due=tomorrow", **env).split()[0] == c
     assert run("ls", "--since", "1d", **env).count("\n") == 2                # bare N is past for --since
+    d = run("log", "see #1 and #2", **env)
+    assert json.loads(run("ls", d, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
     print("ok")
