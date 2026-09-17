@@ -30,19 +30,20 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "pushups", "--since", "today", "--all", **env))[0] == a  # text + since
     assert ids(run("ls", "-@done", **env))[0] == b                       # negation
     assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
-    bl = subprocess.run([sys.executable, JN, "show", a], capture_output=True, text=True, env={**os.environ, **env}, cwd=env["CWD"]).stderr
-    assert bl == f"← #{b} @re\n", bl                                       # backlinks on stderr
-    run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # round-trip edit keeps tags
+    assert run("show", a, **env).endswith(f"<- #{b} @re"), run("show", a, **env)   # backlinks on stdout
+    run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # show (with backlinks) pipes into edit
     e = json.loads(run("ls", b, "--json", **env))[0]
     assert e["content"] == "# Heading\nran" and e["tags"]["re"] == "#" + a and "new" in e["tags"] and e["tags"]["by"] == "claude:s1", e
-    run("edit", b, "ran instead @by=claude:s1 @new", **env)   # args = whole entry: tags not mentioned are gone
-    t1 = json.loads(run("ls", b, "--json", **env))[0]["tags"]
-    assert t1 == {"by": "claude:s1", "new": None}, t1
+    run("edit", b, "ran instead -@new @by=claude:s2", **env)   # merge: text replaces content, -@ drops, others stay
+    e = json.loads(run("ls", b, "--json", **env))[0]
+    assert e["content"] == "ran instead" and "new" not in e["tags"] and e["tags"]["by"] == "claude:s2" and e["tags"]["re"] == "#" + a, e
+    run("edit", b, "@by=claude:s1", **env)                      # tags-only edit leaves content alone
+    assert json.loads(run("ls", b, "--json", **env))[0]["content"] == "ran instead"
     run("edit", b, stdin=run("show", b, **env), **env)         # no-op edit adds no history
     h = run("history", b, **env)
-    assert "v4" not in h, h
+    assert "v5" not in h, h
     ha = run("history", a, **env)
-    assert "@todo" in ha.split("v2")[0] and "@done" in ha.split("v2")[1], ha   # done flip is versioned
+    assert "@todo" in ha.split("v2")[0] and "@done" in ha.split("v2")[1], ha   # close is versioned
     run("close", a, **env)                                                     # idempotent flip: no new version
     assert "v3" not in run("history", a, **env)
     assert h.index("walked") < h.index("ran instead") and "v3" in h, h
@@ -67,10 +68,10 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "@blocked_by=#420,vendor", **env)) == [y, z]       # any-of
     assert ids(run("ls", "@blocked_by=#4*", **env)) == [z]                  # glob per item
     assert ids(run("ls", "--fit", "--all", **env)) == [a]                            # custom filter from ~/.jn
-    run("tag", z, "@blocked_by+=#7,#420", "@seen+=x", **env)               # append dedup, create on +=
+    run("edit", z, "@blocked_by+=#7,#420", "@seen+=x", **env)               # append dedup, create on +=
     tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] == "#420,#7" and tz["seen"] == "x", tz
-    run("tag", z, "@blocked_by-=#420,#7", "@nope-=x", **env)               # emptied tag stays; -= on absent is a no-op
+    run("edit", z, "@blocked_by-=#420,#7", "@nope-=x", **env)               # emptied tag stays; -= on absent is a no-op
     tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] is None and "nope" not in tz, tz
     h = run("-h", **env)

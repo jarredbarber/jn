@@ -1,52 +1,30 @@
 #!/usr/bin/env python3
-"""jn: microjournal + tasks for humans and agents. Single file, stdlib only (py3.11+).
+"""jn: microjournal + tasks for humans and agents. See README.md.
 
-  jn log [@tags] [text...]   add entry; no text beyond tags -> stdin (if piped) or $EDITOR. prints id
-  jn tag ID @a -@b @k=v      add/remove tags; @k+=x,y appends items, @k-=x removes items (tag stays, maybe empty)
-  jn todo [text...]          action: log @todo $@
-  jn close ID                action: tag $1 @done -@todo, then ls @blocked_by=#$1 --unblocked (what it freed)
-  jn show [ID]               tags line + blank + content; round-trips through edit. backlinks on stderr. default: last
-  jn edit [ID] [text...]     replace the WHOLE entry (tags + content) from text/stdin/$EDITOR seeded with show
-  jn history [ID]            prior versions (tags + content, oldest first), then current
-  jn ls [filters] [opts]     filters: @tag  -@tag  @k=v  @k=a,b (any of)  @k=v*  word  ID  --name
+  jn log [@tags] [text]      add entry; tags-only args -> body from stdin or $EDITOR. prints id
+  jn edit [ID] [@a -@b text] merge tags (@k=v sets, -@k drops, @k+=x/@k-=x edit list items); text replaces content
+                             no args -> stdin or $EDITOR seeded with show. default ID: last
+  jn show [ID]               tags line, blank, content, then "<- #N @tag" backlinks. pipeable into edit
+  jn history [ID]            prior versions, then current
+  jn ls [filters] [opts]     filters: @tag -@tag @k=v @k=a,b @k=v* word ID --name
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md  --all
-                             the "default" filter (builtin -@done -@archived) is added unless --all, an ID,
-                             or one of its tags appears in your filters
-  jn -h                      this text, then config files in overlay order, every action and --filter with source
-
-tags: @name, optional =value where value is a comma list (@blocked_by=#12,#15). @k=v filters on "v is an item of k".
-  Leading/trailing tags are stripped from content.
-  Values today|tomorrow|yesterday|[+-]N[hdw] become ISO dates at write time (@due=tomorrow, @due=2w).
-  #42 points at entry 42: use it in prose or values (@parent=#42, @re=#42); show lists what points here.
-  Defaults come from ~/.jn and every .jn walking up to cwd (TOML, nearer wins) plus $JN_TAGS. @by defaults to $USER.
-
-config (TOML):
-  tags = ["project=x"]                       default tags on log/todo
-  [filters]  open = "@todo -@done"           starts with @ or -@: expands into ls tokens
-             mine = "tag('by') == default('by')"   otherwise a python expression evaluated per entry (~/.jn only)
-    namespace: tag('name') -> list[str] | None (absent); tag('name', id) same for another entry
-               default('name') same shape, from the tags log would stamp right now (config, tags_expr, $JN_TAGS, $USER)
-               env('VAR') -> str | None; cwd; F('name') (another filter)
-               id created updated content tags (the raw {name: value} dict)
-  tags_expr = "python expr"                  ~/.jn only; evaluates to a str or list of extra tags, sees env() and cwd
-  [actions]  close = ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"]
-             a name -> list of jn command lines; $1 $2.. and $@ are the action's args
-db: $JN_DB or ~/.jn.db
+  jn <action> ...            todo, close, ... (see below)
 """
-import getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib
-from datetime import date, datetime, timedelta
+import functools, getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 DB = Path(os.environ.get("JN_DB", Path.home() / ".jn.db"))
-# sigil must follow start/whitespace and touch a word char, so "# Heading" is not a tag
 # @ must follow start/whitespace, so emails are not tags. # is never a sigil: "#42" is a pointer, "# Heading" is prose
 TAG = re.compile(r"(?:^|(?<=\s))(-?)@([A-Za-z_]\w*(?:-\w+)*)(?:([+-]?=)(\S+))?")
 TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
+BACKLINK = re.compile(r"^<- #\d+ @\S+$", re.M)
 COLS = ("id", "created", "updated", "content")
+TAGS = ["by=" + getpass.getuser()]  # builtin default tags; config/tags_expr/$JN_TAGS/text override
 ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's args. override/extend in [actions]
     "todo": ["log @todo $@"],
-    "close": ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"],
+    "close": ["edit $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"],
 }
 FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
     "default": "-@done -@archived",
@@ -56,6 +34,7 @@ FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/ext
 }
 
 
+@functools.cache
 def db():
     c = sqlite3.connect(DB)
     c.executescript("""
@@ -68,16 +47,23 @@ def db():
 
 
 def now():
-    return datetime.now().isoformat(timespec="seconds")
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def local(ts):
+    """stored UTC (or legacy naive local) -> configured tz / local time, 'YYYY-MM-DD HH:MM'"""
+    tz = zoneinfo.ZoneInfo(config()["tz"]) if config().get("tz") else None
+    return datetime.fromisoformat(ts).astimezone(tz).strftime("%Y-%m-%d %H:%M")
 
 
 def is_tokens(expr):
     return expr.lstrip("-").startswith("@")
 
 
+@functools.cache
 def config():
     """builtin, ~/.jn, then root/.jn ... ./.jn; nearer wins. Only ~/.jn may hold code (python filters, tags_expr)."""
-    cfg = {"tags": [], "filters": dict(FILTERS), "actions": dict(ACTIONS), "files": ["builtin"],
+    cfg = {"tags": list(TAGS), "filters": dict(FILTERS), "actions": dict(ACTIONS), "files": ["builtin"],
            "src": {n: "builtin" for n in [*FILTERS, *ACTIONS]}}
     home = (Path.home() / ".jn").resolve()
     for f in dict.fromkeys(p.resolve() for p in [home, *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]):
@@ -85,6 +71,8 @@ def config():
             c = tomllib.loads(f.read_text())
             cfg["files"].append(str(f))
             cfg["tags"] += c.get("tags", [])
+            if "tz" in c:
+                cfg["tz"] = c["tz"]
             for n, cmds in c.get("actions", {}).items():
                 cfg["actions"][n], cfg["src"][n] = [cmds] if isinstance(cmds, str) else list(cmds), str(f)
             for n, expr in c.get("filters", {}).items():
@@ -119,21 +107,17 @@ def parse_tags(text, current=None):
 
 
 def strip_tags(text):
-    """drop leading/trailing tag runs; tags mid-sentence stay as prose"""
-    return TRAIL.sub("", LEAD.sub("", text)).strip()
+    """drop leading/trailing tag runs and show's backlink lines; tags mid-sentence stay as prose"""
+    return TRAIL.sub("", LEAD.sub("", BACKLINK.sub("", text).strip())).strip()
 
 
-def get_text(args, seed=""):
-    """args are the text; if they hold nothing but tags, the body comes from stdin (piped) or $EDITOR"""
-    text = " ".join(args)
-    if strip_tags(text):
-        return text
+def read_body(seed=""):
     if not sys.stdin.isatty():
-        return (text + "\n" + sys.stdin.read()).strip()
+        return sys.stdin.read()
     with tempfile.NamedTemporaryFile("w+", suffix=".md") as f:
         f.write(seed); f.flush()
         subprocess.run([*os.environ.get("EDITOR", "vi").split(), f.name])
-        return (text + "\n" + Path(f.name).read_text()).strip()
+        return Path(f.name).read_text()
 
 
 def run_action(cmds, args):
@@ -145,13 +129,14 @@ def run_action(cmds, args):
 
 
 def default_tags():
-    """config -> tags_expr -> $JN_TAGS -> @by=$USER, later wins"""
-    tags, _ = parse_tags(" ".join(["@" + t.lstrip("@") for t in config()["tags"]] + [os.environ.get("JN_TAGS", "")]))
-    tags.setdefault("by", getpass.getuser())
-    return tags
+    """builtin -> config -> tags_expr -> $JN_TAGS, later wins"""
+    return parse_tags(" ".join(["@" + t.lstrip("@") for t in config()["tags"]] + [os.environ.get("JN_TAGS", "")]))[0]
 
 
-def add_entry(text):
+def add_entry(args):
+    text = " ".join(args)
+    if not strip_tags(text):  # tags only: body from stdin or $EDITOR
+        text = (text + "\n" + read_body()).strip()
     tags = default_tags() | parse_tags(text)[0]
     content = strip_tags(text) or sys.exit("empty entry")
     with db() as c:
@@ -160,25 +145,8 @@ def add_entry(text):
     return eid
 
 
-def versioned(c, eid, write):
-    """run write(); if the entry text changed, keep the old version in history and bump updated"""
-    before = entry_text(eid, c)
-    write()
-    if entry_text(eid, c) != before:
-        c.execute("INSERT INTO history SELECT id, updated, ? FROM entry WHERE id=?", (before, eid))
-        c.execute("UPDATE entry SET updated=? WHERE id=?", (now(), eid))
-
-
-def retag(eid, text):
-    with db() as c:
-        add, rm = parse_tags(text, dict(c.execute("SELECT name,value FROM tagged WHERE entry=?", (eid,))))
-        versioned(c, eid, lambda: (
-            c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()]),
-            c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])))
-
-
 def entry_text(eid, c=None):
-    """what `show` prints and `edit` seeds; parse_tags + strip_tags recover the entry exactly"""
+    """tags line, blank, content. edit seeds with this and accepts it back"""
     c = c or db()
     row = c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
     return f"{fmt_tags(dict(c.execute('SELECT name,value FROM tagged WHERE entry=?', (eid,))))}\n\n{row[0]}\n"
@@ -186,17 +154,23 @@ def entry_text(eid, c=None):
 
 def backlinks(eid):
     rows = db().execute("SELECT entry, name FROM tagged WHERE value=? ORDER BY entry", (f"#{eid}",)).fetchall()
-    return "".join(f"← #{e} @{n}\n" for e, n in rows)
+    return "".join(f"<- #{e} @{n}\n" for e, n in rows)
 
 
 def edit(eid, args):
-    new = get_text(args, entry_text(eid))
-    tags, content = parse_tags(new)[0], strip_tags(new) or sys.exit("empty entry")
+    """merge: @k sets, -@k drops, += / -= edit items; non-tag text replaces content. No args: stdin or $EDITOR"""
+    text = " ".join(args) if args else read_body(entry_text(eid))
+    content = strip_tags(text)
     with db() as c:
-        versioned(c, eid, lambda: (
-            c.execute("UPDATE entry SET content=? WHERE id=?", (content, eid)),
-            c.execute("DELETE FROM tagged WHERE entry=?", (eid,)),
-            c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])))
+        add, rm = parse_tags(text, dict(c.execute("SELECT name,value FROM tagged WHERE entry=?", (eid,))))
+        before = entry_text(eid, c)
+        c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()])
+        c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])
+        if content:
+            c.execute("UPDATE entry SET content=? WHERE id=?", (content, eid))
+        if entry_text(eid, c) != before:  # every change to tags or content is a version
+            c.execute("INSERT INTO history SELECT id, updated, ? FROM entry WHERE id=?", (before, eid))
+            c.execute("UPDATE entry SET updated=? WHERE id=?", (now(), eid))
 
 
 def last():
@@ -208,7 +182,7 @@ def history(eid):
     old = c.execute("SELECT at, content FROM history WHERE entry=? ORDER BY rowid", (eid,)).fetchall()
     cur = (c.execute("SELECT updated FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}"))[0]
     for n, (at, text) in enumerate([*old, (cur, entry_text(eid, c))], 1):
-        print(f"## {eid} v{n} · {at}\n\n{text}")
+        print(f"## {eid} v{n} · {local(at)}\n\n{text}")
 
 
 def envf(k):
@@ -256,6 +230,11 @@ def dateword(s, future=True):
     return s
 
 
+def to_utc(s):
+    """local date or datetime string -> stored UTC form, for comparing against created"""
+    return datetime.fromisoformat(s).astimezone(timezone.utc).isoformat(timespec="seconds")
+
+
 def query(tokens, since_=None):
     add, rm = parse_tags(" ".join(t for t in tokens if TAG.fullmatch(t)))
     where, params = [], []
@@ -271,7 +250,7 @@ def query(tokens, since_=None):
         else:
             where.append("content LIKE ?"); params.append(f"%{w}%")
     if since_:
-        where.append("created>=?"); params.append(dateword(since_, future=False))
+        where.append("created>=?"); params.append(to_utc(dateword(since_, future=False)))
     sql = "SELECT id,created,updated,content FROM entry" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id"
     c = db()
     rows = [dict(zip(COLS, r)) for r in c.execute(sql, params)]
@@ -289,7 +268,7 @@ def show(rows, fmt):
         print(json.dumps(rows, indent=1))
     elif fmt == "md":
         for r in rows:
-            print(f"## {r['id']} · {r['created']}\n{fmt_tags(r['tags'])}\n\n{r['content']}\n")
+            print(f"## {r['id']} · {local(r['created'])}\n{fmt_tags(r['tags'])}\n\n{r['content']}\n")
     elif rows:
         width = shutil.get_terminal_size().columns
         tagw = min(max(len(fmt_tags(r["tags"])) for r in rows), max(20, width // 3))
@@ -299,7 +278,7 @@ def show(rows, fmt):
         for r in rows:
             lines = r["content"].splitlines() or [""]
             head = lines[0] + (" …" if len(lines) > 1 else "")
-            print(f"{r['id']:>5}  {r['created'][5:16].replace('T', ' ')}  {cut(head, textw):<{textw}}  {cut(fmt_tags(r['tags']), tagw)}")
+            print(f"{r['id']:>5}  {local(r['created'])[5:]}  {cut(head, textw):<{textw}}  {cut(fmt_tags(r['tags']), tagw)}")
 
 
 def main(argv):
@@ -312,9 +291,7 @@ def main(argv):
         else:
             pos.append(a)
     if cmd == "log":
-        print(add_entry(get_text(pos)))
-    elif cmd == "tag":
-        retag(int(pos[0]), " ".join(pos[1:]))
+        print(add_entry(pos))
     elif cmd in ("edit", "show", "history"):
         eid = int(pos.pop(0)) if pos and pos[0].isdigit() else last()
         if cmd == "edit":
@@ -322,8 +299,7 @@ def main(argv):
         elif cmd == "history":
             history(eid)
         else:
-            print(entry_text(eid), end="")
-            print(backlinks(eid), end="", file=sys.stderr)  # ponytail: stderr keeps stdout round-trippable
+            print(entry_text(eid) + backlinks(eid), end="")
     elif cmd == "ls":
         tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md", "all")])
         if "all" not in opts and not any(t.isdigit() for t in pos):
@@ -337,7 +313,7 @@ def main(argv):
         run_action(actions[cmd], args)
     else:
         cfg = config()
-        print(__doc__ + "\nconfig: " + ", ".join(cfg["files"]) + "\nactions:")
+        print(__doc__ + "\nconfig: " + ", ".join(cfg["files"]) + "\ntags: " + fmt_tags(default_tags()) + "\nactions:")
         for n, v in cfg["actions"].items():
             print(f"  {n:<14} {' ; '.join(v)}   # {cfg['src'][n]}")
         print("filters:")

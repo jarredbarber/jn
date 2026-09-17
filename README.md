@@ -5,7 +5,7 @@ Microjournal + task log for humans and agents. One Python file, stdlib only.
 ```bash
 jn todo "do 10 pushups @fitness"        # -> 1
 jn close 1
-jn log "shipped discovery @re=1"
+jn log "@re=#1 shipped discovery"
 jn log <<'EOF'
 # multi-line via stdin
 - decided X over Y
@@ -21,8 +21,10 @@ jn ls @todo --mine                      # @by = whatever log would stamp right n
 jn todo "@blocked_by=#12,#15 ship it"   # blocked until 12 and 15 are @done; `jn close 15` prints what it freed
 jn ls @todo --unblocked                 # actionable now
 jn ls --json | jq ...
-jn show                                 # last entry: tags line, blank, content
-jn edit                                 # $EDITOR seeded with show output; replaces whole entry
+jn show                                 # last entry: tags line, blank, content, backlinks
+jn edit 1 @due=tomorrow -@fitness       # merge tags; -@ drops
+jn edit 1 "new text @urgent"            # text replaces content, tags still merge
+jn edit                                 # no args: $EDITOR seeded with show, or stdin
 jn history 1                            # every prior version, tags included
 ```
 
@@ -38,16 +40,17 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 
 - Entry: `id, created, updated, content`.
 - Tags: `@name` or `@name=value`. A tag is present or absent; when present its value is a comma list, `@name` alone being the empty list. `#` is never a tag sigil.
-- `jn tag N @k=a,b` replaces the list, `@k+=c` appends, `@k-=a` removes items (tag stays, possibly empty), `-@k` drops the tag. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
+- `jn edit N @k=a,b` replaces the list, `@k+=c` appends, `@k-=a` removes items (tag stays, possibly empty), `-@k` drops the tag. Tags you don't mention are untouched. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
 - Date words in values resolve when written: `@due=tomorrow`, `@due=2w`, `@due=-3d`, `@due=today`. Stored as ISO, so `@due=tomorrow` still means the same day next week.
 - `#42` points at entry 42, in prose or in values: `@parent=#42`, `@re=#42`, `@blocks=#42`. `jn show 42` lists everything pointing at it (on stderr, so stdout still round-trips into `edit`). No relationship types are built in.
 - `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.
-- `show` output round-trips through `edit`. `edit` replaces tags and content; use `tag` to change tags alone. Every change to tags or content keeps the prior version, see `jn history`. Tag changes are not versioned.
+- `show` output pipes into `edit`: the backlink lines are ignored, the tags line merges, the content replaces. Every change to tags or content keeps the prior version, see `jn history`.
+- Timestamps are stored in UTC and shown in local time, or in `tz = "America/New_York"` from config. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.
 
 ## Tags the code knows about
 
-Only `@by`: `log` stamps it with `$USER` unless config, `tags_expr`, `$JN_TAGS`, or the text set it. Everything else, including `@todo`, `@done`, and `@blocked_by`, is defined by the default actions and filters below and can be redefined.
+None. `@by=$USER` is a builtin default tag, and `@todo`, `@done`, `@archived`, `@blocked_by` come from the default actions and filters below. All of it can be redefined in config; `jn -h` shows the effective set.
 
 Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks whatever the tag name. `@re=#N` for comments and `@parent=#N` for subtasks are conventions only.
 
@@ -57,10 +60,10 @@ Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks what
 
 ```toml
 todo  = ["log @todo $@"]
-close = ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"]
+close = ["edit $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"]
 ```
 
-Any `.jn` may add or override them under `[actions]`. If `log`'s arguments are tags only, the body is read from stdin or `$EDITOR`, so `jn todo <<EOF` works.
+Any `.jn` may add or override them under `[actions]`, so a project can redefine `todo`; the blast radius is your journal. If `log`'s arguments are tags only, the body is read from stdin or `$EDITOR`, so `jn todo <<EOF` works.
 
 ## Filters and config
 
@@ -107,7 +110,7 @@ Python namespace:
 
 `tags_expr` sees `env()` and `cwd` and returns a string or list of tags.
 
-`$JN_TAGS` adds tags per shell or session. `$JN_DB` overrides `~/.jn.db`.
+`$JN_TAGS` adds tags per shell or session. `$JN_DB` overrides `~/.jn.db`. `tz = "UTC"` in any `.jn` sets the display timezone.
 
 ## Agents
 
