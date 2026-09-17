@@ -40,6 +40,19 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 - `show` output round-trips through `edit`. `edit` replaces tags and content; use `tag` to change tags alone. Every change to tags or content keeps the prior version, see `jn history`. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.
 
+## Tags the code knows about
+
+Everything else is convention. These four have behavior:
+
+| tag | set by | read by |
+|---|---|---|
+| `@by=<who>` | every `log`/`todo`, default `$USER`, override via config, `tags_cmd`, `$JN_TAGS`, or text | `ls --mine` |
+| `@todo` | `jn todo` | removed by `close` |
+| `@done` | `jn close` | `@blocked_by` resolution |
+| `@blocked_by=#12,#15,vendor` | you | `ls --blocked` / `--unblocked`, `close` prints what it freed. Non-`#N` items block until edited out |
+
+Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks whatever the tag name. `@re=#N` for comments and `@parent=#N` for subtasks are conventions only.
+
 ## Config
 
 Both files are TOML and optional.
