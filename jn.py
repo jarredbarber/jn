@@ -2,8 +2,8 @@
 """jn: microjournal + tasks for humans and agents. See README.md.
 
   jn log [@tags] [text]      add entry; tags-only args -> body from stdin or $EDITOR. prints id
-  jn edit [ID] [@a -@b text] merge tags (@k=v sets, -@k drops, @k+=x/@k-=x edit list items); text replaces content
-                             no args -> stdin or $EDITOR seeded with show. default ID: last
+  jn tag ID @a -@b @k+=x     patch tags: @k=v sets, -@k drops, @k+=x / @k-=x edit list items; nothing else changes
+  jn edit [ID]               replace the whole entry with the document from stdin or $EDITOR (seeded with show)
   jn show [ID]               tags line, blank, content, then "<- #N @tag" backlinks. pipeable into edit
   jn history [ID]            prior versions, then current
   jn ls [filters] [opts]     filters: @tag -@tag @k=v @k=a,b @k=v* word ID --name
@@ -24,7 +24,7 @@ COLS = ("id", "created", "updated", "content")
 TAGS = ["by=" + getpass.getuser()]  # builtin default tags; config/tags_expr/$JN_TAGS/text override
 ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's args. override/extend in [actions]
     "todo": ["log @todo $@"],
-    "close": ["edit $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"],
+    "close": ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"],
 }
 FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
     "default": "-@done -@archived",
@@ -157,20 +157,33 @@ def backlinks(eid):
     return "".join(f"<- #{e} @{n}\n" for e, n in rows)
 
 
-def edit(eid, args):
-    """merge: @k sets, -@k drops, += / -= edit items; non-tag text replaces content. No args: stdin or $EDITOR"""
-    text = " ".join(args) if args else read_body(entry_text(eid))
-    content = strip_tags(text)
+def versioned(c, eid, write):
+    """run write(); every change to tags or content keeps the old version in history"""
+    before = entry_text(eid, c)
+    write()
+    if entry_text(eid, c) != before:
+        c.execute("INSERT INTO history SELECT id, updated, ? FROM entry WHERE id=?", (before, eid))
+        c.execute("UPDATE entry SET updated=? WHERE id=?", (now(), eid))
+
+
+def tag(eid, args):
+    """patch: @k sets, -@k drops, += / -= edit items. Content untouched"""
     with db() as c:
-        add, rm = parse_tags(text, dict(c.execute("SELECT name,value FROM tagged WHERE entry=?", (eid,))))
-        before = entry_text(eid, c)
-        c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()])
-        c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])
-        if content:
-            c.execute("UPDATE entry SET content=? WHERE id=?", (content, eid))
-        if entry_text(eid, c) != before:  # every change to tags or content is a version
-            c.execute("INSERT INTO history SELECT id, updated, ? FROM entry WHERE id=?", (before, eid))
-            c.execute("UPDATE entry SET updated=? WHERE id=?", (now(), eid))
+        add, rm = parse_tags(" ".join(args), dict(c.execute("SELECT name,value FROM tagged WHERE entry=?", (eid,))))
+        versioned(c, eid, lambda: (
+            c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()]),
+            c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])))
+
+
+def edit(eid):
+    """document: the buffer (stdin or $EDITOR) is the whole entry, tags line included. show output round-trips"""
+    text = read_body(entry_text(eid))
+    tags, content = parse_tags(text)[0], strip_tags(text) or sys.exit("empty entry")
+    with db() as c:
+        versioned(c, eid, lambda: (
+            c.execute("UPDATE entry SET content=? WHERE id=?", (content, eid)),
+            c.execute("DELETE FROM tagged WHERE entry=?", (eid,)),
+            c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])))
 
 
 def last():
@@ -292,10 +305,12 @@ def main(argv):
             pos.append(a)
     if cmd == "log":
         print(add_entry(pos))
+    elif cmd == "tag":
+        tag(int(pos[0]), pos[1:])
     elif cmd in ("edit", "show", "history"):
         eid = int(pos.pop(0)) if pos and pos[0].isdigit() else last()
         if cmd == "edit":
-            edit(eid, pos)
+            edit(eid) if not pos else sys.exit("edit takes the whole entry from stdin or $EDITOR; use `jn tag` for one-liners")
         elif cmd == "history":
             history(eid)
         else:

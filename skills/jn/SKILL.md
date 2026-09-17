@@ -15,11 +15,14 @@ Always tag entries you write with `@by=<agent>:<tool>`, e.g. `@by=claude:claude-
 jn ls --open                    # open tasks in this project (do this at session start)
 jn todo "write tests for X @by=claude:claude-code"   # -> prints id
 jn close 42                     # mark task 42 finished
-jn edit 42 @blocked_by+=#7 -@urgent  # merge tags: @k sets, += / -= edit items, -@ drops. unmentioned tags stay
+jn tag 42 @blocked_by+=#7 -@urgent   # patch tags: @k sets, += / -= edit items, -@ drops. unmentioned tags stay
 jn log "milestone: parser works, 3 edge cases left @by=claude:claude-code @re=#42"
 jn ls --since today             # what happened today
 jn show 42                      # tags line, blank line, content, backlinks. no id = last entry
-jn edit 42 "rewritten text"     # non-tag text replaces the content; tags are merged, never dropped unless -@
+jn edit 42 <<'EOF'              # replaces the WHOLE entry (tags line + content). for tags only use `jn tag`
+@todo @by=claude:claude-code @re=#7
+rewritten text
+EOF
 ```
 
 Multi-line entries via stdin:

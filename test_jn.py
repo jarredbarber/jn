@@ -34,11 +34,12 @@ with tempfile.TemporaryDirectory() as d:
     run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # show (with backlinks) pipes into edit
     e = json.loads(run("ls", b, "--json", **env))[0]
     assert e["content"] == "# Heading\nran" and e["tags"]["re"] == "#" + a and "new" in e["tags"] and e["tags"]["by"] == "claude:s1", e
-    run("edit", b, "ran instead -@new @by=claude:s2", **env)   # merge: text replaces content, -@ drops, others stay
+    run("edit", b, stdin="@by=claude:s2 @re=#" + a + "\n\nran instead", **env)   # document: buffer is the whole entry
     e = json.loads(run("ls", b, "--json", **env))[0]
-    assert e["content"] == "ran instead" and "new" not in e["tags"] and e["tags"]["by"] == "claude:s2" and e["tags"]["re"] == "#" + a, e
-    run("edit", b, "@by=claude:s1", **env)                      # tags-only edit leaves content alone
+    assert e["content"] == "ran instead" and e["tags"] == {"by": "claude:s2", "re": "#" + a}, e
+    run("tag", b, "@by=claude:s1", "@global", **env)             # patch: content untouched
     assert json.loads(run("ls", b, "--json", **env))[0]["content"] == "ran instead"
+    assert subprocess.run([sys.executable, JN, "edit", b, "text"], capture_output=True, env={**os.environ, **env}, cwd=env["CWD"]).returncode == 1
     run("edit", b, stdin=run("show", b, **env), **env)         # no-op edit adds no history
     h = run("history", b, **env)
     assert "v5" not in h, h
@@ -68,10 +69,10 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "@blocked_by=#420,vendor", **env)) == [y, z]       # any-of
     assert ids(run("ls", "@blocked_by=#4*", **env)) == [z]                  # glob per item
     assert ids(run("ls", "--fit", "--all", **env)) == [a]                            # custom filter from ~/.jn
-    run("edit", z, "@blocked_by+=#7,#420", "@seen+=x", **env)               # append dedup, create on +=
+    run("tag", z, "@blocked_by+=#7,#420", "@seen+=x", **env)               # append dedup, create on +=
     tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] == "#420,#7" and tz["seen"] == "x", tz
-    run("edit", z, "@blocked_by-=#420,#7", "@nope-=x", **env)               # emptied tag stays; -= on absent is a no-op
+    run("tag", z, "@blocked_by-=#420,#7", "@nope-=x", **env)               # emptied tag stays; -= on absent is a no-op
     tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] is None and "nope" not in tz, tz
     h = run("-h", **env)

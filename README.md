@@ -22,9 +22,8 @@ jn todo "@blocked_by=#12,#15 ship it"   # blocked until 12 and 15 are @done; `jn
 jn ls @todo --unblocked                 # actionable now
 jn ls --json | jq ...
 jn show                                 # last entry: tags line, blank, content, backlinks
-jn edit 1 @due=tomorrow -@fitness       # merge tags; -@ drops
-jn edit 1 "new text @urgent"            # text replaces content, tags still merge
-jn edit                                 # no args: $EDITOR seeded with show, or stdin
+jn tag 1 @due=tomorrow -@fitness        # patch tags; nothing else changes
+jn edit                                 # document: $EDITOR seeded with show, or stdin; replaces the whole entry
 jn history 1                            # every prior version, tags included
 ```
 
@@ -40,11 +39,11 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 
 - Entry: `id, created, updated, content`.
 - Tags: `@name` or `@name=value`. A tag is present or absent; when present its value is a comma list, `@name` alone being the empty list. `#` is never a tag sigil.
-- `jn edit N @k=a,b` replaces the list, `@k+=c` appends, `@k-=a` removes items (tag stays, possibly empty), `-@k` drops the tag. Tags you don't mention are untouched. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
+- `jn tag N @k=a,b` replaces the list, `@k+=c` appends, `@k-=a` removes items (tag stays, possibly empty), `-@k` drops the tag. Tags you don't mention are untouched. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
 - Date words in values resolve when written: `@due=tomorrow`, `@due=2w`, `@due=-3d`, `@due=today`. Stored as ISO, so `@due=tomorrow` still means the same day next week.
 - `#42` points at entry 42, in prose or in values: `@parent=#42`, `@re=#42`, `@blocks=#42`. `jn show 42` lists everything pointing at it as `<- #N @tag` lines, which `edit` ignores when piped back. No relationship types are built in.
 - `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.
-- `show` output pipes into `edit`: the backlink lines are ignored, the tags line merges, the content replaces. Every change to tags or content keeps the prior version, see `jn history`.
+- Two verbs: `tag` is a patch from args, `edit` is a document from stdin or `$EDITOR` and replaces the whole entry, tags line included. `edit` refuses args. `show` output round-trips through `edit`; backlink lines are ignored. Every change keeps the prior version, see `jn history`.
 - Timestamps are stored in UTC and shown in local time, or in `tz = "America/New_York"` from config. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.
 
@@ -60,7 +59,7 @@ Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks what
 
 ```toml
 todo  = ["log @todo $@"]
-close = ["edit $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"]
+close = ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"]
 ```
 
 Any `.jn` may add or override them under `[actions]`, so a project can redefine `todo`; the blast radius is your journal. If `log`'s arguments are tags only, the body is read from stdin or `$EDITOR`, so `jn todo <<EOF` works.
