@@ -291,15 +291,17 @@ def show(rows, fmt):
         for r in rows:
             print(f"## {r['id']} · {local(r['created'])}\n{fmt_tags(r['tags'])}\n\n{r['content']}\n")
     elif rows:
+        common = dict(set.intersection(*(set(r["tags"].items()) for r in rows)))  # shown once in the header
+        own = [fmt_tags({k: v for k, v in r["tags"].items() if k not in common}) for r in rows]
         width = shutil.get_terminal_size().columns
-        tagw = min(max(len(fmt_tags(r["tags"])) for r in rows), max(20, width // 3))
+        tagw = min(max(4, *map(len, own)), max(20, width // 3))
         textw = max(20, width - 5 - 2 - 11 - 2 - tagw - 2)
         cut = lambda t, w: t if len(t) <= w else t[:w - 1] + "…"
-        print(f"{'id':>5}  {'when':<11}  {'text':<{textw}}  tags")
-        for r in rows:
+        print(f"{'id':>5}  {'when':<11}  {'text':<{textw}}  tags" + (f"  (all: {fmt_tags(common)})" if common else ""))
+        for r, t in zip(rows, own):
             lines = r["content"].splitlines() or [""]
             head = lines[0] + (" …" if len(lines) > 1 else "")
-            print(f"{r['id']:>5}  {local(r['created'])[5:]}  {cut(head, textw):<{textw}}  {cut(fmt_tags(r['tags']), tagw)}")
+            print(f"{r['id']:>5}  {local(r['created'])[5:]}  {cut(head, textw):<{textw}}  {cut(t, tagw)}")
 
 
 def main(argv):
