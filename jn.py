@@ -11,6 +11,7 @@
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md  --all
                                    --tree[=parent]  nest rows under the entry their @parent=#N (any pointer tag) names
   jn tags [filters]          tag -> count over the same rows ls would show; see where the mass is
+  jn import                  upsert entries from jsonl on stdin, ids preserved: ls --all --json | jq ... | jn import
   jn <action> ...            todo, close, ... (see below). `jn close 1 2 3` closes each
   --db=<path>                use another journal for this run (overrides $JN_DB); works on any command
 """
@@ -154,6 +155,29 @@ def add_entry(args):
         eid = c.execute("INSERT INTO entry(created,updated,content) VALUES(?,?,?)", (now(), now(), content)).lastrowid
         c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])
     return eid
+
+
+def import_jsonl(text):
+    """upsert entries from `ls --json` jsonl on stdin, ids preserved; round-trips edits: ls --json | jq ... | import.
+    ponytail: no history kept for the change (bulk op); your export is the backup. Absent entries are untouched, not deleted."""
+    n = 0
+    with db() as c:
+        for i, line in enumerate(text.splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                e = json.loads(line)
+                eid, content, tags = e["id"], e["content"], dict(e["tags"])
+            except (json.JSONDecodeError, KeyError, TypeError) as err:
+                sys.exit(f"import: line {i}: {err}")
+            ts = e.get("updated") or e.get("created") or now()
+            c.execute("INSERT INTO entry(id,created,updated,content) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET "
+                      "created=excluded.created, updated=excluded.updated, content=excluded.content",
+                      (eid, e.get("created", ts), e.get("updated", ts), content))
+            c.execute("DELETE FROM tagged WHERE entry=?", (eid,))
+            c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])
+            n += 1
+    return n
 
 
 def entry_text(eid, c=None):
@@ -354,6 +378,8 @@ def main(argv):
             pos.append(a)
     if cmd == "log":
         print(add_entry(pos))
+    elif cmd == "import":
+        print(f"imported {import_jsonl(sys.stdin.read())}")
     elif cmd == "tag":
         ids = [int(pos.pop(0)) for _ in pos[:] if pos and pos[0].isdigit()]
         for eid in ids or [sys.exit("tag needs an ID")]:
