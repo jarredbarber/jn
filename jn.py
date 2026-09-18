@@ -423,5 +423,9 @@ def main(argv):
             print(f"  --{n:<12} {v}   # {cfg['src'][n]}")
 
 
-if __name__ == "__main__":
+def cli():  # console_scripts entry point; main() takes argv
     main(sys.argv[1:])
+
+
+if __name__ == "__main__":
+    cli()

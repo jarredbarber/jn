@@ -34,7 +34,13 @@ jn revert 1                             # back one version (or `jn revert 1 v2`)
 
 ## Install
 
-Python 3.11+.
+Python 3.11+, no dependencies.
+
+```bash
+uv tool install git+https://github.com/jarredbarber/jn   # or: pipx install git+https://github.com/jarredbarber/jn
+```
+
+Or skip packaging and symlink the single file:
 
 ```bash
 ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH

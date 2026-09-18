@@ -1,0 +1,16 @@
+[project]
+name = "jn"
+version = "1.0.1"
+description = "Microjournal + task log for humans and agents. One file, stdlib only."
+readme = "README.md"
+requires-python = ">=3.11"
+
+[project.scripts]
+jn = "jn:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+only-include = ["jn.py"]
