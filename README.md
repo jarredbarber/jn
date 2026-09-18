@@ -130,6 +130,23 @@ Python namespace:
 ln -s ~/code/jn/skills/jn ~/.claude/skills/jn
 ```
 
+## Backup and sync
+
+The db is SQLite, but the portable form is jsonl. `--json` sorts keys, so a dump is stable and diffs cleanly in git:
+
+```bash
+jn ls --all --json > journal.jsonl && git -C ~/journal commit -am "$(date +%F)"
+```
+
+Restore or move machines by piping it back — `import` upserts by id, so pointers survive and re-imports are idempotent:
+
+```bash
+jn import < journal.jsonl                 # whole file
+jn ls --since 3d --all --json | jn import  # or just a slice
+```
+
+git is the sync layer: dump/commit/push on one machine, pull/`import` on another. `import` only touches the ids in the stream; it never deletes.
+
 ## Not included
 
 `rm`, tag rename, date comparison on values, sync. All scriptable via `--json`.
