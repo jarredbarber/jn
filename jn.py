@@ -2,7 +2,7 @@
 """jn: microjournal + tasks for humans and agents. See README.md.
 
   jn log [@tags] [text]      add entry; tags-only args -> body from stdin or $EDITOR. prints id
-  jn tag ID @a -@b @k+=x     patch tags: @k=v sets, -@k drops, @k+=x / @k-=x edit list items; nothing else changes
+  jn tag ID... @a -@b @k+=x  patch tags: @k=v sets, -@k drops, @k+=x / @k-=x edit list items; nothing else changes
   jn edit [ID]               replace the whole entry with the document from stdin or $EDITOR (seeded with show)
   jn show [ID]               tags line, blank, content, then "<- #N @tag" backlinks. pipeable into edit
   jn history [ID]            prior versions, then current
@@ -346,7 +346,9 @@ def main(argv):
     if cmd == "log":
         print(add_entry(pos))
     elif cmd == "tag":
-        tag(int(pos[0]), pos[1:])
+        ids = [int(pos.pop(0)) for _ in pos[:] if pos and pos[0].isdigit()]
+        for eid in ids or [sys.exit("tag needs an ID")]:
+            tag(eid, pos)
     elif cmd in ("edit", "show", "history", "revert"):
         eid = int(pos.pop(0)) if pos and pos[0].isdigit() else last()
         if cmd == "edit":

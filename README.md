@@ -25,7 +25,7 @@ jn ls --json | jq ...
 jn tags                                 # tag -> count over what ls would show; where's the mass
 jn tags @home                           # counts within one bucket
 jn show                                 # last entry: tags line, blank, content, backlinks
-jn tag 1 @due=tomorrow -@fitness        # patch tags; nothing else changes
+jn tag 1 2 @due=tomorrow -@fitness      # patch tags on each id; nothing else changes
 jn edit                                 # document: $EDITOR seeded with show, or stdin; replaces the whole entry
 jn history 1                            # every prior version, tags included
 jn revert 1                             # back one version (or `jn revert 1 v2`); itself versioned

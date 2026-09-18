@@ -92,6 +92,8 @@ with tempfile.TemporaryDirectory() as d:
     p3 = run("todo", "@tree @parent=#" + p2 + " grandchild", **env); p4 = run("todo", "@tree @parent=#999 orphan", **env)
     out = run("ls", "@tree", "--tree", **env).splitlines()[1:]
     assert [l.split()[0] for l in out] == [p1, p2, p3, p4] and "    grandchild" in out[2] and out[3].split("  ")[3] == "orphan", out
+    run("tag", p1, p2, "@multi", **env)
+    assert ids(run("ls", "@multi", **env)) == [p1, p2]
     run("close", p3, p4, **env)
     assert ids(run("ls", "@tree", **env)) == [p1, p2]                        # multi-arg action runs per arg
     print("ok")
