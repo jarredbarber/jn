@@ -9,9 +9,11 @@
   jn revert [ID] [N]         restore version N from history (default: the one before current). versioned itself
   jn ls [filters] [opts]     filters: @tag -@tag @k=v @k=a,b @k=v* word ID --name
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md  --all
+  jn tags [filters]          tag -> count over the same rows ls would show; see where the mass is
   jn <action> ...            todo, close, ... (see below)
 """
 import functools, getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
+from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -327,7 +329,7 @@ def main(argv):
             history(eid)
         else:
             print(entry_text(eid) + backlinks(eid), end="")
-    elif cmd == "ls":
+    elif cmd in ("ls", "tags"):
         tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md", "all")])
         if "all" not in opts and not any(t.isdigit() for t in pos):
             mentioned = {m[1] for m in TAG.findall(" ".join(pos + tokens))}
@@ -335,7 +337,11 @@ def main(argv):
         rows = apply_filters(query(pos + tokens, opts.get("since")), py)
         if "last" in opts:
             rows = rows[-int(opts["last"]):]
-        show(rows, "json" if "json" in opts else "md" if "md" in opts else "")
+        if cmd == "tags":
+            for name, n in Counter(t for r in rows for t in r["tags"]).most_common():
+                print(f"{n:>5}  @{name}")
+        else:
+            show(rows, "json" if "json" in opts else "md" if "md" in opts else "")
     elif cmd in (actions := config()["actions"]):
         run_action(actions[cmd], args)
     else:

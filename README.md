@@ -21,6 +21,8 @@ jn ls @todo --mine                      # @by = whatever log would stamp right n
 jn todo "@blocked_by=#12,#15 ship it"   # blocked until 12 and 15 are @done; `jn close 15` prints what it freed
 jn ls @todo --unblocked                 # actionable now
 jn ls --json | jq ...
+jn tags                                 # tag -> count over what ls would show; where's the mass
+jn tags @home                           # counts within one bucket
 jn show                                 # last entry: tags line, blank, content, backlinks
 jn tag 1 @due=tomorrow -@fitness        # patch tags; nothing else changes
 jn edit                                 # document: $EDITOR seeded with show, or stdin; replaces the whole entry
