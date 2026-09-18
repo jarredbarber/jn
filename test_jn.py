@@ -9,7 +9,7 @@ def run(*args, stdin=None, **env):
                           env={**os.environ, **env}, cwd=env["CWD"], check=True).stdout.strip()
 
 with tempfile.TemporaryDirectory() as d:
-    env = dict(JN_DB=f"{d}/t.db", HOME=d, CWD=f"{d}/proj/sub")
+    env = dict(JN_DB=f"{d}/t.db", HOME=d, CWD=f"{d}/proj/sub", CLAUDE_CODE_SESSION_ID="s0", ANTIGRAVITY_CONVERSATION_ID="")
     Path(env["CWD"]).mkdir(parents=True)
     Path(d, "proj/.jn").write_text('tags = ["project=demo"]\n[actions]\nnote = "log @note $@"\n[filters]\nopen = "@todo -@done"\nevil = "__import__(\'os\').system(\'touch pwned\')"\n')
     Path(d, ".jn").write_text('tags = ["global"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[filters]\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
@@ -18,27 +18,27 @@ with tempfile.TemporaryDirectory() as d:
     ids = lambda out: [l.split()[0] for l in out.splitlines()[1:]]      # skip table header
     js = lambda out: [json.loads(l) for l in out.splitlines() if l]        # --json is jsonl
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
-    b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=#" + a, **env)
+    b = run("log", stdin="# Heading\nwalked @agent=claude:s1 @re=#" + a, **env)
     run("close", a, **env)
     rows = js(run("ls", "--json", "--all", **env))
     assert rows[0]["content"] == "do 10 pushups" and rows[1]["content"] == "# Heading\nwalked", rows
     t0, t1 = rows[0]["tags"], rows[1]["tags"]
-    assert t0["ws"] == "sub" and "evil" not in t0, t0
+    assert t0["ws"] == "sub" and "evil" not in t0 and t0["agent"] == "claude:s0", t0   # builtin @agent from env
     assert "todo" in t0 and "done" in t0 and t0["project"] == "demo" and "global" in t0, t0   # close adds @done, keeps @todo
-    assert t1["by"] == "claude:s1" and t1["re"] == "#" + a and "Heading" not in t1, t1
+    assert t1["agent"] == "claude:s1" and t1["re"] == "#" + a and "Heading" not in t1, t1   # text overrides the builtin
     assert run("ls", "--open", **env) == ""                                 # token filter from project .jn, nothing open
-    assert ids(run("ls", "@by=claude:*", **env))[0] == b                 # value glob
+    assert ids(run("ls", "@agent=claude:*", **env))[0] == b                 # value glob (a is @done, hidden)
     assert ids(run("ls", "pushups", "--since", "today", "--all", **env))[0] == a  # text + since
     assert ids(run("ls", "-@done", **env))[0] == b                       # negation
     assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
     assert run("show", a, **env).endswith(f"<- #{b} @re  # Heading"), run("show", a, **env)   # backlinks with title
     run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # show (with backlinks) pipes into edit
     e = js(run("ls", b, "--json", **env))[0]
-    assert e["content"] == "# Heading\nran" and e["tags"]["re"] == "#" + a and "new" in e["tags"] and e["tags"]["by"] == "claude:s1", e
-    run("edit", b, stdin="@by=claude:s2 @re=#" + a + "\n\nran instead", **env)   # document: buffer is the whole entry
+    assert e["content"] == "# Heading\nran" and e["tags"]["re"] == "#" + a and "new" in e["tags"] and e["tags"]["agent"] == "claude:s1", e
+    run("edit", b, stdin="@agent=claude:s2 @re=#" + a + "\n\nran instead", **env)   # document: buffer is the whole entry (no builtin merge)
     e = js(run("ls", b, "--json", **env))[0]
-    assert e["content"] == "ran instead" and e["tags"] == {"by": "claude:s2", "re": "#" + a}, e
-    run("tag", b, "@by=claude:s1", "@global", **env)             # patch: content untouched
+    assert e["content"] == "ran instead" and e["tags"] == {"agent": "claude:s2", "re": "#" + a}, e
+    run("tag", b, "@agent=claude:s1", "@global", **env)          # patch: content untouched
     assert js(run("ls", b, "--json", **env))[0]["content"] == "ran instead"
     assert subprocess.run([sys.executable, JN, "edit", b, "text"], capture_output=True, env={**os.environ, **env}, cwd=env["CWD"]).returncode == 1
     run("edit", b, stdin=run("show", b, **env), **env)         # no-op edit adds no history
@@ -58,7 +58,7 @@ with tempfile.TemporaryDirectory() as d:
     assert js(run("ls", pr, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
     assert b not in ids(run("ls", "--mine", **env)) and a in ids(run("ls", "--mine", "--all", **env))
     assert a not in ids(run("ls", **env)) and a in ids(run("ls", "@done", **env)) and ids(run("ls", a, **env)) == [a]   # default filter
-    assert ids(run("ls", "--mine", JN_TAGS="@by=claude:s1", **env)) == [b]
+    assert ids(run("ls", "--mine", JN_TAGS="@agent=claude:s1", **env)) == [b]
     x = run("todo", "@blocked_by=#" + a + ",#" + c + " ship it", **env)      # a done, c open
     y = run("todo", "@blocked_by=#" + a + ",vendor manual block", **env)
     assert ids(run("ls", "@todo", "--blocked", **env)) == [x, y]
@@ -86,7 +86,7 @@ with tempfile.TemporaryDirectory() as d:
     assert e["content"] == "body from stdin" and e["tags"]["note"] is None and e["tags"]["k"] == "v", e
     assert "  note           log @note $@" in h, h
     run("revert", b, **env)                                                  # back to previous version
-    assert run("show", b, **env).startswith("@by=claude:s2 @re=#" + a + "\n\nran instead"), run("show", b, **env)
+    assert run("show", b, **env).startswith("@agent=claude:s2 @re=#" + a + "\n\nran instead"), run("show", b, **env)
     run("revert", b, "v1", **env)
     assert "walked" in run("show", b, **env) and "v6" in run("history", b, **env)   # reverts are versioned
     p1 = run("todo", "@tree root", **env); p2 = run("todo", "@tree @parent=#" + p1 + " child", **env)
@@ -97,6 +97,12 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "@multi", **env)) == [p1, p2]
     run("close", p3, p4, **env)
     assert ids(run("ls", "@tree", **env)) == [p1, p2]                        # multi-arg action runs per arg
+    g = run("log", "agy note", **{**env, "CLAUDE_CODE_SESSION_ID": "", "ANTIGRAVITY_CONVERSATION_ID": "cv9"})
+    assert js(run("ls", g, "--json", **env))[0]["tags"]["agent"] == "agy:cv9"   # second env var wins when first is unset
+    hh = run("log", "human note", **{**env, "CLAUDE_CODE_SESSION_ID": ""})
+    assert "agent" not in js(run("ls", hh, "--json", **env))[0]["tags"]          # no agent env -> no @agent
+    assert "task workflow" in run("--skill", "todo", **env) and "# jn" in run("--skill", **env)   # --skill pages
+    assert subprocess.run([sys.executable, JN, "--skill", "nope"], capture_output=True, env={**os.environ, **env}, cwd=env["CWD"]).returncode == 1
     row = js(run("ls", p1, "--json", **env))[0]; row["tags"].pop("multi")    # import: round-trip a tag removal
     assert run("import", stdin=json.dumps(row), **env) == "imported 1"
     assert "multi" not in js(run("ls", p1, "--json", **env))[0]["tags"] and ids(run("ls", p1, **env)) == [p1]  # id preserved

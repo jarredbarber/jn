@@ -13,6 +13,7 @@
   jn tags [filters]          tag -> count over the same rows ls would show; see where the mass is
   jn import                  upsert entries from jsonl on stdin, ids preserved: ls --all --json | jq ... | jn import
   jn <action> ...            todo, close, ... (see below). `jn close 1 2 3` closes each
+  jn --skill [page]          print skill docs to stdout (no page = overview; then config, todo, journal)
   --db=<path>                use another journal for this run (overrides $JN_DB); works on any command
 """
 import functools, getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
@@ -27,14 +28,14 @@ TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
 BACKLINK = re.compile(r"^<- #\d+ @\S+.*$", re.M)
 COLS = ("id", "created", "updated", "content")
-TAGS = ["by=" + getpass.getuser()]  # builtin default tags; config/tags_expr/$JN_TAGS/text override
+AGENT = {"CLAUDE_CODE_SESSION_ID": "claude", "ANTIGRAVITY_CONVERSATION_ID": "agy"}  # env -> @agent prefix; first match wins
 ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's args. override/extend in [actions]
     "todo": ["log @todo $@"],
     "close": ["tag $1 @done", "ls @blocked_by=#$1 --unblocked"],
 }
 FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
     "default": "-@done -@archived",
-    "mine": "tag('by') == default('by')",
+    "mine": "tag('agent') == default('agent')",
     "blocked": "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])",
     "unblocked": "not F('blocked')",
 }
@@ -66,10 +67,16 @@ def is_tokens(expr):
     return expr.lstrip("-").startswith("@")
 
 
+def builtin_tags():
+    """@agent=<prefix>:<id> from the first agent env var set; empty for a human shell"""
+    tag = next((f"agent={p}:{os.environ[v]}" for v, p in AGENT.items() if os.environ.get(v)), None)
+    return [tag] if tag else []
+
+
 @functools.cache
 def config():
     """builtin, ~/.jn, then root/.jn ... ./.jn; nearer wins. Only ~/.jn may hold code (python filters, tags_expr)."""
-    cfg = {"tags": list(TAGS), "filters": dict(FILTERS), "actions": dict(ACTIONS), "files": ["builtin"],
+    cfg = {"tags": builtin_tags(), "filters": dict(FILTERS), "actions": dict(ACTIONS), "files": ["builtin"],
            "src": {n: "builtin" for n in [*FILTERS, *ACTIONS]}}
     home = (Path.home() / ".jn").resolve()
     for f in dict.fromkeys(p.resolve() for p in [home, *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]):
@@ -379,7 +386,9 @@ def main(argv):
             opts[k] = v or (next(it, True) if k in ("since", "last") else True)
         else:
             pos.append(a)
-    if cmd == "log":
+    if cmd == "--skill":
+        skill(pos[0] if pos else None)
+    elif cmd == "log":
         print(add_entry(pos))
     elif cmd == "import":
         print(f"imported {import_jsonl(sys.stdin.read())}")
@@ -421,6 +430,16 @@ def main(argv):
         print("filters:")
         for n, v in cfg["filters"].items():
             print(f"  --{n:<12} {v}   # {cfg['src'][n]}")
+
+
+def skill(page=None):
+    """print a skill doc to stdout. pages are discovered from skills/jn/*.md, so adding one needs no code change"""
+    d = Path(__file__).resolve().parent / "skills" / "jn"
+    pages = {p.stem for p in d.glob("*.md")} - {"SKILL"}
+    if page and page not in pages:
+        sys.exit(f"skill pages: {', '.join(sorted(pages))} (omit for the overview)")
+    f = d / (f"{page}.md" if page else "SKILL.md")
+    sys.stdout.write(f.read_text()) if f.is_file() else sys.exit(f"no skill docs installed at {d}")
 
 
 def cli():  # console_scripts entry point; main() takes argv

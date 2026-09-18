@@ -14,10 +14,10 @@ jn ls                                   # everything not @done/@archived (the "d
 jn ls @todo                             # filters: @tag  -@tag  @k=v  @k=a,b  @k=v*  word  ID
 jn ls @done --since 1w                  # mentioning a default-filter tag lifts it; --all lifts all
 jn ls @blocked_by=#12                   # #12 is an item of the list (not substring)
-jn ls @by=jarred,claude:*               # any of
+jn ls @agent=claude:*                   # any of, * is a wildcard
 jn ls --open                            # named filter from .jn
 jn ls --since 3d --md                   # today | yesterday | 3d | 2w | ISO
-jn ls @todo --mine                      # @by = whatever log would stamp right now
+jn ls @todo --mine                      # @agent = whatever log would stamp right now
 jn todo "@blocked_by=#12,#15 ship it"   # blocked until 12 and 15 are @done; `jn close 15` prints what it freed
 jn ls @todo --unblocked                 # actionable now
 jn ls @todo --tree                      # nest under @parent=#N; --tree=blocked_by works too
@@ -53,14 +53,14 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 - `jn tag N @k=a,b` replaces the list, `@k+=c` appends, `@k-=a` removes items (tag stays, possibly empty), `-@k` drops the tag. Tags you don't mention are untouched. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
 - Date words in values resolve when written: `@due=tomorrow`, `@due=2w`, `@due=-3d`, `@due=today`. Stored as ISO, so `@due=tomorrow` still means the same day next week.
 - `#42` points at entry 42, in prose or in values: `@parent=#42`, `@re=#42`, `@blocks=#42`. `jn show 42` lists everything pointing at it as `<- #N @tag title` lines (title being the referring entry's first line), which `edit` ignores when piped back. No relationship types are built in.
-- `@by` defaults to `$USER`. Agents set `@by=claude:claude-code` etc.
+- `@agent` is stamped automatically from the environment: `claude:$CLAUDE_CODE_SESSION_ID` or `agy:$ANTIGRAVITY_CONVERSATION_ID`, nothing in a human shell. Agents don't set it themselves.
 - Two verbs: `tag` is a patch from args, `edit` is a document from stdin or `$EDITOR` and replaces the whole entry, tags line included. `edit` refuses args. `show` output round-trips through `edit`; backlink lines are ignored. Every change keeps the prior version, see `jn history`.
 - Timestamps are stored in UTC and shown in local time, or in `tz = "America/New_York"` from config. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.
 
 ## Tags the code knows about
 
-None. `@by=$USER` is a builtin default tag, and `@todo`, `@done`, `@archived`, `@blocked_by` come from the default actions and filters below. All of it can be redefined in config; `jn -h` shows the effective set.
+None. `@agent` is a builtin default stamped from the environment (see Model), and `@todo`, `@done`, `@archived`, `@blocked_by` come from the default actions and filters below. All of it can be redefined in config; `jn -h` shows the effective set.
 
 Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks whatever the tag name. `@re=#N` for comments and `@parent=#N` for subtasks are conventions only.
 
@@ -81,7 +81,7 @@ Any `.jn` may add or override them under `[actions]`, so a project can redefine 
 
 ```toml
 default   = "-@done -@archived"
-mine      = "tag('by') == default('by')"
+mine      = "tag('agent') == default('agent')"
 blocked   = "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])"
 unblocked = "not F('blocked')"
 ```
@@ -107,7 +107,7 @@ tags_expr = "'@workspace=' + cwd.split('/')[4] if cwd.startswith(env('HOME') + '
 
 [filters]
 overdue = "tag('todo') is not None and (tag('due') or ['9'])[0] < __import__('datetime').date.today().isoformat()"
-claude  = "(tag('by') or [''])[0].startswith('claude:')"
+claude  = "(tag('agent') or [''])[0].startswith('claude:')"
 ```
 
 Python namespace:
@@ -129,6 +129,8 @@ Python namespace:
 ```bash
 ln -s ~/code/jn/skills/jn ~/.claude/skills/jn
 ```
+
+The skill is split for progressive discovery: `SKILL.md` (CLI + querying) points to deeper pages an agent pulls on demand via `jn --skill <page>` (`config`, `todo`, `journal`; no arg prints the overview). The pages ship with the package, so `jn --skill` works after `uv tool install` too.
 
 ## Backup and sync
 
