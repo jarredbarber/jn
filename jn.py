@@ -22,7 +22,7 @@ DB = Path(os.environ.get("JN_DB", Path.home() / ".jn.db"))
 TAG = re.compile(r"(?:^|(?<=\s))(-?)@([A-Za-z_]\w*(?:-\w+)*)(?:([+-]?=)(\S+))?")
 TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
-BACKLINK = re.compile(r"^<- #\d+ @\S+$", re.M)
+BACKLINK = re.compile(r"^<- #\d+ @\S+.*$", re.M)
 COLS = ("id", "created", "updated", "content")
 TAGS = ["by=" + getpass.getuser()]  # builtin default tags; config/tags_expr/$JN_TAGS/text override
 ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's args. override/extend in [actions]
@@ -156,8 +156,8 @@ def entry_text(eid, c=None):
 
 
 def backlinks(eid):
-    rows = db().execute("SELECT entry, name FROM tagged WHERE value=? ORDER BY entry", (f"#{eid}",)).fetchall()
-    return "".join(f"<- #{e} @{n}\n" for e, n in rows)
+    rows = db().execute("SELECT t.entry, t.name, e.content FROM tagged t JOIN entry e ON e.id=t.entry WHERE t.value=? ORDER BY t.entry", (f"#{eid}",)).fetchall()
+    return "".join(f"<- #{e} @{n}  {c.splitlines()[0][:60]}\n" for e, n, c in rows)
 
 
 def versioned(c, eid, write):
