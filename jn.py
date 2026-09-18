@@ -4,7 +4,7 @@
   jn log [@tags] [text]      add entry; tags-only args -> body from stdin or $EDITOR. prints id
   jn tag ID... @a -@b @k+=x  patch tags: @k=v sets, -@k drops, @k+=x / @k-=x edit list items; nothing else changes
   jn edit [ID]               replace the whole entry with the document from stdin or $EDITOR (seeded with show)
-  jn show [ID]               tags line, blank, content, then "<- #N @tag" backlinks. pipeable into edit
+  jn show [ID]               tags line, blank, content, then "<- #N @tag title" backlinks. pipeable into edit
   jn history [ID]            prior versions, then current
   jn revert [ID] [N]         restore version N from history (default: the one before current). versioned itself
   jn ls [filters] [opts]     filters: @tag -@tag @k=v @k=a,b @k=v* word ID --name
