@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "pushups", "--since", "today", "--all", **env))[0] == a  # text + since
     assert ids(run("ls", "-@done", **env))[0] == b                       # negation
     assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
-    assert run("show", a, **env).endswith(f"<- #{b} @re"), run("show", a, **env)   # backlinks on stdout
+    assert run("show", a, **env).endswith(f"<- #{b} @re  # Heading"), run("show", a, **env)   # backlinks with title
     run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # show (with backlinks) pipes into edit
     e = json.loads(run("ls", b, "--json", **env))[0]
     assert e["content"] == "# Heading\nran" and e["tags"]["re"] == "#" + a and "new" in e["tags"] and e["tags"]["by"] == "claude:s1", e
@@ -88,4 +88,8 @@ with tempfile.TemporaryDirectory() as d:
     assert run("show", b, **env).startswith("@by=claude:s2 @re=#" + a + "\n\nran instead"), run("show", b, **env)
     run("revert", b, "v1", **env)
     assert "walked" in run("show", b, **env) and "v6" in run("history", b, **env)   # reverts are versioned
+    p1 = run("todo", "@tree root", **env); p2 = run("todo", "@tree @parent=#" + p1 + " child", **env)
+    p3 = run("todo", "@tree @parent=#" + p2 + " grandchild", **env); p4 = run("todo", "@tree @parent=#999 orphan", **env)
+    out = run("ls", "@tree", "--tree", **env).splitlines()[1:]
+    assert [l.split()[0] for l in out] == [p1, p2, p3, p4] and "    grandchild" in out[2] and out[3].split("  ")[3] == "orphan", out
     print("ok")

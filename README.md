@@ -20,6 +20,7 @@ jn ls --since 3d --md                   # today | yesterday | 3d | 2w | ISO
 jn ls @todo --mine                      # @by = whatever log would stamp right now
 jn todo "@blocked_by=#12,#15 ship it"   # blocked until 12 and 15 are @done; `jn close 15` prints what it freed
 jn ls @todo --unblocked                 # actionable now
+jn ls @todo --tree                      # nest under @parent=#N; --tree=blocked_by works too
 jn ls --json | jq ...
 jn tags                                 # tag -> count over what ls would show; where's the mass
 jn tags @home                           # counts within one bucket

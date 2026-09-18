@@ -9,6 +9,7 @@
   jn revert [ID] [N]         restore version N from history (default: the one before current). versioned itself
   jn ls [filters] [opts]     filters: @tag -@tag @k=v @k=a,b @k=v* word ID --name
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md  --all
+                                   --tree[=parent]  nest rows under the entry their @parent=#N (any pointer tag) names
   jn tags [filters]          tag -> count over the same rows ls would show; see where the mass is
   jn <action> ...            todo, close, ... (see below)
 """
@@ -286,7 +287,28 @@ def fmt_tags(t):
     return " ".join(f"@{k}" + (f"={v}" if v else "") for k, v in sorted(t.items()))
 
 
-def show(rows, fmt):
+def as_tree(rows, by):
+    """order rows as a forest by pointer tag `by` (@parent=#N); yields (row, depth). Rows whose parent isn't listed are roots"""
+    ids = {r["id"] for r in rows}
+    kids, seen = {}, set()
+    for r in rows:
+        ptrs = [int(i[1:]) for i in aslist(r["tags"], by) or [] if i[1:].isdigit()]
+        kids.setdefault(next((p for p in ptrs if p in ids), None), []).append(r)
+
+    def walk(parent, depth):
+        for r in kids.get(parent, []):
+            if r["id"] not in seen:
+                seen.add(r["id"])
+                yield r, depth
+                yield from walk(r["id"], depth + 1)
+    yield from walk(None, 0)
+
+
+def show(rows, fmt, tree=None):
+    depth = {}
+    if tree:
+        ordered = list(as_tree(rows, tree))
+        rows, depth = [r for r, _ in ordered], {r["id"]: d for r, d in ordered}
     if fmt == "json":
         print(json.dumps(rows, indent=1))
     elif fmt == "md":
@@ -302,7 +324,7 @@ def show(rows, fmt):
         print(f"{'id':>5}  {'when':<11}  {'text':<{textw}}  tags" + (f"  (all: {fmt_tags(common)})" if common else ""))
         for r, t in zip(rows, own):
             lines = r["content"].splitlines() or [""]
-            head = lines[0] + (" …" if len(lines) > 1 else "")
+            head = "  " * depth.get(r["id"], 0) + lines[0] + (" …" if len(lines) > 1 else "")
             print(f"{r['id']:>5}  {local(r['created'])[5:]}  {cut(head, textw):<{textw}}  {cut(t, tagw)}")
 
 
@@ -330,7 +352,7 @@ def main(argv):
         else:
             print(entry_text(eid) + backlinks(eid), end="")
     elif cmd in ("ls", "tags"):
-        tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md", "all")])
+        tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md", "all", "tree")])
         if "all" not in opts and not any(t.isdigit() for t in pos):
             mentioned = {m[1] for m in TAG.findall(" ".join(pos + tokens))}
             tokens += [t for t in config()["filters"]["default"].split() if TAG.fullmatch(t)[2] not in mentioned]
@@ -341,7 +363,8 @@ def main(argv):
             for name, n in Counter(t for r in rows for t in r["tags"]).most_common():
                 print(f"{n:>5}  @{name}")
         else:
-            show(rows, "json" if "json" in opts else "md" if "md" in opts else "")
+            tree = opts.get("tree")
+            show(rows, "json" if "json" in opts else "md" if "md" in opts else "", "parent" if tree is True else tree)
     elif cmd in (actions := config()["actions"]):
         run_action(actions[cmd], args)
     else:
