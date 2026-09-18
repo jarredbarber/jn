@@ -316,8 +316,9 @@ def show(rows, fmt, tree=None):
     if tree:
         ordered = list(as_tree(rows, tree))
         rows, depth = [r for r, _ in ordered], {r["id"]: d for r, d in ordered}
-    if fmt == "json":
-        print(json.dumps(rows, indent=1))
+    if fmt == "json":  # jsonl: one entry per line, streams into jq
+        for r in rows:
+            print(json.dumps(r))
     elif fmt == "md":
         for r in rows:
             print(f"## {r['id']} · {local(r['created'])}\n{fmt_tags(r['tags'])}\n\n{r['content']}\n")
