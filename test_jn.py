@@ -101,6 +101,7 @@ with tempfile.TemporaryDirectory() as d:
     assert js(run("ls", g, "--json", **env))[0]["tags"]["agent"] == "agy:cv9"   # second env var wins when first is unset
     hh = run("log", "human note", **{**env, "CLAUDE_CODE_SESSION_ID": ""})
     assert "agent" not in js(run("ls", hh, "--json", **env))[0]["tags"]          # no agent env -> no @agent
+    assert ids(run("ls", "--mine", "--all", **{**env, "CLAUDE_CODE_SESSION_ID": "", "ANTIGRAVITY_CONVERSATION_ID": ""})) == [hh]  # human --mine = entries with no @agent
     assert "task workflow" in run("--skill", "todo", **env) and "# jn" in run("--skill", **env)   # --skill pages
     assert subprocess.run([sys.executable, JN, "--skill", "nope"], capture_output=True, env={**os.environ, **env}, cwd=env["CWD"]).returncode == 1
     row = js(run("ls", p1, "--json", **env))[0]; row["tags"].pop("multi")    # import: round-trip a tag removal
