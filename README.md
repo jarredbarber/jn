@@ -59,11 +59,11 @@ Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks what
 
 ## Actions
 
-`jn <name> args` runs a list of `jn` command lines with `$1`, `$2`, and `$@` substituted. Built in:
+`jn <name> args` runs a list of `jn` command lines with `$1`, `$2`, and `$@` substituted. An action that only uses `$1` runs once per argument, so `jn close 1 2 3` works. Built in:
 
 ```toml
 todo  = ["log @todo $@"]
-close = ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"]
+close = ["tag $1 @done", "ls @blocked_by=#$1 --unblocked"]
 ```
 
 Any `.jn` may add or override them under `[actions]`, so a project can redefine `todo`; the blast radius is your journal. If `log`'s arguments are tags only, the body is read from stdin or `$EDITOR`, so `jn todo <<EOF` works.

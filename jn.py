@@ -11,7 +11,7 @@
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md  --all
                                    --tree[=parent]  nest rows under the entry their @parent=#N (any pointer tag) names
   jn tags [filters]          tag -> count over the same rows ls would show; see where the mass is
-  jn <action> ...            todo, close, ... (see below)
+  jn <action> ...            todo, close, ... (see below). `jn close 1 2 3` closes each
 """
 import functools, getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
 from collections import Counter
@@ -28,7 +28,7 @@ COLS = ("id", "created", "updated", "content")
 TAGS = ["by=" + getpass.getuser()]  # builtin default tags; config/tags_expr/$JN_TAGS/text override
 ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's args. override/extend in [actions]
     "todo": ["log @todo $@"],
-    "close": ["tag $1 @done -@todo", "ls @blocked_by=#$1 --unblocked"],
+    "close": ["tag $1 @done", "ls @blocked_by=#$1 --unblocked"],
 }
 FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
     "default": "-@done -@archived",
@@ -125,6 +125,12 @@ def read_body(seed=""):
 
 
 def run_action(cmds, args):
+    """$@ = all args, $N = the Nth. An action that only uses $1 runs once per arg: `jn close 1 2 3`"""
+    nums = {int(n) for c in cmds for n in re.findall(r"\$(\d+)", c)}
+    if nums == {1} and len(args) > 1:
+        for a in args:
+            run_action(cmds, [a])
+        return
     for cmd in cmds:
         argv = []
         for t in shlex.split(cmd):

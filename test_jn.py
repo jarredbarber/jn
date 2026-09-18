@@ -23,7 +23,7 @@ with tempfile.TemporaryDirectory() as d:
     assert rows[0]["content"] == "do 10 pushups" and rows[1]["content"] == "# Heading\nwalked", rows
     t0, t1 = rows[0]["tags"], rows[1]["tags"]
     assert t0["ws"] == "sub" and "evil" not in t0, t0
-    assert "todo" not in t0 and "done" in t0 and t0["project"] == "demo" and "global" in t0, t0
+    assert "todo" in t0 and "done" in t0 and t0["project"] == "demo" and "global" in t0, t0   # close adds @done, keeps @todo
     assert t1["by"] == "claude:s1" and t1["re"] == "#" + a and "Heading" not in t1, t1
     assert run("ls", "--open", **env) == ""                                 # token filter from project .jn, nothing open
     assert ids(run("ls", "@by=claude:*", **env))[0] == b                 # value glob
@@ -92,4 +92,6 @@ with tempfile.TemporaryDirectory() as d:
     p3 = run("todo", "@tree @parent=#" + p2 + " grandchild", **env); p4 = run("todo", "@tree @parent=#999 orphan", **env)
     out = run("ls", "@tree", "--tree", **env).splitlines()[1:]
     assert [l.split()[0] for l in out] == [p1, p2, p3, p4] and "    grandchild" in out[2] and out[3].split("  ")[3] == "orphan", out
+    run("close", p3, p4, **env)
+    assert ids(run("ls", "@tree", **env)) == [p1, p2]                        # multi-arg action runs per arg
     print("ok")
