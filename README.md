@@ -37,7 +37,7 @@ jn revert 1                             # back one version (or `jn revert 1 v2`)
 Python 3.11+, no dependencies.
 
 ```bash
-uv tool install git+https://github.com/jarredbarber/jn   # or: pipx install git+https://github.com/jarredbarber/jn
+uv tool install git+ssh://git@github.com/jarredbarber/jn   # or: pipx install git+ssh://git@github.com/jarredbarber/jn
 ```
 
 Or skip packaging and symlink the single file:
