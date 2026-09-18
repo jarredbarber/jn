@@ -113,7 +113,7 @@ Python namespace:
 
 `tags_expr` sees `env()` and `cwd` and returns a string or list of tags.
 
-`$JN_TAGS` adds tags per shell or session. `$JN_DB` overrides `~/.jn.db`. `tz = "UTC"` in any `.jn` sets the display timezone.
+`$JN_TAGS` adds tags per shell or session. `$JN_DB` overrides `~/.jn.db`, and `--db=<path>` overrides it for one run (anywhere on the line, any command). `tz = "UTC"` in any `.jn` sets the display timezone.
 
 ## Agents
 

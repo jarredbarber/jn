@@ -12,6 +12,7 @@
                                    --tree[=parent]  nest rows under the entry their @parent=#N (any pointer tag) names
   jn tags [filters]          tag -> count over the same rows ls would show; see where the mass is
   jn <action> ...            todo, close, ... (see below). `jn close 1 2 3` closes each
+  --db=<path>                use another journal for this run (overrides $JN_DB); works on any command
 """
 import functools, getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
 from collections import Counter
@@ -335,6 +336,13 @@ def show(rows, fmt, tree=None):
 
 
 def main(argv):
+    global DB
+    argv = list(argv)
+    for i, a in enumerate(argv):  # --db is global: strip it wherever it sits, before/after the command
+        if a == "--db" and i + 1 < len(argv):
+            DB = Path(argv[i + 1]); del argv[i:i + 2]; break
+        if a.startswith("--db="):
+            DB = Path(a[5:]); del argv[i]; break
     cmd, *args = argv or ["help"]
     opts, pos, it = {}, [], iter(args)
     for a in it:
