@@ -16,10 +16,11 @@ with tempfile.TemporaryDirectory() as d:
     Path(d, "proj/sub/.jn").write_text('tags_expr = "[\'@evil\']"\n')  # must be ignored
 
     ids = lambda out: [l.split()[0] for l in out.splitlines()[1:]]      # skip table header
+    js = lambda out: [json.loads(l) for l in out.splitlines() if l]        # --json is jsonl
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
     b = run("log", stdin="# Heading\nwalked @by=claude:s1 @re=#" + a, **env)
     run("close", a, **env)
-    rows = json.loads(run("ls", "--json", "--all", **env))
+    rows = js(run("ls", "--json", "--all", **env))
     assert rows[0]["content"] == "do 10 pushups" and rows[1]["content"] == "# Heading\nwalked", rows
     t0, t1 = rows[0]["tags"], rows[1]["tags"]
     assert t0["ws"] == "sub" and "evil" not in t0, t0
@@ -32,13 +33,13 @@ with tempfile.TemporaryDirectory() as d:
     assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
     assert run("show", a, **env).endswith(f"<- #{b} @re  # Heading"), run("show", a, **env)   # backlinks with title
     run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # show (with backlinks) pipes into edit
-    e = json.loads(run("ls", b, "--json", **env))[0]
+    e = js(run("ls", b, "--json", **env))[0]
     assert e["content"] == "# Heading\nran" and e["tags"]["re"] == "#" + a and "new" in e["tags"] and e["tags"]["by"] == "claude:s1", e
     run("edit", b, stdin="@by=claude:s2 @re=#" + a + "\n\nran instead", **env)   # document: buffer is the whole entry
-    e = json.loads(run("ls", b, "--json", **env))[0]
+    e = js(run("ls", b, "--json", **env))[0]
     assert e["content"] == "ran instead" and e["tags"] == {"by": "claude:s2", "re": "#" + a}, e
     run("tag", b, "@by=claude:s1", "@global", **env)             # patch: content untouched
-    assert json.loads(run("ls", b, "--json", **env))[0]["content"] == "ran instead"
+    assert js(run("ls", b, "--json", **env))[0]["content"] == "ran instead"
     assert subprocess.run([sys.executable, JN, "edit", b, "text"], capture_output=True, env={**os.environ, **env}, cwd=env["CWD"]).returncode == 1
     run("edit", b, stdin=run("show", b, **env), **env)         # no-op edit adds no history
     h = run("history", b, **env)
@@ -49,12 +50,12 @@ with tempfile.TemporaryDirectory() as d:
     assert "v3" not in run("history", a, **env)
     assert h.index("walked") < h.index("ran instead") and "v3" in h, h
     c = run("todo", "@due=tomorrow call dentist", **env)
-    tc = json.loads(run("ls", c, "--json", **env))[0]["tags"]
+    tc = js(run("ls", c, "--json", **env))[0]["tags"]
     assert tc["due"] == (datetime.date.today() + datetime.timedelta(days=1)).isoformat(), tc
     assert ids(run("ls", "@due=" + tc["due"], **env))[0] == c and ids(run("ls", "@due=tomorrow", **env))[0] == c
     assert len(ids(run("ls", "--since", "1d", "--all", **env))) == 3                # bare N is past for --since
     pr = run("log", "see #1 and #2", **env)
-    assert json.loads(run("ls", pr, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
+    assert js(run("ls", pr, "--json", **env))[0]["content"] == "see #1 and #2"   # #N is prose, not a tag
     assert b not in ids(run("ls", "--mine", **env)) and a in ids(run("ls", "--mine", "--all", **env))
     assert a not in ids(run("ls", **env)) and a in ids(run("ls", "@done", **env)) and ids(run("ls", a, **env)) == [a]   # default filter
     assert ids(run("ls", "--mine", JN_TAGS="@by=claude:s1", **env)) == [b]
@@ -70,10 +71,10 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "@blocked_by=#4*", **env)) == [z]                  # glob per item
     assert ids(run("ls", "--fit", "--all", **env)) == [a]                            # custom filter from ~/.jn
     run("tag", z, "@blocked_by+=#7,#420", "@seen+=x", **env)               # append dedup, create on +=
-    tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
+    tz = js(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] == "#420,#7" and tz["seen"] == "x", tz
     run("tag", z, "@blocked_by-=#420,#7", "@nope-=x", **env)               # emptied tag stays; -= on absent is a no-op
-    tz = json.loads(run("ls", z, "--json", **env))[0]["tags"]
+    tz = js(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] is None and "nope" not in tz, tz
     h = run("-h", **env)
     assert "--evil" not in h and not Path(d, "proj/sub/pwned").exists()   # python filter in project .jn ignored
@@ -81,7 +82,7 @@ with tempfile.TemporaryDirectory() as d:
     assert next(l for l in h.splitlines() if l.startswith("config:")).split(", ")[1:] == [f"{rd}/{x}" for x in (".jn", "proj/.jn", "proj/sub/.jn")], (h, rd)
     assert "fit" in h and "unblocked" in h and "open" in h, h
     n = run("note", "@k=v", stdin="body from stdin", **env)                  # custom action; tag-only args read stdin
-    e = json.loads(run("ls", n, "--json", **env))[0]
+    e = js(run("ls", n, "--json", **env))[0]
     assert e["content"] == "body from stdin" and e["tags"]["note"] is None and e["tags"]["k"] == "v", e
     assert "  note           log @note $@" in h, h
     run("revert", b, **env)                                                  # back to previous version
@@ -96,4 +97,11 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "@multi", **env)) == [p1, p2]
     run("close", p3, p4, **env)
     assert ids(run("ls", "@tree", **env)) == [p1, p2]                        # multi-arg action runs per arg
+    row = js(run("ls", p1, "--json", **env))[0]; row["tags"].pop("multi")    # import: round-trip a tag removal
+    assert run("import", stdin=json.dumps(row), **env) == "imported 1"
+    assert "multi" not in js(run("ls", p1, "--json", **env))[0]["tags"] and ids(run("ls", p1, **env)) == [p1]  # id preserved
+    assert subprocess.run([sys.executable, JN, "import"], input="junk\n", capture_output=True, text=True,
+                          env={**os.environ, **env}, cwd=env["CWD"]).returncode == 1                          # bad jsonl aborts
+    run("--db", f"{d}/alt.db", "log", "only in alt", **env)                  # --db overrides $JN_DB, either position
+    assert ids(run("ls", "alt", "--db", f"{d}/alt.db", **env)) and not ids(run("ls", "alt", **env))
     print("ok")

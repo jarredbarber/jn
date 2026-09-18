@@ -333,6 +333,9 @@ def as_tree(rows, by):
                 yield r, depth
                 yield from walk(r["id"], depth + 1)
     yield from walk(None, 0)
+    for r in rows:  # a @parent cycle has no root; surface those rows rather than drop them
+        if r["id"] not in seen:
+            seen.add(r["id"]); yield r, 0
 
 
 def show(rows, fmt, tree=None):
