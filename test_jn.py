@@ -1,5 +1,5 @@
 """Smallest check that fails if tag parsing / querying / config discovery breaks. Run: python3 test_jn.py"""
-import datetime, json, os, subprocess, sys, tempfile
+import base64, datetime, hashlib, json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 JN = Path(__file__).with_name("jn.py")
@@ -114,6 +114,12 @@ with tempfile.TemporaryDirectory() as d:
     assert "multi" not in js(run("ls", p1, "--json", **env))[0]["tags"] and ids(run("ls", p1, **env)) == [p1]  # id preserved
     assert subprocess.run([sys.executable, JN, "import"], input="junk\n", capture_output=True, text=True,
                           env={**os.environ, **env}, cwd=env["CWD"]).returncode == 1                          # bad jsonl aborts
+    Path(d, "a.PNG").write_bytes(b"\x89PNG fake"); Path(d, "b.txt").write_text("hi")   # attachments: content-addressed beside the db
+    fa = run("attach", b, f"{d}/a.PNG", f"{d}/b.txt", **env).splitlines()
+    assert fa[0] == hashlib.sha256(b"\x89PNG fake").hexdigest()[:16] + ".png" and fa[1].endswith(".txt") and Path(d, "t.files", fa[0]).read_bytes() == b"\x89PNG fake", fa
+    assert js(run("ls", b, "--json", **env))[0]["tags"]["files"] == ",".join(fa)
+    assert run("attach", b, f"{d}/a.PNG", **env) == fa[0] and js(run("ls", b, "--json", **env))[0]["tags"]["files"] == ",".join(fa)   # same bytes -> same name, deduped
+    assert run("attach", f"{d}/b.txt", **env) == fa[1] and js(run("ls", "--last", "1", "--json", "--all", **env))[0]["tags"]["files"] == fa[1]   # no id -> last entry
     run("--db", f"{d}/alt.db", "log", "only in alt", **env)                  # --db overrides $JN_DB, either position
     assert ids(run("ls", "alt", "--db", f"{d}/alt.db", **env)) and not ids(run("ls", "alt", **env))
     print("ok")
@@ -153,4 +159,19 @@ with tempfile.TemporaryDirectory() as d:
     assert "depth" not in post("ls")[1][0]
     assert post("ls", db="/nope/x.db")[0] == 400 and post("ls", db="nope")[0] == 400   # names only from the web
     assert ids(run("ls", "--fit", "--all", **env)) == []
+    png = b"\x89PNG\r\n\x1a\n" + b"x" * 8                                    # attachments over HTTP
+    def get(p):
+        try:
+            with urllib.request.urlopen(url + p) as r: return r.status, r.headers["Content-Type"], r.read()
+        except urllib.error.HTTPError as e: return e.code, None, None
+    r = post("attach", id=1, name="Shot.PNG", data=base64.b64encode(png).decode()); assert r == (200, hashlib.sha256(png).hexdigest()[:16] + ".png"), r
+    name = r[1]
+    assert post("show", id=1)[1]["row"]["tags"]["files"] == name and Path(d, "web.files", name).is_file()
+    assert get("/files/" + name) == (200, "image/png", png)
+    assert get("/files/../jn.py")[0] == 404 and get("/files/" + name.upper())[0] == 404 and get("/files/x" + name)[0] == 404 and get("/files/")[0] == 404
+    assert get("/files/" + name + "?db=nope")[0] == 400 and get("/files/" + name + "?db=alt")[0] == 404   # alt has its own .files dir
+    r = post("attach", id=1, name="n.txt", data=base64.b64encode(b"hi").decode(), db="alt"); assert r[0] == 200, r
+    assert get("/files/" + r[1] + "?db=alt") == (200, "text/plain", b"hi") and get("/files/" + r[1])[0] == 404 and get("/files/" + name) == (200, "image/png", png)
+    assert post("attach", id=1, name="big.bin", data=base64.b64encode(b"\0" * (21 << 20)).decode())[0] == 400   # 20 MB cap
+    assert post("tag", id=1, patch=["@files-=" + name])[0] == 200 and post("show", id=1)[1]["row"]["tags"]["files"] is None
     srv.shutdown()

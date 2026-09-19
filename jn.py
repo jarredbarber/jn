@@ -7,6 +7,7 @@
   jn show [ID]               tags line, blank, content, then "<- #N @tag title" backlinks. pipeable into edit
   jn history [ID]            prior versions, then current
   jn revert [ID] [N]         restore version N from history (default: the one before current). versioned itself
+  jn attach [ID] path...     copy files in beside the journal (<journal>.files/, content-addressed) and add them to @files
   jn ls [filters] [opts]     filters: @tag -@tag @k=v @k=a,b @k=v* word ID --name
                              opts: --since today|yesterday|3d|2w|ISO  --last N  --json  --md  --all
                                    --tree[=parent]  nest rows under the entry their @parent=#N (any pointer tag) names
@@ -17,7 +18,7 @@
   jn serve [--host H] [--port P]   web UI + POST /api over this journal (default 127.0.0.1:8787). No auth: front it yourself
   --db=<path|name>           use another journal for this run (overrides $JN_DB); names come from [dbs] in .jn
 """
-import functools, getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
+import functools, getpass, hashlib, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -218,6 +219,28 @@ def tag(eid, args):
         versioned(c, eid, lambda: (
             c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()]),
             c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])))
+
+
+def files_dir():
+    """attachments live beside the journal: ~/.jn.db -> ~/.jn.files/. Derived by suffix, so a .jsonl journal works too"""
+    return DB.with_suffix(".files")
+
+
+def store_file(data, name):
+    """content-addressed: first 16 hex of sha256 + lowercased extension, so the same bytes dedupe. -> stored name"""
+    ext = Path(name).suffix.lower()
+    stored = hashlib.sha256(data).hexdigest()[:16] + (ext if re.fullmatch(r"\.[a-z0-9]+", ext) else "")
+    files_dir().mkdir(exist_ok=True)
+    if not (files_dir() / stored).exists():
+        (files_dir() / stored).write_bytes(data)
+    return stored
+
+
+def attach(eid, paths):
+    """copy files in and append their stored names to @files (+= dedupes). -> the names"""
+    names = [store_file(Path(p).read_bytes(), p) for p in paths]
+    tag(eid, ["@files+=" + ",".join(names)])
+    return names
 
 
 def edit(eid, text=None):
@@ -435,6 +458,9 @@ def main(argv):
         ids = [int(pos.pop(0)) for _ in pos[:] if pos and pos[0].isdigit()]
         for eid in ids or [sys.exit("tag needs an ID")]:
             tag(eid, pos)
+    elif cmd == "attach":
+        eid = int(pos.pop(0)) if pos and pos[0].isdigit() else last()
+        print("\n".join(attach(eid, pos or sys.exit("attach needs files"))))
     elif cmd in ("edit", "show", "history", "revert"):
         eid = int(pos.pop(0)) if pos and pos[0].isdigit() else last()
         if cmd == "edit":
