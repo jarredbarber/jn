@@ -112,6 +112,25 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 .editor textarea { background:var(--bg); min-height:120px; field-sizing:content }
 .editor .back { margin:8px 0 0; color:var(--mute); font-size:13px; white-space:pre-wrap }
 
+/* rendered markdown (click it to edit) */
+.md { cursor:text; min-width:0; word-break:break-word; margin:4px 0 10px; padding:2px 0 }
+.md > :first-child { margin-top:0 } .md > :last-child { margin-bottom:0 }
+.md p, .md ul, .md ol, .md pre, .md blockquote, .md table { margin:0 0 .7em }
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font:italic 400 17px/1.25 var(--serif); letter-spacing:-.01em; margin:.9em 0 .35em }
+.md h1 { font-size:22px } .md h2 { font-size:19px }
+.md code, .md pre { font:13.5px/1.45 ui-monospace, Menlo, monospace; background:var(--bg); border:1px solid var(--rule); border-radius:var(--r) }
+.md code { padding:1px 5px } .md pre { padding:10px 12px; overflow:auto } .md pre code { border:0; padding:0; background:none }
+.md blockquote { border-left:2px solid var(--accent); color:var(--mute); margin-left:0; padding-left:12px }
+.md ul, .md ol { padding-left:1.4em } .md li > ul, .md li > ol, .md li > p { margin-bottom:0 }
+.md li.task { list-style:none; margin-left:-1.4em }
+.md input[type=checkbox] { width:auto; padding:0; border:0; background:none; accent-color:var(--accent); margin:0 .5em 0 0; vertical-align:-1px; cursor:pointer }  /* undo the global input rule */
+.md a { color:var(--accent) } .md del { color:var(--mute) }
+.md img { max-width:100%; height:auto; border:1px solid var(--rule); border-radius:var(--r) }
+.md hr { border:0; border-top:1px solid var(--rule); margin:1em 0 }
+.md table { border-collapse:collapse; font-size:14px; display:block; max-width:100%; overflow:auto }
+.md th, .md td { border:1px solid var(--rule); padding:4px 10px; text-align:left }
+.md th { background:var(--bg) }  /* ponytail: spec said --bg2, but the open entry already sits on --bg2 so it would vanish */
+
 /* attachments */
 .att { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; align-items:flex-start }
 .att-item { display:inline-flex; align-items:flex-start; gap:4px; font-size:13px; max-width:100% }
@@ -191,10 +210,9 @@ function setQuery(q, push = true) {
 function fromUrl() { const u = new URL(location); if (u.searchParams.has('db')) state.db = u.searchParams.get('db'); $('#filter').value = u.searchParams.get('q') || ''; }
 
 // #N and @tag in prose become links
-function linkify(s) {
-  return esc(s).replace(/(^|[\s(=,])#(\d+)\b/g, '$1<a class="ref" data-id="$2">#$2</a>')
-               .replace(/(^|\s)@([A-Za-z_][\w-]*)(=\S+)?/g, '$1<a class="tag" data-tag="$2">@$2$3</a>');
-}
+const refs = s => s.replace(/(^|[\s(=,])#(\d+)\b/g, '$1<a class="ref" data-id="$2">#$2</a>')  // s is already escaped
+                   .replace(/(^|\s)@([A-Za-z_][\w-]*)(=\S+)?/g, '$1<a class="tag" data-tag="$2">@$2$3</a>');
+const linkify = s => refs(esc(s));
 const refify = v => esc(v).replace(/#(\d+)\b/g, '<a class="ref" data-id="$1">#$1</a>');
 const tcol = t => { const c = (state.cfg.colors || {})[t] || ''; return /^#[0-9a-f]{3,8}$/i.test(c) ? c : ''; };  // only a #hex gets into a style attr: a project .jn is data, not css
 const chipAttrs = k => { const c = tcol(k); return `class="chip${c ? ' tinted' : ''}"${c ? ` style="--tc:${c}"` : ''} data-tag="${esc(k)}"`; };
@@ -221,10 +239,10 @@ async function refresh() {
         const full = d.toLocaleDateString(undefined, { weekday: 'long' }) + ', ' + d.toLocaleDateString(undefined, { month: 'long', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
         html += `<header class="day"><span class="num">${d.getDate()}</span><span class="rest"><strong>${lbl}</strong>${full}</span></header>`; day = lbl;
       }
-      const lines = r.content.split('\n');
+      const lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
       html += `<article class="entry ${'done' in r.tags ? 'done' : ''} ${r.depth ? 'child' : tree ? 'tree-root' : ''}" style="--depth:${r.depth || 0}" data-id="${r.id}">
         <div class="gut"><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><span class="eid">#${r.id}</span></div>
-        <div class="body"><p class="head">${linkify(lines[0])}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
+        <div class="body"><p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
         <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div></div></article>`;
     }
     $('#list').innerHTML = html || '<p class="empty">Nothing matches. Write something, or loosen the filter.</p>';
@@ -232,7 +250,7 @@ async function refresh() {
     $('#taglist').innerHTML = [...fav, ...tg.map(([t]) => t).filter(t => !fav.includes(t))]
       .map(t => `<span ${chipAttrs(t)}>${fav.includes(t) ? '<span class="fav">●</span>' : ''}@${esc(t)} <span class="n">${cnt[t] || 0}</span></span>`).join('');
     $('#status').textContent = rows.length + ' entries';
-    if (cur !== null) openEntry(cur, false);
+    if (cur !== null) await openEntry(cur, false);
   } catch (e) { $('#status').textContent = e.message; }
 }
 function renderNamed() {
@@ -286,6 +304,9 @@ document.addEventListener('click', e => {  // outside the open entry (and not in
   const art = cur !== null && $(`.entry[data-id="${cur}"]`);
   if (art && !e.target.closest('.editor, #ac, [data-id]') && e.target.closest('.entry') !== art) closeEntry();
 });
+document.addEventListener('keydown', e => {  // bare e on an open entry: edit it
+  if (e.key === 'e' && cur !== null && !e.metaKey && !e.ctrlKey && !e.altKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); $('.entry.open .editor')?.edit(); }
+});
 $('#list').addEventListener('click', e => {
   if (e.target.closest('.editor') || e.target.closest('a,[data-tag]')) return;
   const art = e.target.closest('.entry');
@@ -306,7 +327,8 @@ async function openEntry(id, scroll = true) {
     if (!ed) { ed = document.createElement('div'); ed.className = 'editor'; art.querySelector('.body').appendChild(ed); }
     const done = 'done' in tags;
     ed.innerHTML = `<div class="tagrow">${Object.entries(tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v, `data-k="${esc(k)}"`).replace('</span>', '<span class="x" data-rm="' + esc(k) + '">✕</span></span>')).join('')}<input class="tagin" placeholder="add a tag: @k=v, ↩"></div>
-      <textarea class="content">${esc(row.content)}</textarea>
+      <div class="md">${md(row.content)}</div>
+      <textarea class="content" hidden>${esc(row.content)}</textarea>
       <div class="att">${attHtml(tags)}</div>
       <div class="back">${backlinks.split('\n').filter(Boolean).map(linkify).join('\n')}</div>
       <div class="actions"><button class="primary act-save">Save changes</button><button class="act-done">${done ? 'Reopen' : 'Mark done'}</button><button class="act-sub">Add subtask</button><button class="act-att">Attach</button><input class="att-in" type="file" multiple hidden><button class="quiet act-close">Close</button><span class="err"></span></div>`;
@@ -314,16 +336,26 @@ async function openEntry(id, scroll = true) {
     const fail = e => ed.querySelector('.err').textContent = e.message;
     const patch = async p => { try { await api('tag', { id, patch: p }); await refresh(); } catch (e) { fail(e); } };
     const tagsLine = () => Object.entries(ed.tags).map(([k, v]) => '@' + k + (v ? '=' + v : '')).join(' ');
-    ed.querySelector('.act-save').onclick = async () => {
-      try { await api('edit', { id, text: tagsLine() + '\n\n' + ed.querySelector('.content').value }); await refresh(); } catch (e) { fail(e); }
+    const ta = ed.querySelector('.content'), mdEl = ed.querySelector('.md');
+    const save = async text => { try { await api('edit', { id, text: tagsLine() + '\n\n' + text }); await refresh(); } catch (e) { fail(e); } };
+    ed.querySelector('.act-save').onclick = () => save(ta.value);
+    ed.edit = () => { mdEl.hidden = true; ta.hidden = false; ta.oninput?.(); ta.focus(); };  // rendered -> textarea; Escape swaps back and keeps the draft
+    mdEl.onclick = e => {
+      const t = e.target.closest('a,input,img');
+      if (!t) return ed.edit();
+      if (t.dataset.id) openEntry(+t.dataset.id);
+      else if (t.dataset.tag) { const tok = '@' + t.dataset.tag; if (!has(tok)) setQuery([...tokens(), tok].join(' ')); }
+      else if (t.dataset.task) save(mdToggle(row.content, +t.dataset.task));  // ponytail: flips the saved text, not an unsaved draft
     };
     ed.querySelector('.act-done').onclick = () => patch([done ? '-@done' : '@done']);
     ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@parent=#${id} @todo `; closeEntry(); c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };
     ed.querySelector('.act-close').onclick = closeEntry;
     attWire(ed, id);
-    const ta = ed.querySelector('.content');
-    ta.onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') ed.querySelector('.act-save').onclick(); };
-    if (!CSS.supports('field-sizing', 'content')) { const fit = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px'; }; ta.oninput = fit; fit(); }
+    ta.onkeydown = e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') save(ta.value);
+      if (e.key === 'Escape') { ta.hidden = true; mdEl.hidden = false; }
+    };
+    if (!CSS.supports('field-sizing', 'content')) ta.oninput = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px'; };
     const addin = ed.querySelector('.tagin'); acAttach(addin, true);
     addin.addEventListener('keydown', e => { if (e.key === 'Enter' && addin.value.trim()) { patch(addin.value.trim().split(/\s+/).map(atify)); addin.value = ''; } });
     ed.querySelector('.tagrow').onclick = e => {
@@ -362,7 +394,7 @@ function attWire(ed, id) {
   const send = async files => {  // re-open the entry after upload but keep unsaved text
     if (!files.length) return;
     const draft = ta.value;
-    try { await upload(id, files); await refresh(); const nt = $('.entry.open .content'); if (nt) nt.value = draft; } catch (e) { fail(e); }
+    try { await upload(id, files); await refresh(); const nt = $('.entry.open .content'); if (nt) { nt.value = draft; if (!ta.hidden) $('.entry.open .editor').edit(); } } catch (e) { fail(e); }
   };
   ed.querySelector('.act-att').onclick = () => inp.click();
   inp.onchange = () => send([...inp.files]);
@@ -371,6 +403,81 @@ function attWire(ed, id) {
   ta.addEventListener('drop', e => { const fs = [...e.dataTransfer.files]; if (fs.length) { e.preventDefault(); send(fs); } });
   ed.querySelector('.att').onclick = e => { const x = e.target.closest('[data-unatt]'); if (x) api('tag', { id, patch: ['@files-=' + x.dataset.unatt] }).then(refresh, fail); };
 }
+
+// markdown: a hand-written GFM subset so the page renders offline; the source is escaped before parsing, so raw HTML shows literally.
+// ponytail: no setext headings, backslash escapes, lazy continuation, reference links, column alignment; nesting is "indented deeper than the parent".
+let taskN = 0;
+const blank = l => !/\S/.test(l);
+const item = l => l.match(/^( *)([-*+]|\d+[.)]) +(.*)$/);
+const safeUrl = u => /^(https?:|mailto:|\/|\.|#)/i.test(u) ? u : '#';
+const mdHead = s => s.replace(/^\s*(?:#{1,6}\s+|>\s*|(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?|```.*)/, '');  // one-line summary without its sigils
+function mdInline(s) {
+  const code = [];
+  s = s.replace(/(`+)([^`][\s\S]*?)\1(?!`)/g, (_, q, c) => `\0${code.push('<code>' + c.trim() + '</code>') - 1}\0`)
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, a, u) => `<img src="${safeUrl(u)}" alt="${a}" loading="lazy">`)
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, u) => `<a href="${safeUrl(u)}" target="_blank" rel="noopener">${t}</a>`)
+    .replace(/(^|[^"=>\w])(https?:\/\/\S+?)(?=[.,;:!?)]*(?:\s|$|&(?:lt|gt|quot);))/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
+    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, (_, a, b) => `<strong>${a ?? b}</strong>`)
+    .replace(/(^|[^\w*])\*([^*\n]+)\*(?![\w*])/g, '$1<em>$2</em>')
+    .replace(/(^|[^\w_])_([^_\n]+)_(?![\w_])/g, '$1<em>$2</em>')
+    .replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+  s = s.split(/(<[^>]*>)/).map((p, i) => i % 2 ? p : refs(p)).join('').replace(/ *\n/g, '<br>');  // #N/@tag links in text, not in tags or code
+  return s.replace(/\0(\d+)\0/g, (_, i) => code[i]);
+}
+function mdList(lines, i, ind) {
+  const f = item(lines[i]), ord = /\d/.test(f[2]), n = parseInt(f[2]);
+  let out = `<${ord ? 'ol' : 'ul'}${ord && n !== 1 ? ` start="${n}"` : ''}>`;
+  for (let m; (m = item(lines[i] || '')) && m[1].length === ind && /\d/.test(m[2]) === ord;) {  // a new marker kind starts a new list
+    const sub = [];
+    for (i++; i < lines.length; i++) {
+      if (blank(lines[i])) {  // a blank keeps the item only if deeper content follows; before a sibling item it is just skipped
+        let j = i; while (j < lines.length && blank(lines[j])) j++;
+        const nx = lines[j] || '', nm = item(nx);
+        if (nm && nm[1].length === ind) { i = j; break; }
+        if (nx.match(/^ */)[0].length > ind) { sub.push(''); continue; }
+        break;
+      }
+      if (lines[i].match(/^ */)[0].length <= ind) break;
+      sub.push(lines[i]);
+    }
+    const t = m[3].match(/^\[([ xX])\](?: +|$)(.*)/), cut = Math.min(...sub.filter(x => !blank(x)).map(x => x.match(/^ */)[0].length));
+    const body = t ? `<input type="checkbox" data-task="${taskN++}"${t[1] !== ' ' ? ' checked' : ''}> ${mdInline(t[2])}` : mdInline(m[3]);
+    out += `<li${t ? ' class="task"' : ''}>${body}${sub.length ? mdBlocks(sub.map(x => x.slice(cut))) : ''}</li>`;
+  }
+  return [i, out + (ord ? '</ol>' : '</ul>')];
+}
+function mdBlocks(lines) {
+  let out = '', i = 0, para = [], m, h;
+  const flush = () => { if (para.length) out += `<p>${mdInline(para.join('\n'))}</p>`; para = []; };
+  const cells = l => l.replace(/^ *\| ?| ?\| *$/g, '').split(/ ?\| ?/).map(mdInline);
+  const row = (cs, t) => '<tr>' + cs.map(c => `<${t}>${c}</${t}>`).join('') + '</tr>';
+  while (i < lines.length) {
+    const l = lines[i];
+    if (blank(l)) { flush(); i++; }
+    else if (m = l.match(/^ {0,3}(#{1,6}) +(.*?) *#* *$/)) { flush(); out += `<h${m[1].length}>${mdInline(m[2])}</h${m[1].length}>`; i++; }
+    else if (m = l.match(/^ {0,3}(```+|~~~+)/)) { flush(); const b = []; for (i++; i < lines.length && !lines[i].startsWith(m[1]); i++) b.push(lines[i]); i++; out += `<pre><code>${b.join('\n')}</code></pre>`; }
+    else if (!para.length && /^(    |\t)/.test(l)) { flush(); const b = []; for (; i < lines.length && (/^(    |\t)/.test(lines[i]) || blank(lines[i]) && /^(    |\t)/.test(lines[i + 1] || '')); i++) b.push(lines[i].replace(/^(    |\t)/, '')); out += `<pre><code>${b.join('\n')}</code></pre>`; }
+    else if (/^ {0,3}([-*_])( *\1){2,} *$/.test(l)) { flush(); out += '<hr>'; i++; }
+    else if (/^ {0,3}&gt;/.test(l)) { flush(); const b = []; for (; i < lines.length && /^ {0,3}&gt;/.test(lines[i]); i++) b.push(lines[i].replace(/^ {0,3}&gt; ?/, '')); out += `<blockquote>${mdBlocks(b)}</blockquote>`; }
+    else if (m = item(l)) { flush(); [i, h] = mdList(lines, i, m[1].length); out += h; }
+    else if (l.includes('|') && /^ *\|?( *:?-+:? *\|)+ *:?-*:? *$/.test(lines[i + 1] || '')) {
+      flush(); out += `<table><thead>${row(cells(l), 'th')}</thead><tbody>`;
+      for (i += 2; i < lines.length && lines[i].includes('|'); i++) out += row(cells(lines[i]), 'td');
+      out += '</tbody></table>';
+    }
+    else { para.push(l); i++; }
+  }
+  flush(); return out;
+}
+const md = src => { taskN = 0; return mdBlocks(esc(src).replace(/\r/g, '').split('\n')); };
+function mdToggle(src, n) {  // flip the nth task box in the source; fenced code is skipped like the renderer does
+  let fence = false, k = 0;
+  return src.split('\n').map(l => {
+    if (/^ {0,3}(```|~~~)/.test(l)) fence = !fence;
+    return !fence && /^\s*(?:>\s*)*([-*+]|\d+[.)]) +\[[ xX]\]/.test(l) && k++ === n ? l.replace(/\[([ xX])\]/, (_, c) => c === ' ' ? '[x]' : '[ ]') : l;
+  }).join('\n');
+}
+// end markdown
 
 // @ completion: names, then items after =, on every field that takes tags
 const ac = { el: $('#ac'), field: null, items: [], sel: 0, span: null };
