@@ -62,7 +62,8 @@ def verbs(jn):
         "tag": lambda id, patch=(): jn.tag(int(id), list(patch)),
         "edit": lambda id, text="": jn.edit(int(id), text),
         "dbs": lambda: list(jn.config()["dbs"]),
-        "config": lambda: {"filters": [{"name": n, "own": src == str((jn.Path.home() / ".jn").resolve())} for n, src in cfg_filters()], "tags": jn.fmt_tags(jn.default_tags())},
+        "config": lambda: {"filters": [{"name": n, "own": src == str((jn.Path.home() / ".jn").resolve())} for n, src in cfg_filters()], "tags": jn.fmt_tags(jn.default_tags()),
+                          "colors": jn.config()["colors"], "favorites": jn.config()["favorites"]},
     }
 
 
