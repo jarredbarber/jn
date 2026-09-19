@@ -76,6 +76,8 @@ with tempfile.TemporaryDirectory() as d:
     run("tag", z, "@blocked_by-=#420,#7", "@nope-=x", **env)               # emptied tag stays; -= on absent is a no-op
     tz = js(run("ls", z, "--json", **env))[0]["tags"]
     assert tz["blocked_by"] is None and "nope" not in tz, tz
+    Path(d, ".jn").write_text(Path(d, ".jn").read_text() + 'week = "@todo --since 1w --mine"\nweek2 = "--week @fitness"\n')   # token filters carry opts + names
+    assert ids(run("ls", "--week", "--all", **env)) == [a, c, x, y, z] and ids(run("ls", "--week2", "--all", **env)) == [a]
     h = run("-h", **env)
     assert "--evil" not in h and not Path(d, "proj/sub/pwned").exists()   # python filter in project .jn ignored
     rd = str(Path(d).resolve())
@@ -115,7 +117,7 @@ with tempfile.TemporaryDirectory() as d:
 
     # jn serve: the library over HTTP. stdin never read, errors are 400s, tags-only log rejected
     import importlib, threading, urllib.request, urllib.error
-    os.environ["JN_DB"] = f"{d}/web.db"; sys.path.insert(0, str(JN.parent)); os.chdir(env["CWD"])
+    os.environ["JN_DB"], os.environ["HOME"] = f"{d}/web.db", d; sys.path.insert(0, str(JN.parent)); os.chdir(env["CWD"])   # HOME: filter saves go to the temp ~/.jn
     jn, jn_web = importlib.import_module("jn"), importlib.import_module("jn_web")
     srv = jn_web.server(jn, "127.0.0.1", 0); threading.Thread(target=srv.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{srv.server_address[1]}"
@@ -132,5 +134,14 @@ with tempfile.TemporaryDirectory() as d:
     assert e["content"] == "from the web" and "x" in e["tags"], e
     assert post("show", id=1)[1]["text"].startswith("@todo @x") and post("tags", args=[])[1][0] == ["todo", 1]
     assert post("tag", id=1, patch=["@done"])[0] == 200 and post("ls")[1] == []      # closed, default filter hides it
-    assert "<!doctype" in urllib.request.urlopen(url + "/").read().decode() and "mine" in post("config")[1]["filters"]
+    assert "<!doctype" in urllib.request.urlopen(url + "/").read().decode() and {"name": "mine", "own": False} in post("config")[1]["filters"]
+    v = post("vocab")[1]; assert v["done"] == [] and v["x"] == [] and "todo" in v, v
+    r = post("filter", name="hot", expr="@todo --since 1w"); assert {"name": "hot", "own": True} in r[1]["filters"], (r, Path(d, ".jn").read_text())
+    assert post("filter", name="hot", expr="tag('x')")[0] == 400 and post("filter", name="a b", expr="@x")[0] == 400   # no python from the web
+    r = post("filter", name="fit", expr="@x -@done"); assert r[0] == 200, r
+    r = post("ls", args=["--fit", "--all"]); assert r[1] == [], r      # overrides the ~/.jn one in place
+    cfg = Path(d, ".jn").read_text()
+    assert cfg.count("[filters]") == 1 and 'fit = "@x -@done"' in cfg and 'hot = "@todo --since 1w"' in cfg and "week2" in cfg, cfg
+    assert post("filter", name="hot")[0] == 200 and "hot" not in Path(d, ".jn").read_text()
+    assert ids(run("ls", "--fit", "--all", **env)) == []
     srv.shutdown()

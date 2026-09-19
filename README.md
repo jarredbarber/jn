@@ -77,7 +77,7 @@ Any `.jn` may add or override them under `[actions]`, so a project can redefine 
 
 ## Filters and config
 
-`--name` on `ls` looks up a filter. The one named `default` is applied to every `ls` unless you pass `--all`, an explicit id, or mention one of its tags yourself, so `jn ls @done` just works. A filter is either a token string (starts with `@` or `-@`) that expands into `ls` arguments, or a Python expression evaluated per entry. Built in:
+`--name` on `ls` looks up a filter. The one named `default` is applied to every `ls` unless you pass `--all`, an explicit id, or mention one of its tags yourself, so `jn ls @done` just works. A filter is either a token string (starts with `@`, `-@`, or `--`) that expands into `ls` arguments, opts and other `--names` included (`week = "@todo --since 1w --mine"`), or a Python expression evaluated per entry. Built in:
 
 ```toml
 default   = "-@done -@archived"
@@ -138,7 +138,7 @@ The skill is split for progressive discovery: `SKILL.md` (CLI + querying) points
 jn serve                     # http://127.0.0.1:8787, --host/--port to change
 ```
 
-Capture box, filter box (same tokens as `ls`), named-filter chips, tag counts, day-grouped list, tap an entry to edit it as the `show` document, close/reopen, tag chips. Installable as a PWA from the phone. `POST /api/<verb>` with a JSON body (`ls tags show log tag edit config`) calls the library directly, so config and filters apply as in the shell it was started from; `close` is `tag @done`, and `[actions]` are CLI-only. **No auth.** Keep it on loopback and front it with Cloudflare Zero Trust / Tailscale if you want it from a phone. Entries logged from the web carry whatever `@agent` the server's shell would stamp, so start it from a human shell.
+Capture box, filter box (same tokens as `ls`), named-filter chips, tag counts, day-grouped list, tap an entry to edit it as the `show` document, close/reopen, tag chips. Installable as a PWA from the phone. Typing `@` pops known tag names, `=` their known values. **+ save view** writes the filter box as a token filter under `[filters]` in `~/.jn`, so it is a `--name` in the CLI too; the ✕ on such a chip removes it (only token strings are ever written, never Python). `POST /api/<verb>` with a JSON body (`ls tags show log tag edit config vocab filter`) calls the library directly, so config and filters apply as in the shell it was started from; `close` is `tag @done`, and `[actions]` are CLI-only. **No auth.** Keep it on loopback and front it with Cloudflare Zero Trust / Tailscale if you want it from a phone. Entries logged from the web carry whatever `@agent` the server's shell would stamp, so start it from a human shell.
 
 ## Backup and sync
 

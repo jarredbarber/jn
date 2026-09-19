@@ -1,6 +1,6 @@
 """jn serve: web UI over the jn library. POST /api/<verb> with a JSON body, JSON back; sys.exit(msg) inside jn becomes a 400.
 No auth: bind to loopback and put Cloudflare Zero Trust / Tailscale in front. ponytail: single-threaded server = the global lock."""
-import contextlib, json
+import contextlib, json, re, tomllib
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -22,14 +22,42 @@ def verbs(jn):
         row = jn.select([str(int(id))], {"all": True})
         return {"text": jn.entry_text(int(id)), "backlinks": jn.backlinks(int(id)), "row": row[0] if row else None}
 
+    def vocab():
+        """tag name -> its known items, for @ completion"""
+        out = {}
+        for n, v in jn.db().execute("SELECT name, value FROM tagged"):
+            out.setdefault(n, set()).update(i for i in (v or "").split(",") if i)
+        return {n: sorted(s) for n, s in sorted(out.items())}
+
+    def filt(name, expr=None):
+        """save (or drop, expr=None) a token filter under [filters] in ~/.jn; python never comes from the web"""
+        if not re.fullmatch(r"[A-Za-z_][\w-]*", name) or (expr is not None and (not jn.is_tokens(expr) or re.search(r"[\"'\\\n]", expr))):
+            raise SystemExit("name must be a word and the filter ls tokens (@tag -@tag --since 1w ...)")
+        f = (jn.Path.home() / ".jn").resolve()
+        text = f.read_text() if f.is_file() else ""
+        m = re.search(r"(?ms)^\[filters\]\n(.*?)(?=^\[|\Z)", text)
+        body = re.sub(rf"(?m)^{re.escape(name)}\s*=.*\n?", "", m[1]) if m else ""
+        body += f'{name} = "{expr}"\n' if expr is not None else ""
+        new = text[:m.start(1)] + body + text[m.end(1):] if m else text.rstrip("\n") + ("\n\n" if text else "") + "[filters]\n" + body
+        tomllib.loads(new)  # a ValueError here is a 400, and the file is untouched
+        f.write_text(new)
+        jn.config.cache_clear()  # config() is cached per process; the CLI never lives long enough to notice
+        return {"filters": [{"name": n, "own": src == str(f)} for n, src in cfg_filters()]}
+
+    def cfg_filters():
+        c = jn.config()
+        return [(n, c["src"][n]) for n in c["filters"]]
+
     return {
+        "vocab": vocab,
+        "filter": filt,
         "ls": lambda args=(): rows(args),
         "tags": lambda args=(): jn.tag_counts(rows(args)),
         "show": show,
         "log": log,
         "tag": lambda id, patch=(): jn.tag(int(id), list(patch)),
         "edit": lambda id, text="": jn.edit(int(id), text),
-        "config": lambda: {"filters": list(jn.config()["filters"]), "tags": jn.fmt_tags(jn.default_tags())},
+        "config": lambda: {"filters": [{"name": n, "own": src == str((jn.Path.home() / ".jn").resolve())} for n, src in cfg_filters()], "tags": jn.fmt_tags(jn.default_tags())},
     }
 
 

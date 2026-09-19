@@ -42,6 +42,10 @@ dialog textarea { min-height:40vh }
 pre { white-space:pre-wrap; font:13px ui-monospace, Menlo, monospace; color:var(--mute) }
 details summary { cursor:pointer; color:var(--mute); font-size:13px }
 .err { color:var(--danger); font-size:13px }
+#ac { position:fixed; z-index:10; background:var(--bg); border:1px solid var(--line); border-radius:8px; box-shadow:0 4px 16px #0004; max-height:40vh; overflow:auto; min-width:160px; display:none }
+#ac div { padding:6px 12px; cursor:pointer; font-family:ui-monospace, Menlo, monospace; font-size:13px }
+#ac div.sel { background:var(--chip-on); color:var(--chip-on-fg) }
+#viewname { display:none; width:auto; flex:1; min-width:120px; padding:2px 10px; border-radius:999px; font-size:13px }
 </style>
 </head>
 <body>
@@ -58,6 +62,8 @@ details summary { cursor:pointer; color:var(--mute); font-size:13px }
   <input id="filter" placeholder="filter: @todo -@done @k=v word --since 1w">
 </div>
 <div class="chips" id="named" style="margin-top:8px"></div>
+<input id="viewname" placeholder="name this view, ↩ to save into ~/.jn">
+<div id="ac"></div>
 <details id="tags"><summary>tags</summary><div class="chips" id="taglist" style="margin-top:6px"></div></details>
 <div id="list"></div>
 
@@ -84,7 +90,7 @@ async function api(verb, body = {}) {
   if (!r.ok) throw new Error(j.error || r.status);
   return j.out;
 }
-const state = { named: new Set(), cfg: { filters: [], actions: [] } };
+const state = { named: new Set(), cfg: { filters: [] }, vocab: {} };
 try { state.named = new Set(JSON.parse(localStorage.getItem('jn.named') || '[]')); $('#filter').value = localStorage.getItem('jn.filter') || ''; } catch {}
 const tokens = () => [...$('#filter').value.trim().split(/\s+/).filter(Boolean), ...[...state.named].map(n => '--' + n)];
 
@@ -103,7 +109,8 @@ const dayLabel = d => {
 async function refresh() {
   $('#status').textContent = '…';
   try {
-    const [rows, tg] = await Promise.all([api('ls', { args: tokens() }), api('tags', { args: tokens() })]);
+    const [rows, tg, vocab] = await Promise.all([api('ls', { args: tokens() }), api('tags', { args: tokens() }), api('vocab')]);
+    state.vocab = vocab;
     rows.reverse();
     let html = '', day = '';
     for (const r of rows) {
@@ -121,8 +128,24 @@ async function refresh() {
   } catch (e) { $('#status').textContent = e.message; }
 }
 function renderNamed() {
-  $('#named').innerHTML = state.cfg.filters.map(n => `<button class="chip ${state.named.has(n) ? 'on' : ''}" data-named="${n}">--${n}</button>`).join('');
+  $('#named').innerHTML = state.cfg.filters.map(f => `<button class="chip ${state.named.has(f.name) ? 'on' : ''}" data-named="${f.name}">--${f.name}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</button>`).join('')
+    + `<button class="chip" id="saveview" title="save the filter box as a named --view">+ save view</button>`;
+  $('#saveview').onclick = () => { const v = $('#viewname'); v.style.display = v.style.display === 'block' ? 'none' : 'block'; if (v.style.display === 'block') v.focus(); };
 }
+async function saveFilter(name, expr) {
+  try {
+    const c = await api('filter', expr === null ? { name } : { name, expr });
+    state.cfg.filters = c.filters;
+    if (expr === null) state.named.delete(name); else { $('#filter').value = ''; state.named.add(name); }
+    try { localStorage.setItem('jn.named', JSON.stringify([...state.named])); localStorage.setItem('jn.filter', $('#filter').value); } catch {}
+    $('#viewname').value = ''; $('#viewname').style.display = 'none';
+    renderNamed(); refresh();
+  } catch (e) { $('#status').textContent = e.message; }
+}
+$('#viewname').onkeydown = e => {
+  if (e.key === 'Enter' && e.target.value.trim()) saveFilter(e.target.value.trim(), [...$('#filter').value.trim().split(/\s+/).filter(Boolean), ...[...state.named].map(n => '--' + n)].join(' '));
+  if (e.key === 'Escape') e.target.style.display = 'none';
+};
 
 // capture
 async function capture(prefix) {
@@ -140,6 +163,8 @@ $('#capture').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Ente
 let t;
 $('#filter').oninput = () => { clearTimeout(t); t = setTimeout(() => { try { localStorage.setItem('jn.filter', $('#filter').value); } catch {} refresh(); }, 300); };
 document.body.addEventListener('click', e => {
+  const del = e.target.closest('[data-del]');
+  if (del) { e.stopPropagation(); saveFilter(del.dataset.del, null); return; }
   const a = e.target.closest('[data-named],[data-tag],[data-id]');
   if (!a) return;
   if (a.dataset.named) {
@@ -185,6 +210,45 @@ $('#d-addtag').onkeydown = e => { if (e.key === 'Enter' && e.target.value.trim()
 $('#d-tags').onclick = e => { const b = e.target.closest('[data-rm]'); if (b) { e.stopPropagation(); act('tag', { patch: ['-@' + b.dataset.rm] }); } };
 $('#d-text').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('#d-save').onclick(); };
 $('#detail').onclose = () => { cur = null; };
+
+// @ completion: names, then items after =, on every field that takes tags
+const ac = { el: $('#ac'), field: null, items: [], sel: 0, span: null };
+function acHide() { ac.el.style.display = 'none'; ac.field = null; }
+function acUpdate(field) {
+  const before = field.value.slice(0, field.selectionStart);
+  const m = before.match(/(^|\s)(-?@)([A-Za-z_][\w-]*)?(?:(=)((?:[^\s,]*,)*)([^\s,]*))?$/);
+  if (!m) return acHide();
+  const [, , sigil, name = '', eq, done = '', part = ''] = m;
+  const names = Object.keys(state.vocab);
+  let list, prefix;
+  if (eq) { list = (state.vocab[name] || []).filter(v => v.startsWith(part) && !done.split(',').includes(v)).map(v => sigil + name + '=' + done + v); prefix = sigil + name + '=' + done + part; }
+  else { list = names.filter(n => n.startsWith(name)).map(n => sigil + n); prefix = sigil + name; }
+  list = list.filter(t => t !== prefix).slice(0, 12);
+  if (!list.length) return acHide();
+  ac.field = field; ac.items = list; ac.sel = 0; ac.span = [before.length - prefix.length, before.length];
+  ac.el.innerHTML = list.map((t, i) => `<div class="${i ? '' : 'sel'}" data-i="${i}">${esc(t)}</div>`).join('');
+  const r = field.getBoundingClientRect();
+  ac.el.style.left = r.left + 'px'; ac.el.style.top = Math.min(r.bottom + 4, innerHeight - 200) + 'px'; ac.el.style.display = 'block';
+  if (field.closest('dialog')) field.closest('dialog').appendChild(ac.el); else document.body.appendChild(ac.el);
+}
+function acPick(i) {
+  const f = ac.field, t = ac.items[i], [a, b] = ac.span;
+  const tail = t.endsWith('=') ? '' : (f.value[b] === ' ' || f.value[b] === '\n' ? '' : ' ');
+  f.value = f.value.slice(0, a) + t + tail + f.value.slice(b);
+  f.selectionStart = f.selectionEnd = a + t.length + tail.length;
+  acHide(); f.dispatchEvent(new Event('input')); f.focus();
+}
+for (const f of [$('#capture'), $('#filter'), $('#d-addtag')]) {
+  f.addEventListener('input', () => acUpdate(f));
+  f.addEventListener('keydown', e => {
+    if (ac.field !== f) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { ac.sel = (ac.sel + (e.key === 'ArrowDown' ? 1 : ac.items.length - 1)) % ac.items.length; [...ac.el.children].forEach((c, i) => c.classList.toggle('sel', i === ac.sel)); e.preventDefault(); }
+    else if (e.key === 'Enter' || e.key === 'Tab') { acPick(ac.sel); e.preventDefault(); e.stopImmediatePropagation(); }
+    else if (e.key === 'Escape') acHide();
+  }, true);
+  f.addEventListener('blur', () => setTimeout(() => { if (ac.field === f) acHide(); }, 150));
+}
+ac.el.onmousedown = e => { const d = e.target.closest('[data-i]'); if (d) { e.preventDefault(); acPick(+d.dataset.i); } };
 
 // boot + poll
 api('config').then(c => { state.cfg = c; renderNamed(); refresh(); });

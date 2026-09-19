@@ -65,7 +65,8 @@ def local(ts):
 
 
 def is_tokens(expr):
-    return expr.lstrip("-").startswith("@")
+    """a token filter is ls arguments (@tag -@tag @k=v word --opt); anything else is a python expression"""
+    return expr.lstrip("-").startswith("@") or expr.startswith("--")
 
 
 def builtin_tags():
@@ -383,13 +384,21 @@ def parse_opts(args):
     return opts, pos
 
 
+LS_OPTS = ("since", "last", "json", "md", "all", "tree")
+
+
 def select(pos, opts):
-    """the rows `ls`/`tags` would show: filters (--name), default filter unless lifted, --since, --last"""
-    tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md", "all", "tree")])
+    """the rows `ls`/`tags` would show: filters (--name), default filter unless lifted, --since, --last.
+    A token filter is ls arguments, so it may hold --since and other --names, e.g. week = "@todo --since 1w --mine" """
+    pos, opts, py, seen = list(pos), dict(opts), [], set()
+    while names := [k for k in opts if k not in LS_OPTS and k not in seen]:
+        seen.update(names)
+        tokens, p = resolve_filters(names); py += p
+        o, t = parse_opts(tokens); pos += t; opts = o | opts  # explicit opts win over a filter's
     if "all" not in opts and not any(t.isdigit() for t in pos):
-        mentioned = {m[1] for m in TAG.findall(" ".join(pos + tokens))}
-        tokens += [t for t in config()["filters"]["default"].split() if TAG.fullmatch(t)[2] not in mentioned]
-    rows = apply_filters(query(pos + tokens, opts.get("since")), py)
+        mentioned = {m[1] for m in TAG.findall(" ".join(pos))}
+        pos += [t for t in config()["filters"]["default"].split() if TAG.fullmatch(t)[2] not in mentioned]
+    rows = apply_filters(query(pos, opts.get("since")), py)
     return rows[-int(opts["last"]):] if "last" in opts else rows
 
 
