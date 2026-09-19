@@ -14,6 +14,7 @@
   jn import                  upsert entries from jsonl on stdin, ids preserved: ls --all --json | jq ... | jn import
   jn <action> ...            todo, close, ... (see below). `jn close 1 2 3` closes each
   jn --skill [page]          print skill docs to stdout (no page = overview; then config, todo, journal)
+  jn serve [--host H] [--port P]   web UI + POST /api over this journal (default 127.0.0.1:8787). No auth: front it yourself
   --db=<path>                use another journal for this run (overrides $JN_DB); works on any command
 """
 import functools, getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
@@ -383,11 +384,14 @@ def main(argv):
     for a in it:
         if a.startswith("--"):
             k, _, v = a[2:].partition("=")
-            opts[k] = v or (next(it, True) if k in ("since", "last") else True)
+            opts[k] = v or (next(it, True) if k in ("since", "last", "host", "port") else True)
         else:
             pos.append(a)
     if cmd == "--skill":
         skill(pos[0] if pos else None)
+    elif cmd == "serve":
+        sys.path.insert(0, str(Path(__file__).resolve().parent))  # symlinked ~/bin/jn still finds jn_web beside it
+        __import__("jn_web").serve(sys.modules[__name__], opts)  # pass this module: __main__ when run as a script
     elif cmd == "log":
         print(add_entry(pos))
     elif cmd == "import":

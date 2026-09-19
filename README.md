@@ -132,6 +132,14 @@ ln -s ~/code/jn/skills/jn ~/.claude/skills/jn
 
 The skill is split for progressive discovery: `SKILL.md` (CLI + querying) points to deeper pages an agent pulls on demand via `jn --skill <page>` (`config`, `todo`, `journal`; no arg prints the overview). The pages ship with the package, so `jn --skill` works after `uv tool install` too.
 
+## Web
+
+```bash
+jn serve                     # http://127.0.0.1:8787, --host/--port to change
+```
+
+Capture box, filter box (same tokens as `ls`), named-filter chips, tag counts, day-grouped list, tap an entry to edit it as the `show` document, close/reopen, tag chips. Installable as a PWA from the phone. It is the CLI over HTTP: `POST /api {"argv": [...], "stdin": "..."}` runs an allowlisted command (`ls tags show log tag edit history revert` + actions) and returns stdout, so config, actions, and filters apply as in the shell it was started from. **No auth.** Keep it on loopback and front it with Cloudflare Zero Trust / Tailscale if you want it from a phone. Entries logged from the web carry whatever `@agent` the server's shell would stamp, so start it from a human shell.
+
 ## Backup and sync
 
 The db is SQLite, but the portable form is jsonl. `--json` sorts keys, so a dump is stable and diffs cleanly in git:

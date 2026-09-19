@@ -112,3 +112,25 @@ with tempfile.TemporaryDirectory() as d:
     run("--db", f"{d}/alt.db", "log", "only in alt", **env)                  # --db overrides $JN_DB, either position
     assert ids(run("ls", "alt", "--db", f"{d}/alt.db", **env)) and not ids(run("ls", "alt", **env))
     print("ok")
+
+    # jn serve: the CLI over HTTP. allowlist holds, stdin-bodied log/edit work, errors are 400s
+    import importlib, threading, urllib.request, urllib.error
+    os.environ["JN_DB"] = f"{d}/web.db"; sys.path.insert(0, str(JN.parent)); os.chdir(env["CWD"])
+    jn, jn_web = importlib.import_module("jn"), importlib.import_module("jn_web")
+    srv = jn_web.server(jn, "127.0.0.1", 0); threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}"
+    def post(argv, stdin=""):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url + "/api", json.dumps({"argv": argv, "stdin": stdin}).encode())) as r:
+                return r.status, json.loads(r.read())["out"]
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())["error"]
+    assert post(["todo"], "@fitness from phone")[1].strip() == "1"
+    assert post(["log", "@todo"], "\n")[0] == 400                                   # empty entry -> sys.exit -> 400
+    assert post(["import"])[0] == 400 and post(["ls", "--db=/x"])[0] == 400 and post([])[0] == 400
+    assert post(["edit", "1"], "@todo @x\n\nfrom the web")[0] == 200
+    e = json.loads(post(["ls", "1", "--json"])[1])
+    assert e["content"] == "from the web" and "x" in e["tags"], e
+    assert post(["close", "1"])[0] == 200 and post(["ls", "--json"])[1] == ""      # closed, default filter hides it
+    assert "<!doctype" in urllib.request.urlopen(url + "/").read().decode() and "todo" in urllib.request.urlopen(url + "/config").read().decode()
+    srv.shutdown()
