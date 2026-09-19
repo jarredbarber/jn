@@ -104,7 +104,7 @@ def builtin_tags():
 @functools.cache
 def config():
     """builtin, ~/.jn, then root/.jn ... ./.jn; nearer wins. Only ~/.jn may hold code (python filters, tags_expr)."""
-    cfg = {"tags": builtin_tags(), "filters": dict(FILTERS), "actions": dict(ACTIONS), "dbs": {}, "files": ["builtin"],
+    cfg = {"tags": builtin_tags(), "filters": dict(FILTERS), "actions": dict(ACTIONS), "dbs": {}, "colors": {}, "favorites": [], "files": ["builtin"],
            "src": {n: "builtin" for n in [*FILTERS, *ACTIONS]}}
     home = (Path.home() / ".jn").resolve()
     for f in dict.fromkeys(p.resolve() for p in [home, *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]):
@@ -115,6 +115,8 @@ def config():
             if "tz" in c:
                 cfg["tz"] = c["tz"]
             cfg["dbs"] |= {n: str(f.parent / Path(p).expanduser()) for n, p in c.get("dbs", {}).items()}  # name -> path, any .jn; relative to that .jn
+            cfg["colors"] |= {str(n): str(v) for n, v in c.get("colors", {}).items()}  # tag -> "#hex" for the web; data, any .jn
+            cfg["favorites"] = list(dict.fromkeys([*c.get("favorites", []), *cfg["favorites"]]))  # pinned first in the web tag cloud; nearer first
             for n, cmds in c.get("actions", {}).items():
                 cfg["actions"][n], cfg["src"][n] = [cmds] if isinstance(cmds, str) else list(cmds), str(f)
             for n, expr in c.get("filters", {}).items():
@@ -516,6 +518,10 @@ def main(argv):
             print(f"  --{n:<12} {v}   # {cfg['src'][n]}")
         if cfg["dbs"]:
             print("dbs (--db=name):\n" + "".join(f"  {n:<14} {p}\n" for n, p in cfg["dbs"].items()), end="")
+        if cfg["colors"]:
+            print("colors:\n" + "".join(f"  {n:<14} {v}\n" for n, v in cfg["colors"].items()), end="")
+        if cfg["favorites"]:
+            print("favorites: " + " ".join("@" + n for n in cfg["favorites"]))
 
 
 def skill(page=None):

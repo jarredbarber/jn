@@ -11,8 +11,8 @@ def run(*args, stdin=None, **env):
 with tempfile.TemporaryDirectory() as d:
     env = dict(JN_DB=f"{d}/t.db", HOME=d, CWD=f"{d}/proj/sub", CLAUDE_CODE_SESSION_ID="s0", ANTIGRAVITY_CONVERSATION_ID="")
     Path(env["CWD"]).mkdir(parents=True)
-    Path(d, "proj/.jn").write_text('tags = ["project=demo"]\n[actions]\nnote = "log @note $@"\n[filters]\nopen = "@todo -@done"\nevil = "__import__(\'os\').system(\'touch pwned\')"\n')
-    Path(d, ".jn").write_text('tags = ["global"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[filters]\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
+    Path(d, "proj/.jn").write_text('tags = ["project=demo"]\nfavorites = ["todo", "due"]\n[actions]\nnote = "log @note $@"\n[filters]\nopen = "@todo -@done"\nevil = "__import__(\'os\').system(\'touch pwned\')"\n[colors]\ntodo = "#ff0"\n')
+    Path(d, ".jn").write_text('tags = ["global"]\nfavorites = ["due", "home"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[colors]\ntodo = "#000"\ndue = "#0ff"\n[filters]\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
     Path(d, "proj/sub/.jn").write_text('tags_expr = "[\'@evil\']"\n')  # must be ignored
 
     ids = lambda out: [l.split()[0] for l in out.splitlines()[1:]]      # skip table header
@@ -86,6 +86,7 @@ with tempfile.TemporaryDirectory() as d:
     rd = str(Path(d).resolve())
     assert next(l for l in h.splitlines() if l.startswith("config:")).split(", ")[1:] == [f"{rd}/{x}" for x in (".jn", "proj/.jn", "proj/sub/.jn")], (h, rd)
     assert "fit" in h and "unblocked" in h and "open" in h, h
+    assert "colors:\n  todo           #ff0\n  due            #0ff\n" in h and "favorites: @todo @due @home" in h, h   # [colors]/favorites layer, nearer wins
     n = run("note", "@k=v", stdin="body from stdin", **env)                  # custom action; tag-only args read stdin
     e = js(run("ls", n, "--json", **env))[0]
     assert e["content"] == "body from stdin" and e["tags"]["note"] is None and e["tags"]["k"] == "v", e
@@ -162,6 +163,7 @@ with tempfile.TemporaryDirectory() as d:
     assert post("tag", id=1, patch=["@done"])[0] == 200 and post("ls")[1] == []      # closed, default filter hides it
     assert "<!doctype" in urllib.request.urlopen(url + "/?q=%40todo&db=alt").read().decode() and {"name": "mine", "own": False} in post("config")[1]["filters"]
     v = post("vocab")[1]; assert v["done"] == [] and v["x"] == [] and "todo" in v, v
+    c = post("config")[1]; assert c["colors"] == {"todo": "#ff0", "due": "#0ff"} and c["favorites"] == ["todo", "due", "home"], c
     r = post("filter", name="hot", expr="@todo --since 1w"); assert {"name": "hot", "own": True} in r[1]["filters"], (r, Path(d, ".jn").read_text())
     assert post("filter", name="hot", expr="tag('x')")[0] == 400 and post("filter", name="a b", expr="@x")[0] == 400   # no python from the web
     r = post("filter", name="fit", expr="@x -@done"); assert r[0] == 200, r

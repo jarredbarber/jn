@@ -26,7 +26,8 @@ body::before { /* grain */
 :focus-visible { outline:2px solid var(--accent); outline-offset:2px }
 button, input, textarea, select { font:inherit; color:inherit }
 
-.col { max-width:760px; margin:0 auto; position:relative; z-index:1 }
+.col { max-width:1004px; margin:0 auto; position:relative; z-index:1 }
+.mast, .composer, .lens { max-width:760px }
 .mast { display:flex; align-items:baseline; gap:16px; padding:26px 0 0 }
 .mast h1 { font:italic 400 44px/1 var(--serif); letter-spacing:-.02em; margin:0 }
 .mast h1 a { color:inherit; text-decoration:none }
@@ -46,6 +47,7 @@ button { background:transparent; border:1px solid var(--ink); border-radius:var(
 button:hover { background:var(--bg2) }
 button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:3px 3px 0 var(--ink); font-weight:600 }
 button.primary:hover { transform:translate(1px,1px); box-shadow:2px 2px 0 var(--ink) }
+button.primary kbd { font:500 11px/1 var(--sans); opacity:.65; margin-left:8px; padding:2px 5px; border:1px solid currentColor; border-radius:3px; vertical-align:1px }
 button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .err { color:var(--accent); font-size:13px }
 
@@ -64,11 +66,15 @@ button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .chip .ref:hover { text-decoration:underline }
 #named { margin-top:10px }
 #viewname { display:none; margin-top:8px; padding:6px 10px; font-size:14px }
-#tags { margin-top:10px }
-#tags summary { cursor:pointer; color:var(--mute); font-size:13px; list-style:none }
-#tags summary::before { content:"+ "; color:var(--accent) }
-#tags[open] summary::before { content:"– " }
-#taglist { margin-top:8px }
+.chip.tinted, .entry .tags .chip.tinted { color:var(--tc); border-color:var(--tc) }  /* ponytail: your hex, your contrast */
+.chip .fav { color:var(--tc, var(--accent)); font-size:8px; margin-right:5px; vertical-align:middle }
+
+/* ledger left, tag column right; the column drops under the filter on a phone */
+.main { display:grid; grid-template-columns:minmax(0,760px) 220px; gap:0 24px; align-items:start }
+#list { grid-column:1; grid-row:1 }
+.side { grid-column:2; grid-row:1; position:sticky; top:16px; padding-top:28px }
+.side .lab { color:var(--mute); font-size:13px; margin-bottom:8px }
+.side .chips { gap:4px }
 
 /* ledger */
 .ledger { margin-top:8px }
@@ -103,7 +109,7 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 .editor .tagrow input { width:auto; flex:1; min-width:140px; padding:4px 8px; font-size:13px; background:transparent; border-color:transparent }
 .editor .tagrow input:focus { border-color:var(--rule) }
 .editor .tagrow input.editing { flex:0 0 auto; width:max-content; min-width:80px; background:var(--bg); border-color:var(--ink) }
-.editor textarea { background:var(--bg); min-height:120px }
+.editor textarea { background:var(--bg); min-height:120px; field-sizing:content }
 .editor .back { margin:8px 0 0; color:var(--mute); font-size:13px; white-space:pre-wrap }
 
 /* attachments */
@@ -117,10 +123,14 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 .entry .tags .clip { font-size:11px; color:var(--mute); align-self:center; opacity:.8 }
 
 /* completion */
-#ac { position:fixed; z-index:20; background:var(--ink); color:var(--bg); border:1px solid var(--ink); border-radius:var(--r); box-shadow:4px 4px 0 var(--accent); max-height:40vh; overflow:auto; min-width:180px; display:none }
+#ac { position:fixed; z-index:20; background:var(--ink); color:var(--bg); border:1px solid var(--ink); border-radius:var(--r); box-shadow:4px 4px 0 var(--accent); max-height:40vh; overflow:auto; overscroll-behavior:contain; min-width:180px; display:none }
 #ac div { padding:7px 12px; cursor:pointer; font-size:14px }
 #ac div.sel { background:var(--accent); color:var(--accent-ink) }
 
+@media (max-width: 760px) {
+  .main { display:block }
+  .side { position:static; padding-top:10px }
+}
 @media (max-width: 600px) {
   :root { --gutter:56px }
   .mast { padding-top:18px }
@@ -136,9 +146,9 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 <div class="col">
 <header class="mast"><h1><a href="/" id="home">j<b>n</b></a></h1><select id="dbsel" hidden></select><span id="status"></span></header>
 <div class="composer">
-  <textarea id="capture" placeholder="Write it down. @tags anywhere, @todo makes a task. ⌘↩ saves." rows="2"></textarea>
+  <textarea id="capture" placeholder="Write it down. @tags anywhere, @todo makes a task." rows="2"></textarea>
   <div class="actions">
-    <button class="primary" id="save">Save entry</button>
+    <button class="primary" id="save">Add <kbd>⌘↩</kbd></button>
     <span id="cap-err" class="err"></span>
   </div>
 </div>
@@ -146,9 +156,11 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
   <input id="filter" placeholder="@todo -@done @k=v word --since 1w --tree">
   <div class="chips" id="named"></div>
   <input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn">
-  <details id="tags"><summary>tags in view</summary><div class="chips" id="taglist"></div></details>
 </div>
+<div class="main">
+<aside class="side" id="tags"><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
 <section class="ledger" id="list"></section>
+</div>
 </div>
 <div id="ac"></div>
 
@@ -184,7 +196,10 @@ function linkify(s) {
                .replace(/(^|\s)@([A-Za-z_][\w-]*)(=\S+)?/g, '$1<a class="tag" data-tag="$2">@$2$3</a>');
 }
 const refify = v => esc(v).replace(/#(\d+)\b/g, '<a class="ref" data-id="$1">#$1</a>');
-const tagChip = (k, v, extra = '') => `<span class="chip" data-tag="${esc(k)}" ${extra}>@${esc(k)}${v ? '=' + refify(v) : ''}</span>`;
+const tcol = t => { const c = (state.cfg.colors || {})[t] || ''; return /^#[0-9a-f]{3,8}$/i.test(c) ? c : ''; };  // only a #hex gets into a style attr: a project .jn is data, not css
+const chipAttrs = k => { const c = tcol(k); return `class="chip${c ? ' tinted' : ''}"${c ? ` style="--tc:${c}"` : ''} data-tag="${esc(k)}"`; };
+const tagChip = (k, v, extra = '') => `<span ${chipAttrs(k)} ${extra}>@${esc(k)}${v ? '=' + refify(v) : ''}</span>`;
+const atify = t => t.replace(/^(-?)(?!@)/, '$1@');  // tag fields take bare words: foo -> @foo, -foo -> -@foo
 const dayLabel = d => {
   const t = new Date(), y = new Date(Date.now() - 864e5);
   const same = (a, b) => a.toDateString() === b.toDateString();
@@ -213,7 +228,9 @@ async function refresh() {
         <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div></div></article>`;
     }
     $('#list').innerHTML = html || '<p class="empty">Nothing matches. Write something, or loosen the filter.</p>';
-    $('#taglist').innerHTML = tg.map(([t, n]) => `<span class="chip" data-tag="${esc(t)}">@${esc(t)} <span class="n">${n}</span></span>`).join('');
+    const fav = state.cfg.favorites || [], cnt = Object.fromEntries(tg);
+    $('#taglist').innerHTML = [...fav, ...tg.map(([t]) => t).filter(t => !fav.includes(t))]
+      .map(t => `<span ${chipAttrs(t)}>${fav.includes(t) ? '<span class="fav">●</span>' : ''}@${esc(t)} <span class="n">${cnt[t] || 0}</span></span>`).join('');
     $('#status').textContent = rows.length + ' entries';
     if (cur !== null) openEntry(cur, false);
   } catch (e) { $('#status').textContent = e.message; }
@@ -265,6 +282,10 @@ document.body.addEventListener('click', e => {
   else if (a.dataset.id) { e.stopPropagation(); openEntry(+a.dataset.id); }
   else if (a.dataset.tag !== undefined) { e.stopPropagation(); const tok = '@' + a.dataset.tag; if (!has(tok)) setQuery([...tokens(), tok].join(' ')); }
 });
+document.addEventListener('click', e => {  // outside the open entry (and not into another one, the editor, or the popup) closes it
+  const art = cur !== null && $(`.entry[data-id="${cur}"]`);
+  if (art && !e.target.closest('.editor, #ac, [data-id]') && e.target.closest('.entry') !== art) closeEntry();
+});
 $('#list').addEventListener('click', e => {
   if (e.target.closest('.editor') || e.target.closest('a,[data-tag]')) return;
   const art = e.target.closest('.entry');
@@ -300,9 +321,11 @@ async function openEntry(id, scroll = true) {
     ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@parent=#${id} @todo `; closeEntry(); c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };
     ed.querySelector('.act-close').onclick = closeEntry;
     attWire(ed, id);
-    ed.querySelector('.content').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') ed.querySelector('.act-save').onclick(); };
-    const addin = ed.querySelector('.tagin'); acAttach(addin);
-    addin.addEventListener('keydown', e => { if (e.key === 'Enter' && addin.value.trim()) { patch(addin.value.trim().split(/\s+/)); addin.value = ''; } });
+    const ta = ed.querySelector('.content');
+    ta.onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') ed.querySelector('.act-save').onclick(); };
+    if (!CSS.supports('field-sizing', 'content')) { const fit = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px'; }; ta.oninput = fit; fit(); }
+    const addin = ed.querySelector('.tagin'); acAttach(addin, true);
+    addin.addEventListener('keydown', e => { if (e.key === 'Enter' && addin.value.trim()) { patch(addin.value.trim().split(/\s+/).map(atify)); addin.value = ''; } });
     ed.querySelector('.tagrow').onclick = e => {
       e.stopPropagation();  // a chip may be swapped for an input below; a detached target must not reach the body handler
       const rm = e.target.closest('[data-rm]'), ref = e.target.closest('a.ref'), chip = e.target.closest('[data-k]');
@@ -311,8 +334,8 @@ async function openEntry(id, scroll = true) {
       if (!chip) return;
       const k = chip.dataset.k, v = ed.tags[k], was = '@' + k + (v ? '=' + v : ''), inp = document.createElement('input');  // click a chip: edit it in place
       inp.className = 'tagin editing'; inp.value = was; inp.size = was.length + 2;
-      chip.replaceWith(inp); acAttach(inp); inp.focus(); inp.select();
-      const commit = () => { const nv = inp.value.trim(); if (!nv || nv === was) return openEntry(id, false); const nk = (nv.match(/^-?@([\w-]+)/) || [])[1]; patch(nk && nk !== k ? [nv, '-@' + k] : [nv]); };
+      chip.replaceWith(inp); acAttach(inp, true); inp.focus(); inp.select();
+      const commit = () => { const nv = atify(inp.value.trim()); if (nv === '@' || nv === was) return openEntry(id, false); const nk = (nv.match(/^-?@([\w-]+)/) || [])[1]; patch(nk && nk !== k ? [nv, '-@' + k] : [nv]); };
       inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); } if (ev.key === 'Escape') openEntry(id, false); });
       inp.addEventListener('blur', () => setTimeout(() => { if (inp.isConnected && ac.field !== inp) commit(); }, 200));
     };
@@ -354,17 +377,22 @@ const ac = { el: $('#ac'), field: null, items: [], sel: 0, span: null };
 function acHide() { ac.el.style.display = 'none'; ac.field = null; }
 function acUpdate(field) {
   const before = field.value.slice(0, field.selectionStart);
-  const m = before.match(/(^|\s)(-?@)([A-Za-z_][\w-]*)?(?:(=)((?:[^\s,]*,)*)([^\s,]*))?$/);
-  if (!m) return acHide();
-  const [, , sigil, name = '', eq, done = '', part = ''] = m;
+  const m = before.match(/(^|\s)(-?@?)([A-Za-z_][\w-]*)?(?:(=)((?:[^\s,]*,)*)([^\s,]*))?$/);
+  const [, , typed = '', name = '', eq, done = '', part = ''] = m || [];
+  if (!m || !(typed.endsWith('@') || (field.acBare && (typed || name)))) return acHide();
+  const sigil = typed.endsWith('@') ? typed : typed + '@';  // a bare field implies the @; the pick writes it
   let list, prefix;
   if (eq) { list = (state.vocab[name] || []).filter(v => v.startsWith(part) && !done.split(',').includes(v)).map(v => sigil + name + '=' + done + v); prefix = sigil + name + '=' + done + part; }
   else { list = Object.keys(state.vocab).filter(n => n.startsWith(name)).map(n => sigil + n); prefix = sigil + name; }
-  list = list.filter(t => t !== prefix).slice(0, 12);
+  list = list.filter(t => t !== sigil + prefix.slice(typed.length)).slice(0, 12); prefix = typed + prefix.slice(sigil.length);
   if (!list.length) return acHide();
   ac.field = field; ac.items = list; ac.sel = 0; ac.span = [before.length - prefix.length, before.length];
   ac.el.innerHTML = list.map((t, i) => `<div class="${i ? '' : 'sel'}" data-i="${i}">${esc(t)}</div>`).join('');
-  const r = field.getBoundingClientRect(), up = r.top > innerHeight / 2;
+  acPlace();
+}
+function acPlace() {
+  const r = ac.field.getBoundingClientRect(), up = r.top > innerHeight / 2;
+  if (r.bottom < 0 || r.top > innerHeight) return acHide();
   ac.el.style.left = r.left + 'px'; ac.el.style.top = up ? '' : r.bottom + 4 + 'px'; ac.el.style.bottom = up ? innerHeight - r.top + 4 + 'px' : ''; ac.el.style.display = 'block';
 }
 function acPick(i) {
@@ -374,18 +402,20 @@ function acPick(i) {
   f.selectionStart = f.selectionEnd = a + t.length + tail.length;
   acHide(); f.dispatchEvent(new Event('input')); f.focus();
 }
-function acAttach(f) {
+function acAttach(f, bare = false) {
+  f.acBare = bare;
   f.addEventListener('input', () => acUpdate(f));
   f.addEventListener('keydown', e => {
     if (ac.field !== f) return;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { ac.sel = (ac.sel + (e.key === 'ArrowDown' ? 1 : ac.items.length - 1)) % ac.items.length; [...ac.el.children].forEach((c, i) => c.classList.toggle('sel', i === ac.sel)); e.preventDefault(); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { ac.sel = (ac.sel + (e.key === 'ArrowDown' ? 1 : ac.items.length - 1)) % ac.items.length; [...ac.el.children].forEach((c, i) => c.classList.toggle('sel', i === ac.sel)); ac.el.children[ac.sel].scrollIntoView({ block: 'nearest' }); e.preventDefault(); }
     else if (e.key === 'Enter' || e.key === 'Tab') { acPick(ac.sel); e.preventDefault(); e.stopImmediatePropagation(); }
     else if (e.key === 'Escape') acHide();
   }, true);
   f.addEventListener('blur', () => setTimeout(() => { if (ac.field === f) acHide(); }, 150));
 }
 acAttach($('#capture')); acAttach($('#filter'));
-ac.el.onmousedown = e => { const d = e.target.closest('[data-i]'); if (d) { e.preventDefault(); acPick(+d.dataset.i); } };
+ac.el.onmousedown = e => { e.preventDefault(); const d = e.target.closest('[data-i]'); if (d) acPick(+d.dataset.i); };  // keep the field focused, scrollbar included
+addEventListener('scroll', () => ac.field && acPlace(), true); addEventListener('resize', () => ac.field && acPlace());
 
 // boot + poll
 fromUrl();
