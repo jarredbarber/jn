@@ -84,9 +84,10 @@ def server(jn, host, port):
             self.end_headers(); self.wfile.write(body)
 
         def do_GET(self):
-            if self.path == "/":
+            path = self.path.split("?")[0]  # the page keeps its query in the URL
+            if path == "/":
                 self.send(200, (HERE / "jn_web.html").read_text(), "text/html; charset=utf-8")
-            elif self.path == "/manifest.json":
+            elif path == "/manifest.json":
                 self.send(200, json.dumps({"name": "jn", "short_name": "jn", "start_url": "/", "display": "standalone",
                                            "background_color": "#111", "theme_color": "#111", "icons": []}), "application/manifest+json")
             else:

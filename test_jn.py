@@ -137,7 +137,7 @@ with tempfile.TemporaryDirectory() as d:
     assert e["content"] == "from the web" and "x" in e["tags"], e
     assert post("show", id=1)[1]["text"].startswith("@todo @x") and post("tags", args=[])[1][0] == ["todo", 1]
     assert post("tag", id=1, patch=["@done"])[0] == 200 and post("ls")[1] == []      # closed, default filter hides it
-    assert "<!doctype" in urllib.request.urlopen(url + "/").read().decode() and {"name": "mine", "own": False} in post("config")[1]["filters"]
+    assert "<!doctype" in urllib.request.urlopen(url + "/?q=%40todo&db=alt").read().decode() and {"name": "mine", "own": False} in post("config")[1]["filters"]
     v = post("vocab")[1]; assert v["done"] == [] and v["x"] == [] and "todo" in v, v
     r = post("filter", name="hot", expr="@todo --since 1w"); assert {"name": "hot", "own": True} in r[1]["filters"], (r, Path(d, ".jn").read_text())
     assert post("filter", name="hot", expr="tag('x')")[0] == 400 and post("filter", name="a b", expr="@x")[0] == 400   # no python from the web

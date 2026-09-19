@@ -13,68 +13,75 @@
 :root {
   --bg:#14261F; --bg2:#1B3229; --ink:#F2EFE6; --mute:#8FA69A; --rule:#2C4A3E; --accent:#FF7A1A; --accent-ink:#14261F;
   --serif:"Bodoni Moda", "Didot", "Bodoni 72", serif; --sans:"Hanken Grotesk", "Helvetica Neue", Arial, sans-serif;
-  --gutter:88px; --r:4px;
+  --gutter:72px; --r:4px;
 }
 * { box-sizing:border-box }
 html { background:var(--bg) }
-body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 var(--sans); min-height:100vh; padding:0 0 calc(24px + env(safe-area-inset-bottom)) }
+body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 var(--sans); min-height:100vh; padding:0 16px calc(48px + env(safe-area-inset-bottom)) }
 body::before { /* grain */
   content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.14; mix-blend-mode:soft-light;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 ::selection { background:var(--accent); color:var(--accent-ink) }
 :focus-visible { outline:2px solid var(--accent); outline-offset:2px }
-button, input, textarea { font:inherit; color:inherit }
+button, input, textarea, select { font:inherit; color:inherit }
 
-/* shell: hangs off the left, never centered */
-.mast { display:flex; align-items:baseline; gap:18px; padding:26px 5vw 0 5vw }
+.col { max-width:760px; margin:0 auto; position:relative; z-index:1 }
+.mast { display:flex; align-items:baseline; gap:16px; padding:26px 0 0 }
 .mast h1 { font:italic 400 44px/1 var(--serif); letter-spacing:-.02em; margin:0 }
+.mast h1 a { color:inherit; text-decoration:none }
 .mast h1 b { font-style:normal; font-weight:700; color:var(--accent) }
-#status { color:var(--mute); font-size:13px }
-#dbsel { background:var(--bg2); color:var(--ink); border:1px solid var(--rule); border-radius:var(--r); padding:4px 8px; font-size:14px; width:auto }
-.shell { display:grid; grid-template-columns:minmax(260px, 320px) minmax(0, 760px); gap:0 6vw; padding:32px 5vw 0 5vw; position:relative; z-index:1 }
-.pen { position:sticky; top:20px; align-self:start; display:flex; flex-direction:column; gap:22px }
+#status { color:var(--mute); font-size:13px; margin-left:auto }
+#dbsel { background:var(--bg2); color:var(--ink); border:1px solid var(--rule); border-radius:var(--r); padding:4px 8px; font-size:14px }
 
-/* composer */
+/* composer, above the feed */
+.composer { margin:26px 0 0 }
 textarea, input { width:100%; background:var(--bg2); border:1px solid var(--rule); border-radius:var(--r); padding:12px 14px; color:var(--ink) }
 textarea::placeholder, input::placeholder { color:var(--mute) }
 textarea:focus, input:focus { border-color:var(--ink); outline:none }
-textarea { resize:none; min-height:112px; line-height:1.45 }
+textarea { resize:none; min-height:64px; line-height:1.45 }
+#capture:focus { min-height:120px }
 .actions { display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap }
 button { background:transparent; border:1px solid var(--ink); border-radius:var(--r); padding:8px 16px; cursor:pointer; line-height:1.2 }
 button:hover { background:var(--bg2) }
 button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:3px 3px 0 var(--ink); font-weight:600 }
 button.primary:hover { transform:translate(1px,1px); box-shadow:2px 2px 0 var(--ink) }
+button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .err { color:var(--accent); font-size:13px }
 
-/* lens: filter, views, tags */
-.lens h2 { font:italic 400 22px/1 var(--serif); margin:0 0 10px; color:var(--mute) }
+/* lens */
+.lens { margin:26px 0 0; border-top:1px solid var(--rule); padding-top:16px }
+.lens input { font-size:15px; padding:9px 12px }
 .chips { display:flex; flex-wrap:wrap; gap:6px }
-.chip { display:inline-flex; align-items:center; gap:5px; background:transparent; border:1px solid var(--rule); border-radius:var(--r); padding:3px 9px; font-size:13px; cursor:pointer; white-space:nowrap; color:var(--ink) }
+.chip { display:inline-flex; align-items:center; gap:0; background:transparent; border:1px solid var(--rule); border-radius:var(--r); padding:3px 9px; font-size:13px; cursor:pointer; white-space:nowrap; color:var(--ink); line-height:1.4 }
 .chip:hover { border-color:var(--mute) }
 .chip.on { background:var(--ink); color:var(--bg); border-color:var(--ink) }
-.chip .x { opacity:.55; margin-left:2px }
-.chip .n { color:var(--mute); font-size:12px }
+.chip .x { opacity:.55; margin-left:6px }
+.chip .x:hover { opacity:1; color:var(--accent) }
+.chip .n { color:var(--mute); font-size:12px; margin-left:5px }
 .chip.on .n { color:var(--bg2) }
+.chip .ref { color:var(--accent); text-decoration:none }
+.chip .ref:hover { text-decoration:underline }
 #named { margin-top:10px }
 #viewname { display:none; margin-top:8px; padding:6px 10px; font-size:14px }
-#tags { margin-top:12px }
+#tags { margin-top:10px }
 #tags summary { cursor:pointer; color:var(--mute); font-size:13px; list-style:none }
 #tags summary::before { content:"+ "; color:var(--accent) }
 #tags[open] summary::before { content:"– " }
 #taglist { margin-top:8px }
 
 /* ledger */
-.ledger { min-width:0 }
-.day { display:grid; grid-template-columns:var(--gutter) 1fr; align-items:end; border-top:3px double var(--ink); margin:34px 0 6px; padding-top:0 }
-.ledger .day:first-child { margin-top:0 }
-.day .num { font:700 72px/0.8 var(--serif); letter-spacing:-.04em; margin-top:-.42em; background:var(--bg); padding-right:8px; display:inline-block; width:max-content; color:var(--ink) }
+.ledger { margin-top:8px }
+.day { display:grid; grid-template-columns:var(--gutter) 1fr; align-items:end; border-top:3px double var(--ink); margin:34px 0 6px }
+.ledger .day:first-child { margin-top:20px }
+.day .num { font:700 64px/0.8 var(--serif); letter-spacing:-.04em; margin-top:-.42em; background:var(--bg); padding-right:8px; width:max-content; color:var(--ink) }
 .day .rest { font-size:14px; color:var(--mute); padding:12px 0 6px }
 .day .rest strong { color:var(--ink); font-weight:500; margin-right:10px }
-.entry { display:grid; grid-template-columns:var(--gutter) 1fr; gap:0 0; padding:14px 0 12px; border-bottom:1px solid var(--rule); cursor:pointer; min-width:0 }
-.entry:hover .head { color:var(--accent) }
-.gut { display:flex; flex-direction:column; gap:2px; padding-top:1px }
-.eid { font:italic 400 20px/1 var(--serif); color:var(--ink) }
+.entry { display:grid; grid-template-columns:var(--gutter) 1fr; padding:14px 0 12px; border-bottom:1px solid var(--rule); min-width:0 }
+.entry .gut, .entry .head { cursor:pointer }
+.entry:not(.open):hover .head { color:var(--accent) }
+.gut { display:flex; flex-direction:column; gap:2px; padding-top:3px }
+.eid { font-size:12px; color:var(--mute) }
 .time { font-size:12px; color:var(--mute); font-variant-numeric:tabular-nums }
 .head { margin:0; white-space:pre-wrap; word-break:break-word; font-size:17px; line-height:1.4 }
 .head .more { color:var(--mute) }
@@ -82,107 +89,92 @@ button.primary:hover { transform:translate(1px,1px); box-shadow:2px 2px 0 var(--
 .entry .tags .chip { font-size:11px; padding:1px 7px; color:var(--mute) }
 .entry.done .head { color:var(--mute); text-decoration:line-through; text-decoration-color:var(--accent) }
 .entry.child { margin-left:calc(var(--depth) * 22px); border-left:2px solid var(--rule); padding-left:12px }
-.entry.child .eid { font-size:16px }
 .tree-root { margin-top:18px }
-.entry.done .eid { color:var(--mute) }
 a.ref, a.tag { color:var(--accent); text-decoration:none }
 a.ref:hover, a.tag:hover { text-decoration:underline }
 .empty { color:var(--mute); font:italic 400 22px/1.3 var(--serif); padding:24px 0 0 var(--gutter) }
 
-/* detail */
-dialog { border:1px solid var(--ink); border-radius:calc(var(--r) * 2); background:var(--bg); color:var(--ink); width:min(720px, calc(100vw - 32px)); padding:20px; box-shadow:10px 10px 0 var(--accent) }
-dialog::backdrop { background:rgba(20,38,31,.82) }
-dialog .bar { display:flex; align-items:baseline; gap:12px }
-#d-id { font:italic 400 32px/1 var(--serif) }
-#d-when { color:var(--mute); font-size:13px }
-#d-x { margin-left:auto; border-color:var(--rule); padding:4px 10px }
-dialog textarea { min-height:38vh; margin-top:10px }
-#d-tags { margin:14px 0 8px }
-#d-back { margin:8px 0 0; color:var(--mute); font-size:13px; white-space:pre-wrap }
+/* inline editor */
+.entry.open { background:var(--bg2); margin:0 -16px; padding:16px 16px 14px; border-top:1px solid var(--ink); border-bottom:1px solid var(--ink) }
+.entry.open .head, .entry.open .tags { display:none }
+.editor { min-width:0 }
+.editor .tagrow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px }
+.editor .tagrow .chip { padding:3px 9px; font-size:13px }
+.editor .tagrow input { width:auto; flex:1; min-width:140px; padding:4px 8px; font-size:13px; background:transparent; border-color:transparent }
+.editor .tagrow input:focus { border-color:var(--rule) }
+.editor .tagrow input.editing { flex:0 0 auto; width:max-content; min-width:80px; background:var(--bg); border-color:var(--ink) }
+.editor textarea { background:var(--bg); min-height:120px }
+.editor .back { margin:8px 0 0; color:var(--mute); font-size:13px; white-space:pre-wrap }
 
 /* completion */
 #ac { position:fixed; z-index:20; background:var(--ink); color:var(--bg); border:1px solid var(--ink); border-radius:var(--r); box-shadow:4px 4px 0 var(--accent); max-height:40vh; overflow:auto; min-width:180px; display:none }
 #ac div { padding:7px 12px; cursor:pointer; font-size:14px }
 #ac div.sel { background:var(--accent); color:var(--accent-ink) }
 
-@media (max-width: 760px) {
-  :root { --gutter:64px }
-  .mast { padding:18px 16px 0 }
+@media (max-width: 600px) {
+  :root { --gutter:56px }
+  .mast { padding-top:18px }
   .mast h1 { font-size:34px }
-  .shell { display:block; padding:18px 16px 0 }
-  .pen { position:static; display:block }
-  .lens { margin-bottom:8px }
-  .composer { position:fixed; left:0; right:0; bottom:0; z-index:5; background:var(--bg); border-top:1px solid var(--ink); padding:10px 16px calc(10px + env(safe-area-inset-bottom)) }
-  .composer textarea { min-height:56px; height:56px }
-  .composer textarea:focus { height:112px }
-  .composer .actions { margin-top:8px }
-  body { padding-bottom:150px }
-  .day .num { font-size:56px }
+  .day .num { font-size:52px }
   .head { font-size:16px }
+  .entry.child { margin-left:calc(var(--depth) * 14px); padding-left:8px }
 }
 @media (prefers-reduced-motion: reduce) { * { transition:none !important } }
 </style>
 </head>
 <body>
-<header class="mast"><h1>j<b>n</b></h1><select id="dbsel" hidden></select><span id="status"></span></header>
-<main class="shell">
-  <aside class="pen">
-    <div class="composer">
-      <textarea id="capture" placeholder="Write it down. @tags anywhere. ⌘↩ saves." rows="3"></textarea>
-      <div class="actions">
-        <button class="primary" id="save">Save entry</button>
-        <button id="todo">Save as todo</button>
-        <span id="cap-err" class="err"></span>
-      </div>
-    </div>
-    <div class="lens">
-      <h2>Show</h2>
-      <input id="filter" placeholder="@todo -@done @k=v word --since 1w">
-      <div class="chips" id="named"></div>
-      <input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn">
-      <details id="tags"><summary>tags in view</summary><div class="chips" id="taglist"></div></details>
-    </div>
-  </aside>
-  <section class="ledger" id="list"></section>
-</main>
-<div id="ac"></div>
-
-<dialog id="detail">
-  <div class="bar"><span id="d-id"></span><span id="d-when"></span><button id="d-x" aria-label="close">✕</button></div>
-  <div class="chips" id="d-tags"></div>
-  <input id="d-addtag" placeholder="Add a tag: @k=v, -@k, @k+=x, ↩">
-  <textarea id="d-text"></textarea>
-  <pre id="d-back"></pre>
+<div class="col">
+<header class="mast"><h1><a href="/" id="home">j<b>n</b></a></h1><select id="dbsel" hidden></select><span id="status"></span></header>
+<div class="composer">
+  <textarea id="capture" placeholder="Write it down. @tags anywhere, @todo makes a task. ⌘↩ saves." rows="2"></textarea>
   <div class="actions">
-    <button class="primary" id="d-save">Save changes</button>
-    <button id="d-close">Mark done</button>
-    <button id="d-reopen">Reopen</button>
-    <button id="d-sub">Add subtask</button>
-    <span id="d-err" class="err"></span>
+    <button class="primary" id="save">Save entry</button>
+    <span id="cap-err" class="err"></span>
   </div>
-</dialog>
+</div>
+<div class="lens">
+  <input id="filter" placeholder="@todo -@done @k=v word --since 1w --tree">
+  <div class="chips" id="named"></div>
+  <input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn">
+  <details id="tags"><summary>tags in view</summary><div class="chips" id="taglist"></div></details>
+</div>
+<section class="ledger" id="list"></section>
+</div>
+<div id="ac"></div>
 
 <script>
 const $ = s => document.querySelector(s);
-const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const state = { cfg: { filters: [] }, vocab: {}, db: '', rows: [] };
+try { state.db = localStorage.getItem('jn.db') || ''; } catch {}
+let cur = null;  // id of the entry open inline
+
 async function api(verb, body = {}) {
   const r = await fetch('/api/' + verb, { method: 'POST', body: JSON.stringify(state.db ? { db: state.db, ...body } : body) });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || r.status);
   return j.out;
 }
-const state = { named: new Set(), cfg: { filters: [] }, vocab: {}, db: '', tree: false };
-try { state.tree = !!localStorage.getItem('jn.tree'); } catch {}
-try { state.db = localStorage.getItem('jn.db') || ''; } catch {}
-try { state.named = new Set(JSON.parse(localStorage.getItem('jn.named') || '[]')); $('#filter').value = localStorage.getItem('jn.filter') || ''; } catch {}
-const tokens = () => [...$('#filter').value.trim().split(/\s+/).filter(Boolean), ...[...state.named].map(n => '--' + n), ...(state.tree ? ['--tree'] : [])];
 
-// #N and @tag in prose become links; done client-side on the first line only
+// the query is the filter box; --name and --tree live in it as tokens, and the URL mirrors it
+const tokens = () => $('#filter').value.trim().split(/\s+/).filter(Boolean);
+const has = t => tokens().includes(t);
+function toggleTok(t) { const ts = tokens(); $('#filter').value = (ts.includes(t) ? ts.filter(x => x !== t) : [...ts, t]).join(' '); }
+function setQuery(q, push = true) {
+  $('#filter').value = q;
+  const u = new URL(location); q ? u.searchParams.set('q', q) : u.searchParams.delete('q'); state.db ? u.searchParams.set('db', state.db) : u.searchParams.delete('db');
+  history[push ? 'pushState' : 'replaceState'](null, '', u);
+  renderNamed(); refresh();
+}
+function fromUrl() { const u = new URL(location); if (u.searchParams.has('db')) state.db = u.searchParams.get('db'); $('#filter').value = u.searchParams.get('q') || ''; }
+
+// #N and @tag in prose become links
 function linkify(s) {
-  return esc(s).replace(/(^|\s)#(\d+)\b/g, '$1<a class="ref" data-id="$2">#$2</a>')
+  return esc(s).replace(/(^|[\s(=,])#(\d+)\b/g, '$1<a class="ref" data-id="$2">#$2</a>')
                .replace(/(^|\s)@([A-Za-z_][\w-]*)(=\S+)?/g, '$1<a class="tag" data-tag="$2">@$2$3</a>');
 }
-const tagChip = (k, v, extra = '') => `<button class="chip" data-tag="${esc(k)}" ${extra}>@${esc(k)}${v ? '=' + esc(v) : ''}</button>`;
+const refify = v => esc(v).replace(/#(\d+)\b/g, '<a class="ref" data-id="$1">#$1</a>');
+const tagChip = (k, v, extra = '') => `<span class="chip" data-tag="${esc(k)}" ${extra}>@${esc(k)}${v ? '=' + refify(v) : ''}</span>`;
 const dayLabel = d => {
   const t = new Date(), y = new Date(Date.now() - 864e5);
   const same = (a, b) => a.toDateString() === b.toDateString();
@@ -195,7 +187,8 @@ async function refresh() {
     const [rows, tg, vocab] = await Promise.all([api('ls', { args: tokens() }), api('tags', { args: tokens() }), api('vocab')]);
     state.vocab = vocab;
     const tree = rows.some(r => 'depth' in r);
-    if (!tree) rows.reverse();  // tree rows arrive in forest order already
+    if (!tree) rows.reverse();
+    state.rows = rows;
     let html = '', day = '';
     for (const r of rows) {
       const d = new Date(r.created), lbl = dayLabel(d);
@@ -205,101 +198,120 @@ async function refresh() {
       }
       const lines = r.content.split('\n');
       html += `<article class="entry ${'done' in r.tags ? 'done' : ''} ${r.depth ? 'child' : tree ? 'tree-root' : ''}" style="--depth:${r.depth || 0}" data-id="${r.id}">
-        <div class="gut"><span class="eid">${r.id}</span><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span></div>
+        <div class="gut"><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><span class="eid">#${r.id}</span></div>
         <div class="body"><p class="head">${linkify(lines[0])}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
         <div class="tags">${Object.entries(r.tags).map(([k, v]) => tagChip(k, v)).join('')}</div></div></article>`;
     }
     $('#list').innerHTML = html || '<p class="empty">Nothing matches. Write something, or loosen the filter.</p>';
-    $('#taglist').innerHTML = tg.map(([t, n]) => `<button class="chip" data-tag="${esc(t)}">@${esc(t)} <span class="n">${n}</span></button>`).join('');
+    $('#taglist').innerHTML = tg.map(([t, n]) => `<span class="chip" data-tag="${esc(t)}">@${esc(t)} <span class="n">${n}</span></span>`).join('');
     $('#status').textContent = rows.length + ' entries';
+    if (cur !== null) openEntry(cur, false);
   } catch (e) { $('#status').textContent = e.message; }
 }
 function renderNamed() {
-  $('#named').innerHTML = state.cfg.filters.map(f => `<button class="chip ${state.named.has(f.name) ? 'on' : ''}" data-named="${f.name}">--${f.name}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</button>`).join('')
-    + `<button class="chip ${state.tree ? 'on' : ''}" id="treetoggle" title="Nest entries under their @parent">tree</button>`
-    + `<button class="chip" id="saveview" title="Save the filter box as a named view in ~/.jn">+ save view</button>`;
-  $('#treetoggle').onclick = () => { state.tree = !state.tree; try { localStorage.setItem('jn.tree', state.tree ? '1' : ''); } catch {} renderNamed(); refresh(); };
+  $('#named').innerHTML = state.cfg.filters.map(f => `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}">--${f.name}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`).join('')
+    + `<span class="chip ${has('--tree') ? 'on' : ''}" data-tok="--tree" title="Nest entries under their @parent">tree</span>`
+    + `<span class="chip" id="saveview" title="Save the filter box as a named view in ~/.jn">+ save view</span>`;
   $('#saveview').onclick = () => { const v = $('#viewname'); v.style.display = v.style.display === 'block' ? 'none' : 'block'; if (v.style.display === 'block') v.focus(); };
 }
 async function saveFilter(name, expr) {
   try {
     const c = await api('filter', expr === null ? { name } : { name, expr });
     state.cfg.filters = c.filters;
-    if (expr === null) state.named.delete(name); else { $('#filter').value = ''; state.named.add(name); }
-    try { localStorage.setItem('jn.named', JSON.stringify([...state.named])); localStorage.setItem('jn.filter', $('#filter').value); } catch {}
     $('#viewname').value = ''; $('#viewname').style.display = 'none';
-    renderNamed(); refresh();
+    setQuery(expr === null ? tokens().filter(t => t !== '--' + name).join(' ') : '--' + name);
   } catch (e) { $('#status').textContent = e.message; }
 }
 $('#viewname').onkeydown = e => {
-  if (e.key === 'Enter' && e.target.value.trim()) saveFilter(e.target.value.trim(), [...$('#filter').value.trim().split(/\s+/).filter(Boolean), ...[...state.named].map(n => '--' + n)].join(' '));
+  if (e.key === 'Enter' && e.target.value.trim()) saveFilter(e.target.value.trim(), tokens().join(' '));
   if (e.key === 'Escape') e.target.style.display = 'none';
 };
 
 // capture
-async function capture(prefix) {
+async function capture() {
   const text = $('#capture').value.trim();
   if (!text) return;
   $('#cap-err').textContent = '';
-  try { await api('log', { text: prefix + text }); $('#capture').value = ''; refresh(); }
+  try { await api('log', { text }); $('#capture').value = ''; refresh(); }
   catch (e) { $('#cap-err').textContent = e.message; }
 }
-$('#save').onclick = () => capture('');
-$('#todo').onclick = () => capture('@todo ');
-$('#capture').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') capture(''); };
+$('#save').onclick = capture;
+$('#capture').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') capture(); };
 
-// filter + chips
+// filter box + URL
 let t;
-$('#filter').oninput = () => { clearTimeout(t); t = setTimeout(() => { try { localStorage.setItem('jn.filter', $('#filter').value); } catch {} refresh(); }, 300); };
+$('#filter').oninput = () => { clearTimeout(t); t = setTimeout(() => setQuery($('#filter').value.trim(), false), 300); };
+$('#home').onclick = e => { e.preventDefault(); cur = null; setQuery(''); };
+addEventListener('popstate', () => { fromUrl(); renderNamed(); refresh(); });
+
+// clicks: view chips, tag chips, refs, entries
 document.body.addEventListener('click', e => {
+  if (e.target.closest('.editor')) return;  // the editor handles its own
   const del = e.target.closest('[data-del]');
   if (del) { e.stopPropagation(); saveFilter(del.dataset.del, null); return; }
-  const a = e.target.closest('[data-named],[data-tag],[data-id]');
+  const a = e.target.closest('[data-tok],[data-id],[data-tag]');
   if (!a) return;
-  if (a.dataset.named) {
-    state.named.has(a.dataset.named) ? state.named.delete(a.dataset.named) : state.named.add(a.dataset.named);
-    try { localStorage.setItem('jn.named', JSON.stringify([...state.named])); } catch {}
-    renderNamed(); refresh();
-  } else if (a.dataset.tag !== undefined && !a.closest('#d-tags')) {
-    e.stopPropagation();
-    const f = $('#filter'), tok = '@' + a.dataset.tag;
-    if (!f.value.split(/\s+/).includes(tok)) { f.value = (f.value + ' ' + tok).trim(); f.oninput(); }
-  } else if (a.dataset.id && !a.closest('#d-tags')) {
-    e.stopPropagation(); openDetail(+a.dataset.id);
-  }
+  if (a.dataset.tok) { toggleTok(a.dataset.tok); setQuery($('#filter').value.trim()); }
+  else if (a.dataset.id) { e.stopPropagation(); openEntry(+a.dataset.id); }
+  else if (a.dataset.tag !== undefined) { e.stopPropagation(); const tok = '@' + a.dataset.tag; if (!has(tok)) setQuery([...tokens(), tok].join(' ')); }
+});
+$('#list').addEventListener('click', e => {
+  if (e.target.closest('.editor') || e.target.closest('a,[data-tag]')) return;
+  const art = e.target.closest('.entry');
+  if (art) openEntry(+art.dataset.id);
 });
 
-// detail
-let cur = null;
-async function openDetail(id) {
-  cur = id; $('#d-err').textContent = '';
+// inline editor. Tag chips are the tag editor: click edits, ✕ drops, the trailing input adds
+async function openEntry(id, scroll = true) {
+  let art = $(`.entry[data-id="${id}"]`);
+  if (!art) { cur = id; setQuery(String(id)); return; }  // not in this view: show just that entry
+  if (cur !== null && cur !== id) closeEntry();
+  cur = id;
   try {
-    const { text, backlinks, row } = await api('show', { id });
-    const r = row || {};
-    const back = backlinks.split('\n').filter(Boolean);
-    $('#d-id').textContent = id;
-    $('#d-when').textContent = r.created ? new Date(r.created).toLocaleString() : '';
-    $('#d-text').value = text;
-    $('#d-back').innerHTML = back.map(l => linkify(l)).join('\n');
-    $('#d-tags').innerHTML = Object.entries(r.tags || {}).map(([k, v]) => tagChip(k, v, `data-rm="${esc(k)}"`).replace('</button>', '<span class="x">✕</span></button>')).join('');
-    $('#d-close').style.display = 'done' in (r.tags || {}) ? 'none' : '';
-    $('#d-reopen').style.display = 'done' in (r.tags || {}) ? '' : 'none';
-    if (!$('#detail').open) $('#detail').showModal();
-  } catch (e) { $('#d-err').textContent = e.message; }
+    const { backlinks, row } = await api('show', { id });
+    const tags = row.tags;
+    art.classList.add('open');
+    let ed = art.querySelector('.editor');
+    if (!ed) { ed = document.createElement('div'); ed.className = 'editor'; art.querySelector('.body').appendChild(ed); }
+    const done = 'done' in tags;
+    ed.innerHTML = `<div class="tagrow">${Object.entries(tags).map(([k, v]) => tagChip(k, v, `data-k="${esc(k)}"`).replace('</span>', '<span class="x" data-rm="' + esc(k) + '">✕</span></span>')).join('')}<input class="tagin" placeholder="add a tag: @k=v, ↩"></div>
+      <textarea class="content">${esc(row.content)}</textarea>
+      <div class="back">${backlinks.split('\n').filter(Boolean).map(linkify).join('\n')}</div>
+      <div class="actions"><button class="primary act-save">Save changes</button><button class="act-done">${done ? 'Reopen' : 'Mark done'}</button><button class="act-sub">Add subtask</button><button class="quiet act-close">Close</button><span class="err"></span></div>`;
+    ed.tags = tags;
+    const fail = e => ed.querySelector('.err').textContent = e.message;
+    const patch = async p => { try { await api('tag', { id, patch: p }); await refresh(); } catch (e) { fail(e); } };
+    const tagsLine = () => Object.entries(ed.tags).map(([k, v]) => '@' + k + (v ? '=' + v : '')).join(' ');
+    ed.querySelector('.act-save').onclick = async () => {
+      try { await api('edit', { id, text: tagsLine() + '\n\n' + ed.querySelector('.content').value }); await refresh(); } catch (e) { fail(e); }
+    };
+    ed.querySelector('.act-done').onclick = () => patch([done ? '-@done' : '@done']);
+    ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@parent=#${id} @todo `; closeEntry(); c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };
+    ed.querySelector('.act-close').onclick = closeEntry;
+    ed.querySelector('.content').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') ed.querySelector('.act-save').onclick(); };
+    const addin = ed.querySelector('.tagin'); acAttach(addin);
+    addin.addEventListener('keydown', e => { if (e.key === 'Enter' && addin.value.trim()) { patch(addin.value.trim().split(/\s+/)); addin.value = ''; } });
+    ed.querySelector('.tagrow').onclick = e => {
+      e.stopPropagation();  // a chip may be swapped for an input below; a detached target must not reach the body handler
+      const rm = e.target.closest('[data-rm]'), ref = e.target.closest('a.ref'), chip = e.target.closest('[data-k]');
+      if (rm) { patch(['-@' + rm.dataset.rm]); return; }
+      if (ref) { openEntry(+ref.dataset.id); return; }
+      if (!chip) return;
+      const k = chip.dataset.k, v = ed.tags[k], was = '@' + k + (v ? '=' + v : ''), inp = document.createElement('input');  // click a chip: edit it in place
+      inp.className = 'tagin editing'; inp.value = was; inp.size = was.length + 2;
+      chip.replaceWith(inp); acAttach(inp); inp.focus(); inp.select();
+      const commit = () => { const nv = inp.value.trim(); if (!nv || nv === was) return openEntry(id, false); const nk = (nv.match(/^-?@([\w-]+)/) || [])[1]; patch(nk && nk !== k ? [nv, '-@' + k] : [nv]); };
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); } if (ev.key === 'Escape') openEntry(id, false); });
+      inp.addEventListener('blur', () => setTimeout(() => { if (inp.isConnected && ac.field !== inp) commit(); }, 200));
+    };
+    if (scroll) art.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  } catch (e) { $('#status').textContent = e.message; }
 }
-async function act(verb, body) {
-  $('#d-err').textContent = '';
-  try { await api(verb, { id: cur, ...body }); await openDetail(cur); refresh(); } catch (e) { $('#d-err').textContent = e.message; }
+function closeEntry() {
+  const art = cur !== null && $(`.entry[data-id="${cur}"]`);
+  if (art) { art.classList.remove('open'); art.querySelector('.editor')?.remove(); }
+  cur = null;
 }
-$('#d-x').onclick = () => $('#detail').close();
-$('#d-sub').onclick = () => { const c = $('#capture'); c.value = `@parent=#${cur} @todo `; $('#detail').close(); c.focus(); c.selectionStart = c.selectionEnd = c.value.length; };
-$('#d-save').onclick = () => act('edit', { text: $('#d-text').value });
-$('#d-close').onclick = () => act('tag', { patch: ['@done'] });
-$('#d-reopen').onclick = () => act('tag', { patch: ['-@done'] });
-$('#d-addtag').onkeydown = e => { if (e.key === 'Enter' && e.target.value.trim()) { act('tag', { patch: e.target.value.trim().split(/\s+/) }); e.target.value = ''; } };
-$('#d-tags').onclick = e => { const b = e.target.closest('[data-rm]'); if (b) { e.stopPropagation(); act('tag', { patch: ['-@' + b.dataset.rm] }); } };
-$('#d-text').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('#d-save').onclick(); };
-$('#detail').onclose = () => { cur = null; };
 
 // @ completion: names, then items after =, on every field that takes tags
 const ac = { el: $('#ac'), field: null, items: [], sel: 0, span: null };
@@ -309,17 +321,15 @@ function acUpdate(field) {
   const m = before.match(/(^|\s)(-?@)([A-Za-z_][\w-]*)?(?:(=)((?:[^\s,]*,)*)([^\s,]*))?$/);
   if (!m) return acHide();
   const [, , sigil, name = '', eq, done = '', part = ''] = m;
-  const names = Object.keys(state.vocab);
   let list, prefix;
   if (eq) { list = (state.vocab[name] || []).filter(v => v.startsWith(part) && !done.split(',').includes(v)).map(v => sigil + name + '=' + done + v); prefix = sigil + name + '=' + done + part; }
-  else { list = names.filter(n => n.startsWith(name)).map(n => sigil + n); prefix = sigil + name; }
+  else { list = Object.keys(state.vocab).filter(n => n.startsWith(name)).map(n => sigil + n); prefix = sigil + name; }
   list = list.filter(t => t !== prefix).slice(0, 12);
   if (!list.length) return acHide();
   ac.field = field; ac.items = list; ac.sel = 0; ac.span = [before.length - prefix.length, before.length];
   ac.el.innerHTML = list.map((t, i) => `<div class="${i ? '' : 'sel'}" data-i="${i}">${esc(t)}</div>`).join('');
   const r = field.getBoundingClientRect(), up = r.top > innerHeight / 2;
   ac.el.style.left = r.left + 'px'; ac.el.style.top = up ? '' : r.bottom + 4 + 'px'; ac.el.style.bottom = up ? innerHeight - r.top + 4 + 'px' : ''; ac.el.style.display = 'block';
-  if (field.closest('dialog')) field.closest('dialog').appendChild(ac.el); else document.body.appendChild(ac.el);
 }
 function acPick(i) {
   const f = ac.field, t = ac.items[i], [a, b] = ac.span;
@@ -328,7 +338,7 @@ function acPick(i) {
   f.selectionStart = f.selectionEnd = a + t.length + tail.length;
   acHide(); f.dispatchEvent(new Event('input')); f.focus();
 }
-for (const f of [$('#capture'), $('#filter'), $('#d-addtag')]) {
+function acAttach(f) {
   f.addEventListener('input', () => acUpdate(f));
   f.addEventListener('keydown', e => {
     if (ac.field !== f) return;
@@ -338,19 +348,21 @@ for (const f of [$('#capture'), $('#filter'), $('#d-addtag')]) {
   }, true);
   f.addEventListener('blur', () => setTimeout(() => { if (ac.field === f) acHide(); }, 150));
 }
+acAttach($('#capture')); acAttach($('#filter'));
 ac.el.onmousedown = e => { const d = e.target.closest('[data-i]'); if (d) { e.preventDefault(); acPick(+d.dataset.i); } };
 
 // boot + poll
+fromUrl();
 api('dbs').then(dbs => {
   if (!dbs.length) return;
   if (state.db && !dbs.includes(state.db)) state.db = '';
   const sel = $('#dbsel');
   sel.innerHTML = ['', ...dbs].map(n => `<option value="${esc(n)}" ${n === state.db ? 'selected' : ''}>${n ? esc(n) : 'default'}</option>`).join('');
   sel.hidden = false;
-  sel.onchange = () => { state.db = sel.value; try { localStorage.setItem('jn.db', state.db); } catch {} refresh(); };
+  sel.onchange = () => { state.db = sel.value; try { localStorage.setItem('jn.db', state.db); } catch {} cur = null; setQuery($('#filter').value.trim(), false); };
 });
 api('config').then(c => { state.cfg = c; renderNamed(); refresh(); });
-setInterval(() => { if (document.visibilityState === 'visible' && !$('#detail').open) refresh(); }, 5000);
+setInterval(() => { if (document.visibilityState === 'visible' && cur === null) refresh(); }, 5000);
 </script>
 </body>
 </html>
