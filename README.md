@@ -163,6 +163,21 @@ jn ls --since 3d --all --json | jn import  # or just a slice
 
 git is the sync layer: dump/commit/push on one machine, pull/`import` on another. `import` only touches the ids in the stream; it never deletes.
 
+### Storage formats
+
+A db path ending in `.jsonl` (or `.json`) *is* the journal: one entry per line, sorted by id, keys sorted, trailing newline, so it lives in git and diffs cleanly. Anything else is SQLite as before. Point at one with `$JN_DB`, `--db=journal.jsonl`, or a `[dbs]` name:
+
+```toml
+[dbs]
+proj = "journal.jsonl"        # relative paths resolve against the .jn that names them
+```
+
+Each line is the `ls --all --json` shape (`id created updated content tags`) plus an optional `history` list of `{at, content}` (prior versions, as `jn history` shows them). A missing file is an empty journal, created on the first write; the parent directory must exist. Under the hood jn loads the file into an in-memory SQLite per process and rewrites the whole file atomically after every write, so it's fine for thousands of entries, not millions. `jn import` into a jsonl db works, and `ls --json` output is unchanged (no `history` key).
+
+Ids are plain integers, so two machines appending offline will both mint the same next id and git will show a conflict on that line. Resolve it by hand or `import` one side's dump into the other; that is the accepted ceiling, there is no merge driver.
+
+**From beads** (github.com/steveyegge/beads, the `bd` tracker for agents): taken: the JSONL file is the thing you commit, one record per line, in a stable order with stable key order so diffs are per-entry, and SQLite is a disposable per-machine cache rebuilt from the file. Rejected: the `.beads/` directory with a gitignored `.db` beside the JSONL and a debounced two-way sync between them (jn has no cache to drift, it reloads per run and rewrites per commit); hash ids (`bd-a1b2`) to dodge merge collisions (integers keep `#N` pointers readable, collisions are rare and `import` handles them); the git merge driver, daemon, and Dolt backend.
+
 ## Not included
 
 `rm`, tag rename, date comparison on values, sync. All scriptable via `--json`.

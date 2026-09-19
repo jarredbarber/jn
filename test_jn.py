@@ -116,6 +116,23 @@ with tempfile.TemporaryDirectory() as d:
                           env={**os.environ, **env}, cwd=env["CWD"]).returncode == 1                          # bad jsonl aborts
     run("--db", f"{d}/alt.db", "log", "only in alt", **env)                  # --db overrides $JN_DB, either position
     assert ids(run("ls", "alt", "--db", f"{d}/alt.db", **env)) and not ids(run("ls", "alt", **env))
+    # jsonl storage: a .jsonl db path is the journal itself (one entry per line, sorted by id), sqlite only in memory
+    jl = f"{d}/proj/journal.jsonl"; jenv = {**env, "JN_DB": jl}
+    ja = run("todo", "@fitness jsonl pushups", **jenv); jb = run("log", "second @re=#" + ja, **jenv)
+    run("close", ja, **jenv); run("tag", jb, "@k=v", **jenv)
+    run("edit", ja, stdin="@todo @done\n\nedited body", **jenv)
+    lines = Path(jl).read_text().splitlines()
+    assert [json.loads(l)["id"] for l in lines] == [1, 2] and Path(jl).read_text().endswith("\n") and not Path(jl + ".tmp").exists(), lines
+    assert json.loads(lines[0])["content"] == "edited body" and len(json.loads(lines[0])["history"]) == 2 and len(json.loads(lines[1])["history"]) == 1, lines   # tag is versioned too
+    assert all(l == json.dumps(json.loads(l), sort_keys=True) for l in lines)                       # sorted keys, stable
+    run("close", ja, **jenv); assert Path(jl).read_text().splitlines() == lines                     # no-op write: bytes identical
+    assert "v3" in run("history", ja, **jenv) and "@fitness" in run("history", ja, **jenv)          # history survives a reload
+    run("revert", ja, "v1", **jenv); assert "jsonl pushups" in run("show", ja, **jenv)
+    assert js(run("ls", jb, "--json", **jenv))[0]["tags"] == {"agent": "claude:s0", "global": None, "k": "v", "project": "demo", "re": "#" + ja, "ws": "sub"}
+    assert run("import", stdin=json.dumps({"id": 9, "content": "imported", "tags": {"todo": None}}), **jenv) == "imported 1"
+    assert [json.loads(l)["id"] for l in Path(jl).read_text().splitlines()] == [1, 2, 9] and ids(run("ls", "@todo", **jenv)) == ["1", "9"]   # 1 reverted to its @todo-only v1
+    Path(d, "proj/.jn").write_text(Path(d, "proj/.jn").read_text() + '[dbs]\njl = "journal.jsonl"\n')   # [dbs] name -> .jsonl, relative to that .jn
+    assert ids(run("ls", "imported", "--db=jl", **env)) == ["9"] and ids(run("ls", "--db=jl", "--all", **env)) == ["1", "2", "9"]
     print("ok")
 
     # jn serve: the library over HTTP. stdin never read, errors are 400s, tags-only log rejected
@@ -146,11 +163,15 @@ with tempfile.TemporaryDirectory() as d:
     cfg = Path(d, ".jn").read_text()
     assert cfg.count("[filters]") == 1 and 'fit = "@x -@done"' in cfg and 'hot = "@todo --since 1w"' in cfg and "week2" in cfg, cfg
     assert post("filter", name="hot")[0] == 200 and "hot" not in Path(d, ".jn").read_text()
-    assert post("dbs")[1] == ["alt"] and post("ls", db="alt", args=["--all"])[1][0]["content"] == "in alt" and post("ls", args=["--all"])[1][0]["content"] == "from the web"
+    assert post("dbs")[1] == ["alt", "jl"] and post("ls", db="alt", args=["--all"])[1][0]["content"] == "in alt" and post("ls", args=["--all"])[1][0]["content"] == "from the web"
     post("log", text="@todo parent task"); post("log", text="@todo @parent=#2 child task"); post("log", text="@todo loose")
     t = post("ls", args=["--tree"])[1]
     assert [(r["id"], r["depth"]) for r in t] == [(4, 0), (2, 0), (3, 1)], t      # newest root first, child under its parent
     assert "depth" not in post("ls")[1][0]
     assert post("ls", db="/nope/x.db")[0] == 400 and post("ls", db="nope")[0] == 400   # names only from the web
+    assert post("log", db="jl", text="@todo from the web into jsonl") == (200, 10) and post("tag", db="jl", id=10, patch=["@done"])[0] == 200
+    assert post("edit", db="jl", id=9, text="@todo\n\nweb edit")[0] == 200 and post("show", db="jl", id=9)[1]["text"] == "@todo\n\nweb edit\n"
+    jrows = {json.loads(l)["id"]: json.loads(l) for l in Path(jl).read_text().splitlines()}
+    assert "done" in jrows[10]["tags"] and jrows[9]["content"] == "web edit" and len(jrows[9]["history"]) == 1, jrows
     assert ids(run("ls", "--fit", "--all", **env)) == []
     srv.shutdown()

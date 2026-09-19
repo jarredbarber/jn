@@ -20,7 +20,7 @@ There is no build step, linter, or CI. `test_jn.py` is a single script of assert
 
 `jn.py` is the whole program (~450 lines). Entry point is `cli()` (in `[project.scripts]`), which calls `main(argv)`.
 
-- **Storage:** SQLite at `~/.jn.db` (`$JN_DB` / `--db=` override). Portable form is jsonl via `--json` / `import` (upsert by id, idempotent — that's the sync/backup layer, git holds the file).
+- **Storage:** SQLite at `~/.jn.db` (`$JN_DB` / `--db=` override). Portable form is jsonl via `--json` / `import` (upsert by id, idempotent — that's the sync/backup layer, git holds the file). A db path ending in `.jsonl`/`.json` is loaded into an in-memory SQLite (`JsonlConn`) and the whole file is rewritten on every commit (leaving `with db() as c`), so all write paths go through that `with`.
 - **Config layering** (`config()`): builtin defaults → `~/.jn` → every `.jn` from `/` down to cwd, nearer wins. TOML. Holds `tags`, `[actions]`, `[filters]`.
 - **Security boundary — do not weaken:** filters and `tags_expr` can be Python expressions, but **only `~/.jn` may contain Python.** A project `.jn` found by walking up from cwd is data-only; its Python-shaped filters/`tags_expr` are ignored so an untrusted repo's `.jn` can't execute code. `test_jn.py` locks this (the `evil`/`@evil` cases) — keep those green.
 - **Actions** (`run_action`): an action is a list of `jn` command-lines with `$1`/`$@` substitution; single-`$1` actions loop over args. `todo`/`close` are builtins, overridable in any `.jn`.

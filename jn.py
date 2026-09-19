@@ -16,6 +16,7 @@
   jn --skill [page]          print skill docs to stdout (no page = overview; then config, todo, journal)
   jn serve [--host H] [--port P]   web UI + POST /api over this journal (default 127.0.0.1:8787). No auth: front it yourself
   --db=<path|name>           use another journal for this run (overrides $JN_DB); names come from [dbs] in .jn
+                             a path ending in .jsonl is kept as jsonl (one entry per line, diffs cleanly) instead of sqlite
 """
 import functools, getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
 from collections import Counter
@@ -42,15 +43,39 @@ FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/ext
 }
 
 
+class JsonlConn(sqlite3.Connection):
+    """in-memory sqlite mirrored to a jsonl file: every commit (leaving `with db() as c`) rewrites the whole file.
+    ponytail: whole-file rewrite per write; fine for thousands of entries, not millions"""
+    path = None
+
+    def __exit__(self, *exc):
+        super().__exit__(*exc)
+        if exc[0] is None:
+            lines = []
+            for r in query([]):  # ordered by id, sorted keys: stable bytes -> clean diffs
+                h = [{"at": a, "content": t} for a, t in self.execute("SELECT at,content FROM history WHERE entry=? ORDER BY rowid", (r["id"],))]
+                lines.append(json.dumps(r | ({"history": h} if h else {}), sort_keys=True) + "\n")
+            tmp = self.path.with_name(self.path.name + ".tmp")
+            tmp.write_text("".join(lines)); os.replace(tmp, self.path)
+
+
 @functools.cache
 def db():
-    c = sqlite3.connect(DB)
+    jsonl = DB.suffix in (".jsonl", ".json")  # the file is the journal; sqlite is a per-process cache of it
+    c = sqlite3.connect(":memory:", factory=JsonlConn) if jsonl else sqlite3.connect(DB)
     c.executescript("""
     CREATE TABLE IF NOT EXISTS entry(id INTEGER PRIMARY KEY, created TEXT NOT NULL, updated TEXT NOT NULL, content TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS tagged(entry INTEGER NOT NULL REFERENCES entry(id) ON DELETE CASCADE, name TEXT NOT NULL, value TEXT, UNIQUE(entry, name));
     CREATE INDEX IF NOT EXISTS tagged_name ON tagged(name);
     CREATE TABLE IF NOT EXISTS history(entry INTEGER NOT NULL REFERENCES entry(id) ON DELETE CASCADE, at TEXT NOT NULL, content TEXT NOT NULL);""")
     c.execute("PRAGMA foreign_keys=ON")
+    if jsonl:
+        c.path = DB
+        for e in (json.loads(l) for l in (DB.read_text().splitlines() if DB.is_file() else []) if l.strip()):
+            c.execute("INSERT INTO entry VALUES(?,?,?,?)", (e["id"], e["created"], e["updated"], e["content"]))
+            c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(e["id"], k, v) for k, v in e["tags"].items()])
+            c.executemany("INSERT INTO history VALUES(?,?,?)", [(e["id"], h["at"], h["content"]) for h in e.get("history", [])])
+        c.commit()
     return c
 
 
@@ -88,7 +113,7 @@ def config():
             cfg["tags"] += c.get("tags", [])
             if "tz" in c:
                 cfg["tz"] = c["tz"]
-            cfg["dbs"] |= {n: str(Path(p).expanduser()) for n, p in c.get("dbs", {}).items()}  # name -> path, any .jn
+            cfg["dbs"] |= {n: str(f.parent / Path(p).expanduser()) for n, p in c.get("dbs", {}).items()}  # name -> path, any .jn; relative to that .jn
             for n, cmds in c.get("actions", {}).items():
                 cfg["actions"][n], cfg["src"][n] = [cmds] if isinstance(cmds, str) else list(cmds), str(f)
             for n, expr in c.get("filters", {}).items():
