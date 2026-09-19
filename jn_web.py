@@ -1,8 +1,9 @@
 """jn serve: web UI over the jn library. POST /api/<verb> with a JSON body, JSON back; sys.exit(msg) inside jn becomes a 400.
 No auth: bind to loopback and put Cloudflare Zero Trust / Tailscale in front. ponytail: single-threaded server = the global lock."""
-import contextlib, json, re, tomllib
+import base64, contextlib, json, mimetypes, re, tomllib
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs
 
 HERE = Path(__file__).resolve().parent
 
@@ -48,6 +49,15 @@ def verbs(jn):
         jn.config.cache_clear()  # config() is cached per process; the CLI never lives long enough to notice
         return {"filters": [{"name": n, "own": src == str(f)} for n, src in cfg_filters()]}
 
+    def attach(id, name, data):
+        """base64 upload -> stored name, appended to @files"""
+        raw = base64.b64decode(data)
+        if len(raw) > 20 << 20:
+            raise SystemExit("file over 20 MB")  # ponytail: checked after the read; the body cap is the server's RAM
+        stored = jn.store_file(raw, name)
+        jn.tag(int(id), ["@files+=" + stored])
+        return stored
+
     def cfg_filters():
         c = jn.config()
         return [(n, c["src"][n]) for n in c["filters"]]
@@ -61,6 +71,7 @@ def verbs(jn):
         "log": log,
         "tag": lambda id, patch=(): jn.tag(int(id), list(patch)),
         "edit": lambda id, text="": jn.edit(int(id), text),
+        "attach": attach,
         "dbs": lambda: list(jn.config()["dbs"]),
         "config": lambda: {"filters": [{"name": n, "own": src == str((jn.Path.home() / ".jn").resolve())} for n, src in cfg_filters()], "tags": jn.fmt_tags(jn.default_tags())},
     }
@@ -79,17 +90,27 @@ def server(jn, host, port):
 
     class H(BaseHTTPRequestHandler):
         def send(self, code, body, ctype="application/json"):
-            body = body.encode()
+            body = body.encode() if isinstance(body, str) else body
             self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(body)))
             self.end_headers(); self.wfile.write(body)
 
         def do_GET(self):
-            path = self.path.split("?")[0]  # the page keeps its query in the URL
+            path, _, qs = self.path.partition("?")  # the page keeps its query in the URL
             if path == "/":
                 self.send(200, (HERE / "jn_web.html").read_text(), "text/html; charset=utf-8")
             elif path == "/manifest.json":
                 self.send(200, json.dumps({"name": "jn", "short_name": "jn", "start_url": "/", "display": "standalone",
                                            "background_color": "#111", "theme_color": "#111", "icons": []}), "application/manifest+json")
+            elif path.startswith("/files/"):  # attachments: names are hash+ext only, so no traversal; ?db= like the JSON `db`
+                name = path[7:]
+                try:
+                    use(parse_qs(qs).get("db", [None])[0])
+                except SystemExit as e:
+                    return self.send(400, str(e.code), "text/plain")
+                f = jn.files_dir() / name
+                if not re.fullmatch(r"[0-9a-f]{16}(\.[a-z0-9]+)?", name) or not f.is_file():
+                    return self.send(404, "", "text/plain")
+                self.send(200, f.read_bytes(), mimetypes.guess_type(name)[0] or "application/octet-stream")
             else:
                 self.send(404, "", "text/plain")
 

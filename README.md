@@ -30,6 +30,7 @@ jn tag 1 2 @due=tomorrow -@fitness      # patch tags on each id; nothing else ch
 jn edit                                 # document: $EDITOR seeded with show, or stdin; replaces the whole entry
 jn history 1                            # every prior version, tags included
 jn revert 1                             # back one version (or `jn revert 1 v2`); itself versioned
+jn attach 1 shot.png notes.pdf          # copy files in beside the journal, listed under @files
 ```
 
 ## Install
@@ -57,6 +58,10 @@ ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
 - Two verbs: `tag` is a patch from args, `edit` is a document from stdin or `$EDITOR` and replaces the whole entry, tags line included. `edit` refuses args. `show` output round-trips through `edit`; backlink lines are ignored. Every change keeps the prior version, see `jn history`.
 - Timestamps are stored in UTC and shown in local time, or in `tz = "America/New_York"` from config. Tag changes are not versioned.
 - No hierarchy. `@project=x @area=y` and filters cover it.
+
+### Attachments
+
+`jn attach [ID] path...` copies files into `<journal>.files/` beside the db (`~/.jn.db` → `~/.jn.files/`), named by content (first 16 hex of sha256 + extension, so the same file is stored once), and appends the names to the entry's `@files` tag. That tag is the whole link: `jn tag 1 @files-=<name>` detaches, `jn show` lists them, and a jsonl export carries the names, so back up the `.files/` dir alongside it. Files are never deleted.
 
 ## Tags the code knows about
 
@@ -144,7 +149,7 @@ The skill is split for progressive discovery: `SKILL.md` (CLI + querying) points
 jn serve                     # http://127.0.0.1:8787, --host/--port to change
 ```
 
-Capture box on top, filter box (same tokens as `ls`, mirrored in the URL as `?q=`, so a view is a link), named-filter chips, tag counts, day-grouped list. Tap an entry and it opens in place: its tag chips are the tag editor (click one to edit it, ✕ drops it, type in the trailing field to add), the text below is the content, and `#N` anywhere is a link to that entry. Clicking `jn` returns to the default view. Installable as a PWA from the phone. A dropdown in the masthead switches between `[dbs]` journals (names only, never paths). The **tree** chip nests entries under their `@parent=#N` like `ls --tree` (no day breaks in that mode); **Add subtask** in an entry seeds the composer with `@parent=#N @todo`. Typing `@` pops known tag names, `=` their known values. **+ save view** writes the filter box as a token filter under `[filters]` in `~/.jn`, so it is a `--name` in the CLI too; the ✕ on such a chip removes it (only token strings are ever written, never Python). `POST /api/<verb>` with a JSON body (`ls tags show log tag edit config vocab filter dbs`, plus an optional `db` name on any of them) calls the library directly, so config and filters apply as in the shell it was started from; `close` is `tag @done`, and `[actions]` are CLI-only. **No auth.** Keep it on loopback and front it with Cloudflare Zero Trust / Tailscale if you want it from a phone. Entries logged from the web carry whatever `@agent` the server's shell would stamp, so start it from a human shell.
+Capture box on top, filter box (same tokens as `ls`, mirrored in the URL as `?q=`, so a view is a link), named-filter chips, tag counts, day-grouped list. Tap an entry and it opens in place: its tag chips are the tag editor (click one to edit it, ✕ drops it, type in the trailing field to add), the text below is the content, and `#N` anywhere is a link to that entry. Clicking `jn` returns to the default view. Installable as a PWA from the phone. A dropdown in the masthead switches between `[dbs]` journals (names only, never paths). The **tree** chip nests entries under their `@parent=#N` like `ls --tree` (no day breaks in that mode); **Add subtask** in an entry seeds the composer with `@parent=#N @todo`. Typing `@` pops known tag names, `=` their known values. **+ save view** writes the filter box as a token filter under `[filters]` in `~/.jn`, so it is a `--name` in the CLI too; the ✕ on such a chip removes it (only token strings are ever written, never Python). **Attach** in an open entry (or paste/drop files onto its text) uploads to the same `.files/` dir; images show as thumbnails below the content, other files as links, ✕ detaches. Files are served at `/files/<name>` (`?db=` picks a `[dbs]` journal). `POST /api/<verb>` with a JSON body (`ls tags show log tag edit attach config vocab filter dbs`, plus an optional `db` name on any of them) calls the library directly, so config and filters apply as in the shell it was started from; `close` is `tag @done`, and `[actions]` are CLI-only. **No auth.** Keep it on loopback and front it with Cloudflare Zero Trust / Tailscale if you want it from a phone. Entries logged from the web carry whatever `@agent` the server's shell would stamp, so start it from a human shell.
 
 ## Backup and sync
 
