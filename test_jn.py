@@ -147,6 +147,10 @@ with tempfile.TemporaryDirectory() as d:
     assert cfg.count("[filters]") == 1 and 'fit = "@x -@done"' in cfg and 'hot = "@todo --since 1w"' in cfg and "week2" in cfg, cfg
     assert post("filter", name="hot")[0] == 200 and "hot" not in Path(d, ".jn").read_text()
     assert post("dbs")[1] == ["alt"] and post("ls", db="alt", args=["--all"])[1][0]["content"] == "in alt" and post("ls", args=["--all"])[1][0]["content"] == "from the web"
+    post("log", text="@todo parent task"); post("log", text="@todo @parent=#2 child task"); post("log", text="@todo loose")
+    t = post("ls", args=["--tree"])[1]
+    assert [(r["id"], r["depth"]) for r in t] == [(4, 0), (2, 0), (3, 1)], t      # newest root first, child under its parent
+    assert "depth" not in post("ls")[1][0]
     assert post("ls", db="/nope/x.db")[0] == 400 and post("ls", db="nope")[0] == 400   # names only from the web
     assert ids(run("ls", "--fit", "--all", **env)) == []
     srv.shutdown()

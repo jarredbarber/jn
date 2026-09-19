@@ -81,6 +81,9 @@ button.primary:hover { transform:translate(1px,1px); box-shadow:2px 2px 0 var(--
 .entry .tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px }
 .entry .tags .chip { font-size:11px; padding:1px 7px; color:var(--mute) }
 .entry.done .head { color:var(--mute); text-decoration:line-through; text-decoration-color:var(--accent) }
+.entry.child { margin-left:calc(var(--depth) * 22px); border-left:2px solid var(--rule); padding-left:12px }
+.entry.child .eid { font-size:16px }
+.tree-root { margin-top:18px }
 .entry.done .eid { color:var(--mute) }
 a.ref, a.tag { color:var(--accent); text-decoration:none }
 a.ref:hover, a.tag:hover { text-decoration:underline }
@@ -154,6 +157,7 @@ dialog textarea { min-height:38vh; margin-top:10px }
     <button class="primary" id="d-save">Save changes</button>
     <button id="d-close">Mark done</button>
     <button id="d-reopen">Reopen</button>
+    <button id="d-sub">Add subtask</button>
     <span id="d-err" class="err"></span>
   </div>
 </dialog>
@@ -167,10 +171,11 @@ async function api(verb, body = {}) {
   if (!r.ok) throw new Error(j.error || r.status);
   return j.out;
 }
-const state = { named: new Set(), cfg: { filters: [] }, vocab: {}, db: '' };
+const state = { named: new Set(), cfg: { filters: [] }, vocab: {}, db: '', tree: false };
+try { state.tree = !!localStorage.getItem('jn.tree'); } catch {}
 try { state.db = localStorage.getItem('jn.db') || ''; } catch {}
 try { state.named = new Set(JSON.parse(localStorage.getItem('jn.named') || '[]')); $('#filter').value = localStorage.getItem('jn.filter') || ''; } catch {}
-const tokens = () => [...$('#filter').value.trim().split(/\s+/).filter(Boolean), ...[...state.named].map(n => '--' + n)];
+const tokens = () => [...$('#filter').value.trim().split(/\s+/).filter(Boolean), ...[...state.named].map(n => '--' + n), ...(state.tree ? ['--tree'] : [])];
 
 // #N and @tag in prose become links; done client-side on the first line only
 function linkify(s) {
@@ -189,16 +194,17 @@ async function refresh() {
   try {
     const [rows, tg, vocab] = await Promise.all([api('ls', { args: tokens() }), api('tags', { args: tokens() }), api('vocab')]);
     state.vocab = vocab;
-    rows.reverse();
+    const tree = rows.some(r => 'depth' in r);
+    if (!tree) rows.reverse();  // tree rows arrive in forest order already
     let html = '', day = '';
     for (const r of rows) {
       const d = new Date(r.created), lbl = dayLabel(d);
-      if (lbl !== day) {
+      if (!tree && lbl !== day) {
         const full = d.toLocaleDateString(undefined, { weekday: 'long' }) + ', ' + d.toLocaleDateString(undefined, { month: 'long', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
         html += `<header class="day"><span class="num">${d.getDate()}</span><span class="rest"><strong>${lbl}</strong>${full}</span></header>`; day = lbl;
       }
       const lines = r.content.split('\n');
-      html += `<article class="entry ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}">
+      html += `<article class="entry ${'done' in r.tags ? 'done' : ''} ${r.depth ? 'child' : tree ? 'tree-root' : ''}" style="--depth:${r.depth || 0}" data-id="${r.id}">
         <div class="gut"><span class="eid">${r.id}</span><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span></div>
         <div class="body"><p class="head">${linkify(lines[0])}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
         <div class="tags">${Object.entries(r.tags).map(([k, v]) => tagChip(k, v)).join('')}</div></div></article>`;
@@ -210,7 +216,9 @@ async function refresh() {
 }
 function renderNamed() {
   $('#named').innerHTML = state.cfg.filters.map(f => `<button class="chip ${state.named.has(f.name) ? 'on' : ''}" data-named="${f.name}">--${f.name}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</button>`).join('')
+    + `<button class="chip ${state.tree ? 'on' : ''}" id="treetoggle" title="Nest entries under their @parent">tree</button>`
     + `<button class="chip" id="saveview" title="Save the filter box as a named view in ~/.jn">+ save view</button>`;
+  $('#treetoggle').onclick = () => { state.tree = !state.tree; try { localStorage.setItem('jn.tree', state.tree ? '1' : ''); } catch {} renderNamed(); refresh(); };
   $('#saveview').onclick = () => { const v = $('#viewname'); v.style.display = v.style.display === 'block' ? 'none' : 'block'; if (v.style.display === 'block') v.focus(); };
 }
 async function saveFilter(name, expr) {
@@ -284,6 +292,7 @@ async function act(verb, body) {
   try { await api(verb, { id: cur, ...body }); await openDetail(cur); refresh(); } catch (e) { $('#d-err').textContent = e.message; }
 }
 $('#d-x').onclick = () => $('#detail').close();
+$('#d-sub').onclick = () => { const c = $('#capture'); c.value = `@parent=#${cur} @todo `; $('#detail').close(); c.focus(); c.selectionStart = c.selectionEnd = c.value.length; };
 $('#d-save').onclick = () => act('edit', { text: $('#d-text').value });
 $('#d-close').onclick = () => act('tag', { patch: ['@done'] });
 $('#d-reopen').onclick = () => act('tag', { patch: ['-@done'] });

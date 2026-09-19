@@ -15,8 +15,12 @@ def verbs(jn):
         return jn.add_entry([text])
 
     def rows(args):
+        """--tree[=tag] nests like the CLI: rows come back in forest order, newest root first, with a depth"""
         opts, pos = jn.parse_opts(list(args))
-        return jn.select(pos, opts)
+        rs = jn.select(pos, opts)
+        if t := opts.get("tree"):
+            rs = [r | {"depth": d} for r, d in jn.as_tree(rs[::-1], "parent" if t is True else t)]
+        return rs
 
     def show(id):
         row = jn.select([str(int(id))], {"all": True})
