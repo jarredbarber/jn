@@ -78,8 +78,8 @@ details summary { cursor:pointer; color:var(--mute); font-size:13px }
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-async function api(argv, stdin = '') {
-  const r = await fetch('/api', { method: 'POST', body: JSON.stringify({ argv, stdin }) });
+async function api(verb, body = {}) {
+  const r = await fetch('/api/' + verb, { method: 'POST', body: JSON.stringify(body) });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || r.status);
   return j.out;
@@ -103,8 +103,8 @@ const dayLabel = d => {
 async function refresh() {
   $('#status').textContent = '…';
   try {
-    const [ls, tg] = await Promise.all([api(['ls', '--json', ...tokens()]), api(['tags', ...tokens()])]);
-    const rows = ls.split('\n').filter(Boolean).map(JSON.parse).reverse();
+    const [rows, tg] = await Promise.all([api('ls', { args: tokens() }), api('tags', { args: tokens() })]);
+    rows.reverse();
     let html = '', day = '';
     for (const r of rows) {
       const d = new Date(r.created), lbl = dayLabel(d);
@@ -116,7 +116,7 @@ async function refresh() {
         <div class="tags">${Object.entries(r.tags).map(([k, v]) => tagChip(k, v)).join('')}</div></div>`;
     }
     $('#list').innerHTML = html || '<p style="color:var(--mute)">nothing here</p>';
-    $('#taglist').innerHTML = tg.split('\n').filter(Boolean).map(l => { const [n, t] = l.trim().split(/\s+/); return `<button class="chip" data-tag="${esc(t.slice(1))}">${esc(t)} <span class="n">${n}</span></button>`; }).join('');
+    $('#taglist').innerHTML = tg.map(([t, n]) => `<button class="chip" data-tag="${esc(t)}">@${esc(t)} <span class="n">${n}</span></button>`).join('');
     $('#status').textContent = rows.length + ' entries';
   } catch (e) { $('#status').textContent = e.message; }
 }
@@ -125,16 +125,16 @@ function renderNamed() {
 }
 
 // capture
-async function capture(cmd) {
+async function capture(prefix) {
   const text = $('#capture').value.trim();
   if (!text) return;
   $('#cap-err').textContent = '';
-  try { await api([cmd], text); $('#capture').value = ''; refresh(); }
+  try { await api('log', { text: prefix + text }); $('#capture').value = ''; refresh(); }
   catch (e) { $('#cap-err').textContent = e.message; }
 }
-$('#save').onclick = () => capture('log');
-$('#todo').onclick = () => capture('todo');
-$('#capture').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') capture('log'); };
+$('#save').onclick = () => capture('');
+$('#todo').onclick = () => capture('@todo ');
+$('#capture').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') capture(''); };
 
 // filter + chips
 let t;
@@ -160,12 +160,12 @@ let cur = null;
 async function openDetail(id) {
   cur = id; $('#d-err').textContent = '';
   try {
-    const [show, ls] = await Promise.all([api(['show', String(id)]), api(['ls', String(id), '--json', '--all'])]);
-    const r = JSON.parse(ls.split('\n')[0] || '{}');
-    const back = show.split('\n').filter(l => l.startsWith('<- '));
+    const { text, backlinks, row } = await api('show', { id });
+    const r = row || {};
+    const back = backlinks.split('\n').filter(Boolean);
     $('#d-id').textContent = '#' + id;
     $('#d-when').textContent = r.created ? new Date(r.created).toLocaleString() : '';
-    $('#d-text').value = show.split('\n').filter(l => !l.startsWith('<- ')).join('\n').trimEnd() + '\n';
+    $('#d-text').value = text;
     $('#d-back').innerHTML = back.map(l => linkify(l)).join('\n');
     $('#d-tags').innerHTML = Object.entries(r.tags || {}).map(([k, v]) => tagChip(k, v, `data-rm="${esc(k)}"`).replace('</button>', '<span class="x">✕</span></button>')).join('');
     $('#d-close').style.display = 'done' in (r.tags || {}) ? 'none' : '';
@@ -173,21 +173,21 @@ async function openDetail(id) {
     if (!$('#detail').open) $('#detail').showModal();
   } catch (e) { $('#d-err').textContent = e.message; }
 }
-async function act(argv, stdin) {
+async function act(verb, body) {
   $('#d-err').textContent = '';
-  try { await api(argv, stdin); await openDetail(cur); refresh(); } catch (e) { $('#d-err').textContent = e.message; }
+  try { await api(verb, { id: cur, ...body }); await openDetail(cur); refresh(); } catch (e) { $('#d-err').textContent = e.message; }
 }
 $('#d-x').onclick = () => $('#detail').close();
-$('#d-save').onclick = () => act(['edit', String(cur)], $('#d-text').value);
-$('#d-close').onclick = () => act(['close', String(cur)]);
-$('#d-reopen').onclick = () => act(['tag', String(cur), '-@done']);
-$('#d-addtag').onkeydown = e => { if (e.key === 'Enter' && e.target.value.trim()) { act(['tag', String(cur), ...e.target.value.trim().split(/\s+/)]); e.target.value = ''; } };
-$('#d-tags').onclick = e => { const b = e.target.closest('[data-rm]'); if (b) { e.stopPropagation(); act(['tag', String(cur), '-@' + b.dataset.rm]); } };
+$('#d-save').onclick = () => act('edit', { text: $('#d-text').value });
+$('#d-close').onclick = () => act('tag', { patch: ['@done'] });
+$('#d-reopen').onclick = () => act('tag', { patch: ['-@done'] });
+$('#d-addtag').onkeydown = e => { if (e.key === 'Enter' && e.target.value.trim()) { act('tag', { patch: e.target.value.trim().split(/\s+/) }); e.target.value = ''; } };
+$('#d-tags').onclick = e => { const b = e.target.closest('[data-rm]'); if (b) { e.stopPropagation(); act('tag', { patch: ['-@' + b.dataset.rm] }); } };
 $('#d-text').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('#d-save').onclick(); };
 $('#detail').onclose = () => { cur = null; };
 
 // boot + poll
-fetch('/config').then(r => r.json()).then(c => { state.cfg = c; renderNamed(); refresh(); });
+api('config').then(c => { state.cfg = c; renderNamed(); refresh(); });
 setInterval(() => { if (document.visibilityState === 'visible' && !$('#detail').open) refresh(); }, 5000);
 </script>
 </body>

@@ -113,24 +113,24 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "alt", "--db", f"{d}/alt.db", **env)) and not ids(run("ls", "alt", **env))
     print("ok")
 
-    # jn serve: the CLI over HTTP. allowlist holds, stdin-bodied log/edit work, errors are 400s
+    # jn serve: the library over HTTP. stdin never read, errors are 400s, tags-only log rejected
     import importlib, threading, urllib.request, urllib.error
     os.environ["JN_DB"] = f"{d}/web.db"; sys.path.insert(0, str(JN.parent)); os.chdir(env["CWD"])
     jn, jn_web = importlib.import_module("jn"), importlib.import_module("jn_web")
     srv = jn_web.server(jn, "127.0.0.1", 0); threading.Thread(target=srv.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{srv.server_address[1]}"
-    def post(argv, stdin=""):
+    def post(verb, **body):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url + "/api", json.dumps({"argv": argv, "stdin": stdin}).encode())) as r:
+            with urllib.request.urlopen(urllib.request.Request(url + "/api/" + verb, json.dumps(body).encode())) as r:
                 return r.status, json.loads(r.read())["out"]
         except urllib.error.HTTPError as e:
             return e.code, json.loads(e.read())["error"]
-    assert post(["todo"], "@fitness from phone")[1].strip() == "1"
-    assert post(["log", "@todo"], "\n")[0] == 400                                   # empty entry -> sys.exit -> 400
-    assert post(["import"])[0] == 400 and post(["ls", "--db=/x"])[0] == 400 and post([])[0] == 400
-    assert post(["edit", "1"], "@todo @x\n\nfrom the web")[0] == 200
-    e = json.loads(post(["ls", "1", "--json"])[1])
+    assert post("log", text="@todo @fitness from phone") == (200, 1)
+    assert post("log", text="@todo")[0] == 400 and post("nope")[0] == 404 and post("tag", id="x")[0] == 400
+    assert post("edit", id=1, text="@todo @x\n\nfrom the web")[0] == 200
+    e = post("ls", args=["1"])[1][0]
     assert e["content"] == "from the web" and "x" in e["tags"], e
-    assert post(["close", "1"])[0] == 200 and post(["ls", "--json"])[1] == ""      # closed, default filter hides it
-    assert "<!doctype" in urllib.request.urlopen(url + "/").read().decode() and "todo" in urllib.request.urlopen(url + "/config").read().decode()
+    assert post("show", id=1)[1]["text"].startswith("@todo @x") and post("tags", args=[])[1][0] == ["todo", 1]
+    assert post("tag", id=1, patch=["@done"])[0] == 200 and post("ls")[1] == []      # closed, default filter hides it
+    assert "<!doctype" in urllib.request.urlopen(url + "/").read().decode() and "mine" in post("config")[1]["filters"]
     srv.shutdown()

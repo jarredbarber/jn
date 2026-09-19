@@ -138,7 +138,7 @@ The skill is split for progressive discovery: `SKILL.md` (CLI + querying) points
 jn serve                     # http://127.0.0.1:8787, --host/--port to change
 ```
 
-Capture box, filter box (same tokens as `ls`), named-filter chips, tag counts, day-grouped list, tap an entry to edit it as the `show` document, close/reopen, tag chips. Installable as a PWA from the phone. It is the CLI over HTTP: `POST /api {"argv": [...], "stdin": "..."}` runs an allowlisted command (`ls tags show log tag edit history revert` + actions) and returns stdout, so config, actions, and filters apply as in the shell it was started from. **No auth.** Keep it on loopback and front it with Cloudflare Zero Trust / Tailscale if you want it from a phone. Entries logged from the web carry whatever `@agent` the server's shell would stamp, so start it from a human shell.
+Capture box, filter box (same tokens as `ls`), named-filter chips, tag counts, day-grouped list, tap an entry to edit it as the `show` document, close/reopen, tag chips. Installable as a PWA from the phone. `POST /api/<verb>` with a JSON body (`ls tags show log tag edit config`) calls the library directly, so config and filters apply as in the shell it was started from; `close` is `tag @done`, and `[actions]` are CLI-only. **No auth.** Keep it on loopback and front it with Cloudflare Zero Trust / Tailscale if you want it from a phone. Entries logged from the web carry whatever `@agent` the server's shell would stamp, so start it from a human shell.
 
 ## Backup and sync
 

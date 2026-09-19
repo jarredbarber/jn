@@ -371,6 +371,32 @@ def show(rows, fmt, tree=None):
             print(f"{r['id']:>5}  {local(r['created'])[5:]}  {cut(head, textw):<{textw}}  {cut(t, tagw)}")
 
 
+def parse_opts(args):
+    """--k, --k=v, or --k v for the options that take a value. Returns (opts, positionals)"""
+    opts, pos, it = {}, [], iter(args)
+    for a in it:
+        if a.startswith("--"):
+            k, _, v = a[2:].partition("=")
+            opts[k] = v or (next(it, True) if k in ("since", "last", "host", "port") else True)
+        else:
+            pos.append(a)
+    return opts, pos
+
+
+def select(pos, opts):
+    """the rows `ls`/`tags` would show: filters (--name), default filter unless lifted, --since, --last"""
+    tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md", "all", "tree")])
+    if "all" not in opts and not any(t.isdigit() for t in pos):
+        mentioned = {m[1] for m in TAG.findall(" ".join(pos + tokens))}
+        tokens += [t for t in config()["filters"]["default"].split() if TAG.fullmatch(t)[2] not in mentioned]
+    rows = apply_filters(query(pos + tokens, opts.get("since")), py)
+    return rows[-int(opts["last"]):] if "last" in opts else rows
+
+
+def tag_counts(rows):
+    return Counter(t for r in rows for t in r["tags"]).most_common()
+
+
 def main(argv):
     global DB
     argv = list(argv)
@@ -380,13 +406,7 @@ def main(argv):
         if a.startswith("--db="):
             DB = Path(a[5:]); del argv[i]; break
     cmd, *args = argv or ["help"]
-    opts, pos, it = {}, [], iter(args)
-    for a in it:
-        if a.startswith("--"):
-            k, _, v = a[2:].partition("=")
-            opts[k] = v or (next(it, True) if k in ("since", "last", "host", "port") else True)
-        else:
-            pos.append(a)
+    opts, pos = parse_opts(args)
     if cmd == "--skill":
         skill(pos[0] if pos else None)
     elif cmd == "serve":
@@ -411,15 +431,9 @@ def main(argv):
         else:
             print(entry_text(eid) + backlinks(eid), end="")
     elif cmd in ("ls", "tags"):
-        tokens, py = resolve_filters([k for k in opts if k not in ("since", "last", "json", "md", "all", "tree")])
-        if "all" not in opts and not any(t.isdigit() for t in pos):
-            mentioned = {m[1] for m in TAG.findall(" ".join(pos + tokens))}
-            tokens += [t for t in config()["filters"]["default"].split() if TAG.fullmatch(t)[2] not in mentioned]
-        rows = apply_filters(query(pos + tokens, opts.get("since")), py)
-        if "last" in opts:
-            rows = rows[-int(opts["last"]):]
+        rows = select(pos, opts)
         if cmd == "tags":
-            for name, n in Counter(t for r in rows for t in r["tags"]).most_common():
+            for name, n in tag_counts(rows):
                 print(f"{n:>5}  @{name}")
         else:
             tree = opts.get("tree")

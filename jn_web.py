@@ -1,30 +1,41 @@
-"""jn serve: the CLI over HTTP. POST /api {"argv": [...], "stdin": "..."} runs an allowlisted jn command and returns its stdout.
+"""jn serve: web UI over the jn library. POST /api/<verb> with a JSON body, JSON back; sys.exit(msg) inside jn becomes a 400.
 No auth: bind to loopback and put Cloudflare Zero Trust / Tailscale in front. ponytail: single-threaded server = the global lock."""
-import contextlib, io, json, sys
+import contextlib, json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ALLOW = {"ls", "tags", "show", "log", "tag", "edit", "history", "revert"}  # + config actions. never import/--db/--skill
 
 
-def run(jn, argv, stdin=""):
-    """(status, text). sys.exit(msg) inside jn becomes a 400 with msg"""
-    if not argv or argv[0] not in ALLOW | set(jn.config()["actions"]) or any(a == "--db" or a.startswith("--db=") for a in argv):
-        return 400, "not allowed"
-    out, old = io.StringIO(), sys.stdin
-    sys.stdin = io.StringIO(stdin)  # read_body() sees a non-tty and reads it
-    try:
-        with contextlib.redirect_stdout(out):
-            jn.main(argv)
-        return 200, out.getvalue()
-    except SystemExit as e:
-        return 400, str(e.code or "")
-    finally:
-        sys.stdin = old
+def verbs(jn):
+    """request body -> response value. ponytail: close/todo are plain tag/log here, config [actions] are CLI-only"""
+    def log(text=""):
+        if not jn.strip_tags(text):
+            raise SystemExit("empty entry")  # add_entry would otherwise read the server's stdin
+        return jn.add_entry([text])
+
+    def rows(args):
+        opts, pos = jn.parse_opts(list(args))
+        return jn.select(pos, opts)
+
+    def show(id):
+        row = jn.select([str(int(id))], {"all": True})
+        return {"text": jn.entry_text(int(id)), "backlinks": jn.backlinks(int(id)), "row": row[0] if row else None}
+
+    return {
+        "ls": lambda args=(): rows(args),
+        "tags": lambda args=(): jn.tag_counts(rows(args)),
+        "show": show,
+        "log": log,
+        "tag": lambda id, patch=(): jn.tag(int(id), list(patch)),
+        "edit": lambda id, text="": jn.edit(int(id), text),
+        "config": lambda: {"filters": list(jn.config()["filters"]), "tags": jn.fmt_tags(jn.default_tags())},
+    }
 
 
 def server(jn, host, port):
+    api = verbs(jn)
+
     class H(BaseHTTPRequestHandler):
         def send(self, code, body, ctype="application/json"):
             body = body.encode()
@@ -37,19 +48,20 @@ def server(jn, host, port):
             elif self.path == "/manifest.json":
                 self.send(200, json.dumps({"name": "jn", "short_name": "jn", "start_url": "/", "display": "standalone",
                                            "background_color": "#111", "theme_color": "#111", "icons": []}), "application/manifest+json")
-            elif self.path == "/config":
-                cfg = jn.config()
-                self.send(200, json.dumps({"filters": list(cfg["filters"]), "actions": list(cfg["actions"]), "tags": jn.fmt_tags(jn.default_tags())}))
             else:
                 self.send(404, "", "text/plain")
 
         def do_POST(self):
+            verb = self.path.removeprefix("/api/")
+            if verb not in api:
+                return self.send(404, json.dumps({"error": "no such verb"}))
             try:
-                req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
-                code, text = run(jn, list(req.get("argv", [])), str(req.get("stdin", "")))
+                req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+                self.send(200, json.dumps({"out": api[verb](**req)}))
+            except SystemExit as e:
+                self.send(400, json.dumps({"error": str(e.code or "")}))
             except (ValueError, TypeError) as e:
-                code, text = 400, str(e)
-            self.send(code, json.dumps({"out": text} if code == 200 else {"error": text}))
+                self.send(400, json.dumps({"error": str(e)}))
 
         def log_message(self, *a):  # ponytail: quiet; add real logging when something needs debugging
             pass
