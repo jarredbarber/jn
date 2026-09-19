@@ -31,6 +31,7 @@ button, input, textarea { font:inherit; color:inherit }
 .mast h1 { font:italic 400 44px/1 var(--serif); letter-spacing:-.02em; margin:0 }
 .mast h1 b { font-style:normal; font-weight:700; color:var(--accent) }
 #status { color:var(--mute); font-size:13px }
+#dbsel { background:var(--bg2); color:var(--ink); border:1px solid var(--rule); border-radius:var(--r); padding:4px 8px; font-size:14px; width:auto }
 .shell { display:grid; grid-template-columns:minmax(260px, 320px) minmax(0, 760px); gap:0 6vw; padding:32px 5vw 0 5vw; position:relative; z-index:1 }
 .pen { position:sticky; top:20px; align-self:start; display:flex; flex-direction:column; gap:22px }
 
@@ -120,7 +121,7 @@ dialog textarea { min-height:38vh; margin-top:10px }
 </style>
 </head>
 <body>
-<header class="mast"><h1>j<b>n</b></h1><span id="status"></span></header>
+<header class="mast"><h1>j<b>n</b></h1><select id="dbsel" hidden></select><span id="status"></span></header>
 <main class="shell">
   <aside class="pen">
     <div class="composer">
@@ -161,12 +162,13 @@ dialog textarea { min-height:38vh; margin-top:10px }
 const $ = s => document.querySelector(s);
 const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function api(verb, body = {}) {
-  const r = await fetch('/api/' + verb, { method: 'POST', body: JSON.stringify(body) });
+  const r = await fetch('/api/' + verb, { method: 'POST', body: JSON.stringify(state.db ? { db: state.db, ...body } : body) });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || r.status);
   return j.out;
 }
-const state = { named: new Set(), cfg: { filters: [] }, vocab: {} };
+const state = { named: new Set(), cfg: { filters: [] }, vocab: {}, db: '' };
+try { state.db = localStorage.getItem('jn.db') || ''; } catch {}
 try { state.named = new Set(JSON.parse(localStorage.getItem('jn.named') || '[]')); $('#filter').value = localStorage.getItem('jn.filter') || ''; } catch {}
 const tokens = () => [...$('#filter').value.trim().split(/\s+/).filter(Boolean), ...[...state.named].map(n => '--' + n)];
 
@@ -330,6 +332,14 @@ for (const f of [$('#capture'), $('#filter'), $('#d-addtag')]) {
 ac.el.onmousedown = e => { const d = e.target.closest('[data-i]'); if (d) { e.preventDefault(); acPick(+d.dataset.i); } };
 
 // boot + poll
+api('dbs').then(dbs => {
+  if (!dbs.length) return;
+  if (state.db && !dbs.includes(state.db)) state.db = '';
+  const sel = $('#dbsel');
+  sel.innerHTML = ['', ...dbs].map(n => `<option value="${esc(n)}" ${n === state.db ? 'selected' : ''}>${n ? esc(n) : 'default'}</option>`).join('');
+  sel.hidden = false;
+  sel.onchange = () => { state.db = sel.value; try { localStorage.setItem('jn.db', state.db); } catch {} refresh(); };
+});
 api('config').then(c => { state.cfg = c; renderNamed(); refresh(); });
 setInterval(() => { if (document.visibilityState === 'visible' && !$('#detail').open) refresh(); }, 5000);
 </script>

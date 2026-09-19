@@ -15,7 +15,7 @@
   jn <action> ...            todo, close, ... (see below). `jn close 1 2 3` closes each
   jn --skill [page]          print skill docs to stdout (no page = overview; then config, todo, journal)
   jn serve [--host H] [--port P]   web UI + POST /api over this journal (default 127.0.0.1:8787). No auth: front it yourself
-  --db=<path>                use another journal for this run (overrides $JN_DB); works on any command
+  --db=<path|name>           use another journal for this run (overrides $JN_DB); names come from [dbs] in .jn
 """
 import functools, getpass, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
 from collections import Counter
@@ -78,7 +78,7 @@ def builtin_tags():
 @functools.cache
 def config():
     """builtin, ~/.jn, then root/.jn ... ./.jn; nearer wins. Only ~/.jn may hold code (python filters, tags_expr)."""
-    cfg = {"tags": builtin_tags(), "filters": dict(FILTERS), "actions": dict(ACTIONS), "files": ["builtin"],
+    cfg = {"tags": builtin_tags(), "filters": dict(FILTERS), "actions": dict(ACTIONS), "dbs": {}, "files": ["builtin"],
            "src": {n: "builtin" for n in [*FILTERS, *ACTIONS]}}
     home = (Path.home() / ".jn").resolve()
     for f in dict.fromkeys(p.resolve() for p in [home, *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]):
@@ -88,6 +88,7 @@ def config():
             cfg["tags"] += c.get("tags", [])
             if "tz" in c:
                 cfg["tz"] = c["tz"]
+            cfg["dbs"] |= {n: str(Path(p).expanduser()) for n, p in c.get("dbs", {}).items()}  # name -> path, any .jn
             for n, cmds in c.get("actions", {}).items():
                 cfg["actions"][n], cfg["src"][n] = [cmds] if isinstance(cmds, str) else list(cmds), str(f)
             for n, expr in c.get("filters", {}).items():
@@ -372,6 +373,11 @@ def show(rows, fmt, tree=None):
             print(f"{r['id']:>5}  {local(r['created'])[5:]}  {cut(head, textw):<{textw}}  {cut(t, tagw)}")
 
 
+def db_path(name):
+    """a [dbs] name from config, else a path"""
+    return Path(config()["dbs"].get(name, name)).expanduser()
+
+
 def parse_opts(args):
     """--k, --k=v, or --k v for the options that take a value. Returns (opts, positionals)"""
     opts, pos, it = {}, [], iter(args)
@@ -411,9 +417,9 @@ def main(argv):
     argv = list(argv)
     for i, a in enumerate(argv):  # --db is global: strip it wherever it sits, before/after the command
         if a == "--db" and i + 1 < len(argv):
-            DB = Path(argv[i + 1]); del argv[i:i + 2]; break
+            DB = db_path(argv[i + 1]); del argv[i:i + 2]; break
         if a.startswith("--db="):
-            DB = Path(a[5:]); del argv[i]; break
+            DB = db_path(a[5:]); del argv[i]; break
     cmd, *args = argv or ["help"]
     opts, pos = parse_opts(args)
     if cmd == "--skill":
@@ -457,6 +463,8 @@ def main(argv):
         print("filters:")
         for n, v in cfg["filters"].items():
             print(f"  --{n:<12} {v}   # {cfg['src'][n]}")
+        if cfg["dbs"]:
+            print("dbs (--db=name):\n" + "".join(f"  {n:<14} {p}\n" for n, p in cfg["dbs"].items()), end="")
 
 
 def skill(page=None):

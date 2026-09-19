@@ -57,12 +57,21 @@ def verbs(jn):
         "log": log,
         "tag": lambda id, patch=(): jn.tag(int(id), list(patch)),
         "edit": lambda id, text="": jn.edit(int(id), text),
+        "dbs": lambda: list(jn.config()["dbs"]),
         "config": lambda: {"filters": [{"name": n, "own": src == str((jn.Path.home() / ".jn").resolve())} for n, src in cfg_filters()], "tags": jn.fmt_tags(jn.default_tags())},
     }
 
 
 def server(jn, host, port):
-    api = verbs(jn)
+    api, default_db = verbs(jn), jn.DB
+
+    def use(name):
+        """point the library at a [dbs] name (or the startup db) for this request; db() is cached per path"""
+        if name and name not in jn.config()["dbs"]:
+            raise SystemExit(f"no db named {name}; add it under [dbs] in .jn")  # names only from the web, never paths
+        path = jn.db_path(name) if name else default_db
+        if path != jn.DB:
+            jn.DB = path; jn.db.cache_clear()
 
     class H(BaseHTTPRequestHandler):
         def send(self, code, body, ctype="application/json"):
@@ -85,6 +94,7 @@ def server(jn, host, port):
                 return self.send(404, json.dumps({"error": "no such verb"}))
             try:
                 req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+                use(req.pop("db", None))
                 self.send(200, json.dumps({"out": api[verb](**req)}))
             except SystemExit as e:
                 self.send(400, json.dumps({"error": str(e.code or "")}))

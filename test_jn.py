@@ -78,6 +78,9 @@ with tempfile.TemporaryDirectory() as d:
     assert tz["blocked_by"] is None and "nope" not in tz, tz
     Path(d, ".jn").write_text(Path(d, ".jn").read_text() + 'week = "@todo --since 1w --mine"\nweek2 = "--week @fitness"\n')   # token filters carry opts + names
     assert ids(run("ls", "--week", "--all", **env)) == [a, c, x, y, z] and ids(run("ls", "--week2", "--all", **env)) == [a]
+    Path(d, ".jn").write_text(Path(d, ".jn").read_text() + f'[dbs]\nalt = "{d}/alt.db"\n')
+    assert run("log", "in alt", "--db=alt", **env) == "1" and ids(run("ls", "--db", "alt", **env)) == ["1"] and "in alt" not in run("ls", **env)   # named db
+    assert f"alt            {d}/alt.db" in run("-h", **env)
     h = run("-h", **env)
     assert "--evil" not in h and not Path(d, "proj/sub/pwned").exists()   # python filter in project .jn ignored
     rd = str(Path(d).resolve())
@@ -143,5 +146,7 @@ with tempfile.TemporaryDirectory() as d:
     cfg = Path(d, ".jn").read_text()
     assert cfg.count("[filters]") == 1 and 'fit = "@x -@done"' in cfg and 'hot = "@todo --since 1w"' in cfg and "week2" in cfg, cfg
     assert post("filter", name="hot")[0] == 200 and "hot" not in Path(d, ".jn").read_text()
+    assert post("dbs")[1] == ["alt"] and post("ls", db="alt", args=["--all"])[1][0]["content"] == "in alt" and post("ls", args=["--all"])[1][0]["content"] == "from the web"
+    assert post("ls", db="/nope/x.db")[0] == 400 and post("ls", db="nope")[0] == 400   # names only from the web
     assert ids(run("ls", "--fit", "--all", **env)) == []
     srv.shutdown()
