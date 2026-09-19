@@ -171,6 +171,8 @@ with tempfile.TemporaryDirectory() as d:
     cfg = Path(d, ".jn").read_text()
     assert cfg.count("[filters]") == 1 and 'fit = "@x -@done"' in cfg and 'hot = "@todo --since 1w"' in cfg and "week2" in cfg, cfg
     assert post("filter", name="hot")[0] == 200 and "hot" not in Path(d, ".jn").read_text()
+    Path(d, ".jn").write_text(Path(d, ".jn").read_text().replace("[filters]\n", '[filters]\nlive = "@todo"\n', 1)); os.utime(Path(d, ".jn"), ns=(0, 10**18))   # edited on disk: next request sees it, no restart
+    assert "live" in [f["name"] for f in post("config")[1]["filters"]]
     assert post("dbs")[1] == ["alt", "jl"] and post("ls", db="alt", args=["--all"])[1][0]["content"] == "in alt" and post("ls", args=["--all"])[1][0]["content"] == "from the web"
     post("log", text="@todo parent task"); post("log", text="@todo @parent=#2 child task"); post("log", text="@todo loose")
     t = post("ls", args=["--tree"])[1]
