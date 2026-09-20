@@ -44,3 +44,17 @@ python3 jn.py close 4                          # complete task #4 (stamps @done)
 - **Versioning** (`versioned`): `edit`/`revert` keep prior versions (`history`); `tag` patches are *not* versioned.
 
 The `skills/jn/` dir ships beside `jn.py` (see `[tool.hatch.build.targets.wheel]`) so `jn --skill <page>` works after install.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are `@todo` entries in `jn.jsonl`, managed with `jn` itself (`#N` = issue id, `@done` closes). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five roles, each a bare jn tag of the same name (`@needs-triage`, `@ready-for-agent`, ...). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` at the root plus `docs/adr/`. See `docs/agents/domain.md`.
