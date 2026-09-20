@@ -20,3 +20,4 @@
 {"content": "Close", "created": "2026-09-20T17:56:24+00:00", "id": 20, "tags": {"re": "#14"}, "updated": "2026-09-20T17:56:24+00:00"}
 {"content": "Total activity per day.", "created": "2026-09-20T17:57:05+00:00", "id": 21, "tags": {"re": "#15"}, "updated": "2026-09-20T17:57:05+00:00"}
 {"content": "web: editing friction + Edit/Save-Cancel (#4), activity heatmap (#7), composer paste-to-attach (#8), db path in masthead (#9), shareable entry links + auto-expand (#11), jn: attachment embeds (#12)", "created": "2026-09-20T18:11:33+00:00", "id": 22, "tags": {"agent": "claude:e41a7b1d-3fe2-4cfe-ae03-d810bb6bcfc3"}, "updated": "2026-09-20T18:11:33+00:00"}
+{"content": "reply context line in feed, threaded show via recursive @re backlinks", "created": "2026-09-20T20:36:01+00:00", "id": 23, "tags": {"agent": "claude:444081a2-34a4-4037-a2d8-21710024c0aa", "re": null}, "updated": "2026-09-20T20:36:01+00:00"}

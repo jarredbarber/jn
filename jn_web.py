@@ -21,7 +21,8 @@ def verbs(jn):
         rs = jn.select(pos, opts)
         if t := opts.get("tree"):
             rs = [r | {"depth": d} for r, d in jn.as_tree(rs[::-1], "parent" if t is True else t)]
-        return rs
+        q = jn.re_quotes(rs)  # @re=#N context line, batched; only on rows that have one
+        return [r | {"re_ctx": q[r["id"]]} if r["id"] in q else r for r in rs]
 
     def show(id):
         row = jn.select([str(int(id))], {"all": True})

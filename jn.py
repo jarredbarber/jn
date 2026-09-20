@@ -29,7 +29,7 @@ DB = Path(os.environ.get("JN_DB", Path.home() / ".jn.db"))
 TAG = re.compile(r"(?:^|(?<=\s))(-?)@([A-Za-z_]\w*(?:-\w+)*)(?:([+-]?=)(\S+))?")
 TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
-BACKLINK = re.compile(r"^<- #\d+ @\S+.*$", re.M)
+BACKLINK = re.compile(r"^[ \t]*<- #\d+ @\S+.*$", re.M)  # indented: show nests @re replies by depth
 COLS = ("id", "created", "updated", "content")
 AGENT = {"CLAUDE_CODE_SESSION_ID": "claude", "ANTIGRAVITY_CONVERSATION_ID": "agy"}  # env -> @agent prefix; first match wins
 ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's args. override/extend in [actions]
@@ -225,9 +225,30 @@ def entry_text(eid, c=None):
     return f"{fmt_tags(dict(c.execute('SELECT name,value FROM tagged WHERE entry=?', (eid,))))}\n\n{row[0]}\n"
 
 
-def backlinks(eid):
+def backlinks(eid, depth=0, seen=None):
+    """<- #N @tag title, one per pointer. @re replies recurse (2 spaces per level, capped) so show is the thread"""
+    seen = set() if seen is None else seen
+    if eid in seen or depth > 10:
+        return ""
+    seen.add(eid)
     rows = db().execute("SELECT t.entry, t.name, e.content FROM tagged t JOIN entry e ON e.id=t.entry WHERE t.value=? ORDER BY t.entry", (f"#{eid}",)).fetchall()
-    return "".join(f"<- #{e} @{n}  {c.splitlines()[0][:60]}\n" for e, n, c in rows)
+    return "".join("  " * depth + f"<- #{e} @{n}  {c.splitlines()[0][:60]}\n" + (backlinks(e, depth + 1, seen) if n == "re" else "")
+                   for e, n, c in rows if n == "re" or not depth)  # below the top only the reply chain nests
+
+
+def re_quotes(rows, width=80):
+    """row id -> '↳ #N  <first line of N>' for rows with @re=#N; one query for every parent"""
+    want = {}
+    for r in rows:
+        p = next((i for i in aslist(r["tags"], "re") or [] if i.startswith("#") and i[1:].isdigit()), None)
+        if p:
+            want[r["id"]] = int(p[1:])
+    if not want:
+        return {}
+    ids = sorted(set(want.values()))
+    have = dict(db().execute(f"SELECT id,content FROM entry WHERE id IN ({','.join('?' * len(ids))})", ids))
+    head = lambda t: (t.splitlines() or [""])[0][:width]
+    return {e: f"↳ #{p}  {head(have[p])}" if p in have else f"↳ #{p} (missing)" for e, p in want.items()}
 
 
 def versioned(c, eid, write):
@@ -417,7 +438,10 @@ def show(rows, fmt, tree=None):
         textw = max(20, width - 5 - 2 - 11 - 2 - tagw - 2)
         cut = lambda t, w: t if len(t) <= w else t[:w - 1] + "…"
         print(f"{'id':>5}  {'when':<11}  {'text':<{textw}}  tags" + (f"  (all: {fmt_tags(common)})" if common else ""))
+        quotes = re_quotes(rows)
         for r, t in zip(rows, own):
+            if q := quotes.get(r["id"]):  # muted context line above a reply
+                print(f"{'':>5}  {'':<11}  " + cut("  " * depth.get(r["id"], 0) + q, textw))
             lines = r["content"].splitlines() or [""]
             head = "  " * depth.get(r["id"], 0) + lines[0] + (" …" if len(lines) > 1 else "")
             print(f"{r['id']:>5}  {local(r['created'])[5:]}  {cut(head, textw):<{textw}}  {cut(t, tagw)}")

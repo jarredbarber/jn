@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory() as d:
     Path(d, ".jn").write_text('tags = ["global"]\nfavorites = ["due", "home"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[colors]\ntodo = "#000"\ndue = "#0ff"\n[filters]\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
     Path(d, "proj/sub/.jn").write_text('tags_expr = "[\'@evil\']"\n')  # must be ignored
 
-    ids = lambda out: [l.split()[0] for l in out.splitlines()[1:]]      # skip table header
+    ids = lambda out: [l.split()[0] for l in out.splitlines()[1:] if l.split()[:1] and l.split()[0].isdigit()]   # skip header + @re context lines
     js = lambda out: [json.loads(l) for l in out.splitlines() if l]        # --json is jsonl
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
     b = run("log", stdin="# Heading\nwalked @agent=claude:s1 @re=#" + a, **env)
@@ -140,6 +140,19 @@ with tempfile.TemporaryDirectory() as d:
     assert [json.loads(l)["id"] for l in Path(jl).read_text().splitlines()] == [1, 2, 9] and ids(run("ls", "@todo", **jenv)) == ["1", "9"]   # 1 reverted to its @todo-only v1
     Path(d, "proj/.jn").write_text(Path(d, "proj/.jn").read_text() + '[dbs]\njl = "journal.jsonl"\n')   # [dbs] name -> .jsonl, relative to that .jn
     assert ids(run("ls", "imported", "--db=jl", **env)) == ["9"] and ids(run("ls", "--db=jl", "--all", **env)) == ["1", "2", "9"]
+    # replies: @re=#N context line in ls, threaded show
+    r1 = run("log", "@thr root of the thread", **env)
+    r2 = run("log", "@thr @re=#" + r1 + " first reply", **env)
+    r3 = run("log", "@thr @re=#" + r2 + " nested reply", **env)
+    r4 = run("log", "@thr @re=#999 orphan reply", **env)
+    out = run("ls", "@thr", "--all", **env).splitlines()[1:]
+    assert ids("h\n" + "\n".join(out)) == [r1, r2, r3, r4], out
+    assert out[1].strip() == f"↳ #{r1}  root of the thread", out                 # context line above the reply
+    assert out[3].strip() == f"↳ #{r2}  first reply" and out[5].strip() == "↳ #999 (missing)", out
+    sl = [l for l in run("show", r1, **env).splitlines() if l.strip().startswith("<-")]
+    assert sl[0] == f"<- #{r2} @re  first reply" and sl[1] == f"  <- #{r3} @re  nested reply", sl   # @re backlinks nest by depth
+    run("edit", r1, stdin=run("show", r1, **env), **env)                          # indented backlink lines strip on round-trip
+    assert js(run("ls", r1, "--json", **env))[0]["content"] == "root of the thread"
     print("ok")
 
     # jn serve: the library over HTTP. stdin never read, errors are 400s, tags-only log rejected

@@ -123,6 +123,7 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 .editor .tagrow input.editing { flex:0 0 auto; width:max-content; min-width:80px; background:var(--bg); border-color:var(--ink) }
 .editor textarea { background:var(--bg); min-height:120px; field-sizing:content }
 .editor .back { margin:8px 0 0; color:var(--mute); font-size:13px; white-space:pre-wrap }
+.requote { margin:0; color:var(--mute); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .editor:not(.editing) .when-edit { display:none } .editor.editing .when-view { display:none }  /* one action bar, two modes */
 
 /* rendered markdown */
@@ -259,7 +260,7 @@ async function refresh() {
       const lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
       html += `<article class="entry ${'done' in r.tags ? 'done' : ''} ${r.depth ? 'child' : tree ? 'tree-root' : ''}" style="--depth:${r.depth || 0}" data-id="${r.id}">
         <div class="gut"><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><a class="eid" href="${entryHref(r.id)}" data-id="${r.id}" title="Open this entry (⌘-click for a new window)">#${r.id}</a></div>
-        <div class="body"><p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
+        <div class="body">${r.re_ctx ? `<p class="requote">${linkify(r.re_ctx)}</p>` : ''}<p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
         <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div></div></article>`;
     }
     $('#list').innerHTML = html || '<p class="empty">Nothing matches. Write something, or loosen the filter.</p>';
