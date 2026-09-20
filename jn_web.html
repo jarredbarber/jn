@@ -123,6 +123,10 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 .editor .tagrow input.editing { flex:0 0 auto; width:max-content; min-width:80px; background:var(--bg); border-color:var(--ink) }
 .editor textarea { background:var(--bg); min-height:120px; field-sizing:content }
 .editor .back { margin:8px 0 0; color:var(--mute); font-size:13px; white-space:pre-wrap }
+.entry.open .requote { display:none }
+.anc { display:flex; gap:8px; align-items:baseline; margin:6px 0; padding:0 0 0 10px; border-left:2px solid var(--rule); color:var(--mute); font-size:13px }
+.anc > a.ref { flex:none }
+.anc p { margin:0 }
 .requote { margin:0; color:var(--mute); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .editor:not(.editing) .when-edit { display:none } .editor.editing .when-view { display:none }  /* one action bar, two modes */
 
@@ -370,13 +374,14 @@ async function openEntry(id, scroll = true) {
   if (cur !== null && cur !== id) closeEntry();
   cur = id;
   try {
-    const { backlinks, row } = await api('show', { id });
+    const { backlinks, row, ancestors = [] } = await api('show', { id });
     const tags = row.tags;
     art.classList.add('open');
     let ed = art.querySelector('.editor');
     if (!ed) { ed = document.createElement('div'); ed.className = 'editor'; art.querySelector('.body').appendChild(ed); }
     const done = 'done' in tags;
     ed.innerHTML = `<div class="tagrow">${Object.entries(tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v, `data-k="${esc(k)}"`).replace('</span>', '<span class="x" data-rm="' + esc(k) + '">✕</span></span>')).join('')}<input class="tagin" placeholder="add a tag: @k=v, ↩"></div>
+      ${ancestors.map(a => `<div class="anc"><a class="ref" data-id="${a.id}">#${a.id}</a>${md(a.content)}</div>`).join('')}
       <div class="md">${md(row.content)}</div>
       <textarea class="content" hidden>${esc(row.content)}</textarea>
       <div class="att">${attHtml(tags)}</div>
@@ -391,6 +396,7 @@ async function openEntry(id, scroll = true) {
     ed.querySelector('.act-save').onclick = () => save(ta.value);
     ed.edit = () => { ed.classList.add('editing'); mdEl.hidden = true; ta.hidden = false; ta.oninput?.(); ta.focus(); };  // rendered -> textarea
     const cancel = () => { ed.classList.remove('editing'); ta.hidden = true; mdEl.hidden = false; ta.value = row.content; };  // drop the draft, back to rendered
+    ed.querySelectorAll('.anc').forEach(a => a.onclick = e => { const r = e.target.closest('a.ref'); if (r) { e.stopPropagation(); openEntry(+r.dataset.id); } });  // parent thread: #N opens that entry
     ed.querySelector('.act-edit').onclick = ed.edit;
     ed.querySelector('.act-cancel').onclick = cancel;
     mdEl.onclick = e => {  // ponytail: click-to-edit dropped (#4); only links/checkboxes act now

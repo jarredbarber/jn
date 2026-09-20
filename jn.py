@@ -236,13 +236,14 @@ def backlinks(eid, depth=0, seen=None):
                    for e, n, c in rows if n == "re" or not depth)  # below the top only the reply chain nests
 
 
+def re_parent(row):
+    """entry id a row replies to (@re=#N), else None"""
+    return next((int(i[1:]) for i in aslist(row["tags"], "re") or [] if i.startswith("#") and i[1:].isdigit()), None)
+
+
 def re_quotes(rows, width=80):
     """row id -> '↳ #N  <first line of N>' for rows with @re=#N; one query for every parent"""
-    want = {}
-    for r in rows:
-        p = next((i for i in aslist(r["tags"], "re") or [] if i.startswith("#") and i[1:].isdigit()), None)
-        if p:
-            want[r["id"]] = int(p[1:])
+    want = {r["id"]: p for r in rows if (p := re_parent(r))}
     if not want:
         return {}
     ids = sorted(set(want.values()))

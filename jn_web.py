@@ -26,7 +26,11 @@ def verbs(jn):
 
     def show(id):
         row = jn.select([str(int(id))], {"all": True})
-        return {"text": jn.entry_text(int(id)), "backlinks": jn.backlinks(int(id)), "row": row[0] if row else None}
+        anc, seen, r = [], {int(id)}, row[0] if row else None  # @re chain walked up: root first, cycle-safe, capped
+        while r and (p := jn.re_parent(r)) and p not in seen and len(anc) < 10:
+            seen.add(p); pr = jn.select([str(p)], {"all": True}); r = pr[0] if pr else None
+            if r: anc.append(r)
+        return {"text": jn.entry_text(int(id)), "backlinks": jn.backlinks(int(id)), "row": row[0] if row else None, "ancestors": anc[::-1]}
 
     def vocab():
         """tag name -> its known items, for @ completion"""
