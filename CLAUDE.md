@@ -16,6 +16,22 @@ JN_DB=/tmp/jn-demo.db jn import < fixture.jsonl   # canonical demo db: 32 entrie
 
 There is no build step, linter, or CI. `test_jn.py` is a single script of asserts against a subprocess in a temp dir; add cases there.
 
+## Dogfood log — `jn.jsonl`
+
+This repo tracks its own tasks and change log in `jn.jsonl` (committed). Use it — jn is its own tracker.
+
+```bash
+export JN_DB=$PWD/jn.jsonl          # or: python3 jn.py --db=jn.jsonl <args>
+python3 jn.py log "shipped X (<sha>)"        # a change note — stays in the journal
+python3 jn.py todo "fix Y"                    # a task
+python3 jn.py ls @todo                        # open tasks
+python3 jn.py close 4                          # complete task #4 (stamps @done)
+```
+
+- Log one note per milestone (same beat as a commit); open a `@todo` for follow-ups and `close` it when done.
+- `log` notes are journal, not tasks — don't tag them `@done`; the default filter hides `@done`, so a note tagged that way vanishes from `ls`.
+- The file rewrites in full on each write with sorted keys, so diffs stay clean — commit it alongside the code change it describes.
+
 ## Architecture
 
 `jn.py` is the whole program (~450 lines). Entry point is `cli()` (in `[project.scripts]`), which calls `main(argv)`.

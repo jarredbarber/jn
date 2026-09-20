@@ -1,0 +1,3 @@
+{"content": "sort entries by created date not insertion id (bae8903)", "created": "2026-09-20T02:12:57+00:00", "id": 1, "tags": {"agent": "claude:c416297a-7557-4027-87f1-35320fa3952c"}, "updated": "2026-09-20T02:12:57+00:00"}
+{"content": "web: done button only on todos, subtask -> reply pointer (5b6498e)", "created": "2026-09-20T02:12:57+00:00", "id": 2, "tags": {"agent": "claude:c416297a-7557-4027-87f1-35320fa3952c"}, "updated": "2026-09-20T02:12:57+00:00"}
+{"content": "add jn.jsonl dogfood log + CLAUDE.md section", "created": "2026-09-20T02:12:57+00:00", "id": 3, "tags": {"agent": "claude:c416297a-7557-4027-87f1-35320fa3952c"}, "updated": "2026-09-20T02:12:57+00:00"}
