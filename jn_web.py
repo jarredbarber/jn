@@ -74,7 +74,7 @@ def verbs(jn):
         "attach": attach,
         "dbs": lambda: list(jn.config()["dbs"]),
         "config": lambda: {"filters": [{"name": n, "own": src == str((jn.Path.home() / ".jn").resolve())} for n, src in cfg_filters()], "tags": jn.fmt_tags(jn.default_tags()),
-                          "colors": jn.config()["colors"], "favorites": jn.config()["favorites"]},
+                          "colors": jn.config()["colors"], "favorites": jn.config()["favorites"], "db": str(jn.DB)},
     }
 
 

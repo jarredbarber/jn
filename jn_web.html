@@ -32,7 +32,9 @@ button, input, textarea, select { font:inherit; color:inherit }
 .mast h1 { font:italic 400 44px/1 var(--serif); letter-spacing:-.02em; margin:0 }
 .mast h1 a { color:inherit; text-decoration:none }
 .mast h1 b { font-style:normal; font-weight:700; color:var(--accent) }
-#status { color:var(--mute); font-size:13px; margin-left:auto }
+.statwrap { margin-left:auto; text-align:right; line-height:1.3 }
+#dbpath { color:var(--mute); font-size:11px; opacity:.7; display:block; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl }
+#status { color:var(--mute); font-size:13px }
 #dbsel { background:var(--bg2); color:var(--ink); border:1px solid var(--rule); border-radius:var(--r); padding:4px 8px; font-size:14px }
 
 /* composer, above the feed */
@@ -75,6 +77,15 @@ button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .side { grid-column:2; grid-row:1; position:sticky; top:16px; padding-top:28px }
 .side .lab { color:var(--mute); font-size:13px; margin-bottom:8px }
 .side .chips { gap:4px }
+/* activity heatmap (github-style), #7 */
+#cal { display:grid; grid-template-rows:repeat(7, 1fr); grid-auto-flow:column; gap:3px; margin-bottom:22px }
+#cal .cell { width:100%; aspect-ratio:1; border-radius:2px; background:var(--bg2) }
+#cal .cell.l1 { background:rgba(255,122,26,.3) }
+#cal .cell.l2 { background:rgba(255,122,26,.55) }
+#cal .cell.l3 { background:rgba(255,122,26,.8) }
+#cal .cell.l4 { background:var(--accent) }
+#cal .cell.lx { background:transparent }  /* future days in this week */
+@media (max-width:760px) { #cal { max-width:340px } }
 
 /* ledger */
 .ledger { margin-top:8px }
@@ -87,7 +98,8 @@ button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .entry .gut, .entry .head { cursor:pointer }
 .entry:not(.open):hover .head { color:var(--accent) }
 .gut { display:flex; flex-direction:column; gap:2px; padding-top:3px }
-.eid { font-size:12px; color:var(--mute) }
+.eid { font-size:12px; color:var(--mute); text-decoration:none }
+.eid:hover { color:var(--accent) }
 .time { font-size:12px; color:var(--mute); font-variant-numeric:tabular-nums }
 .head { margin:0; white-space:pre-wrap; word-break:break-word; font-size:17px; line-height:1.4 }
 .head .more { color:var(--mute) }
@@ -111,9 +123,10 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 .editor .tagrow input.editing { flex:0 0 auto; width:max-content; min-width:80px; background:var(--bg); border-color:var(--ink) }
 .editor textarea { background:var(--bg); min-height:120px; field-sizing:content }
 .editor .back { margin:8px 0 0; color:var(--mute); font-size:13px; white-space:pre-wrap }
+.editor:not(.editing) .when-edit { display:none } .editor.editing .when-view { display:none }  /* one action bar, two modes */
 
-/* rendered markdown (click it to edit) */
-.md { cursor:text; min-width:0; word-break:break-word; margin:4px 0 10px; padding:2px 0 }
+/* rendered markdown */
+.md { min-width:0; word-break:break-word; margin:4px 0 10px; padding:2px 0 }
 .md > :first-child { margin-top:0 } .md > :last-child { margin-bottom:0 }
 .md p, .md ul, .md ol, .md pre, .md blockquote, .md table { margin:0 0 .7em }
 .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font:italic 400 17px/1.25 var(--serif); letter-spacing:-.01em; margin:.9em 0 .35em }
@@ -137,9 +150,11 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 .att img { display:block; max-height:160px; max-width:100%; border:1px solid var(--rule); border-radius:var(--r) }
 .att a { color:var(--accent); text-decoration:none; word-break:break-all }
 .att a:hover { text-decoration:underline }
-.att .x { color:var(--mute); cursor:pointer; padding:0 2px }
-.att .x:hover { color:var(--accent) }
+.att .x, .att .ins { color:var(--mute); cursor:pointer; padding:0 2px }
+.att .ins { font-size:11px; border:1px solid var(--rule); border-radius:var(--r); padding:0 5px }
+.att .x:hover, .att .ins:hover { color:var(--accent); border-color:var(--accent) }
 .entry .tags .clip { font-size:11px; color:var(--mute); align-self:center; opacity:.8 }
+#pending:not(:empty) { margin-top:12px }
 
 /* completion */
 #ac { position:fixed; z-index:20; background:var(--ink); color:var(--bg); border:1px solid var(--ink); border-radius:var(--r); box-shadow:4px 4px 0 var(--accent); max-height:40vh; overflow:auto; overscroll-behavior:contain; min-width:180px; display:none }
@@ -163,13 +178,14 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 </head>
 <body>
 <div class="col">
-<header class="mast"><h1><a href="/" id="home">j<b>n</b></a></h1><select id="dbsel" hidden></select><span id="status"></span></header>
+<header class="mast"><h1><a href="/" id="home">j<b>n</b></a></h1><select id="dbsel" hidden></select><span class="statwrap"><span id="dbpath" title=""></span><span id="status"></span></span></header>
 <div class="composer">
   <textarea id="capture" placeholder="Write it down. @tags anywhere, @todo makes a task." rows="2"></textarea>
   <div class="actions">
     <button class="primary" id="save">Add <kbd>⌘↩</kbd></button>
     <span id="cap-err" class="err"></span>
   </div>
+  <div class="att" id="pending"></div>
 </div>
 <div class="lens">
   <input id="filter" placeholder="@todo -@done @k=v word --since 1w --tree">
@@ -177,7 +193,7 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
   <input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn">
 </div>
 <div class="main">
-<aside class="side" id="tags"><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
+<aside class="side" id="tags"><div class="lab">activity</div><div id="cal"></div><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
 <section class="ledger" id="list"></section>
 </div>
 </div>
@@ -208,6 +224,7 @@ function setQuery(q, push = true) {
   renderNamed(); refresh();
 }
 function fromUrl() { const u = new URL(location); if (u.searchParams.has('db')) state.db = u.searchParams.get('db'); $('#filter').value = u.searchParams.get('q') || ''; }
+const entryHref = id => '?q=' + id + (state.db ? '&db=' + encodeURIComponent(state.db) : '');  // #11: shareable link; ⌘-click opens the entry in its own window
 
 // #N and @tag in prose become links
 const refs = s => s.replace(/(^|[\s(=,])#(\d+)\b/g, '$1<a class="ref" data-id="$2">#$2</a>')  // s is already escaped
@@ -241,7 +258,7 @@ async function refresh() {
       }
       const lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
       html += `<article class="entry ${'done' in r.tags ? 'done' : ''} ${r.depth ? 'child' : tree ? 'tree-root' : ''}" style="--depth:${r.depth || 0}" data-id="${r.id}">
-        <div class="gut"><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><span class="eid">#${r.id}</span></div>
+        <div class="gut"><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><a class="eid" href="${entryHref(r.id)}" data-id="${r.id}" title="Open this entry (⌘-click for a new window)">#${r.id}</a></div>
         <div class="body"><p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
         <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div></div></article>`;
     }
@@ -249,9 +266,28 @@ async function refresh() {
     const fav = state.cfg.favorites || [], cnt = Object.fromEntries(tg);
     $('#taglist').innerHTML = [...fav, ...tg.map(([t]) => t).filter(t => !fav.includes(t))]
       .map(t => `<span ${chipAttrs(t)}>${fav.includes(t) ? '<span class="fav">●</span>' : ''}@${esc(t)} <span class="n">${cnt[t] || 0}</span></span>`).join('');
+    renderCal();
     $('#status').textContent = rows.length + ' entries';
+    const ts = tokens();
     if (cur !== null) await openEntry(cur, false);
+    else if (ts.length === 1 && /^#?\d+$/.test(ts[0]) && rows.length === 1) await openEntry(rows[0].id, false);  // #11: a single-entry view opens expanded
   } catch (e) { $('#status').textContent = e.message; }
+}
+function renderCal() {  // #7: per-day entry counts for the current view, last 17 weeks, github-style
+  const day = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return +d; };
+  const cnt = {};
+  for (const r of state.rows) cnt[day(r.created)] = (cnt[day(r.created)] || 0) + 1;
+  const today = day(Date.now()), weeks = 17;
+  const cell = new Date(today);
+  cell.setDate(cell.getDate() + (6 - cell.getDay()) - (weeks * 7 - 1));  // Sunday, 17 weeks back (step by setDate so DST can't drift the key off local midnight)
+  const max = Math.max(1, ...Object.values(cnt));
+  let cells = '';
+  for (let i = 0; i < weeks * 7; i++, cell.setDate(cell.getDate() + 1)) {
+    const t = +cell, c = cnt[t] || 0;
+    const lvl = t > today ? 'x' : c === 0 ? 0 : Math.min(4, Math.ceil(c / max * 4));
+    cells += `<i class="cell l${lvl}" title="${cell.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}: ${c}"></i>`;
+  }
+  $('#cal').innerHTML = cells;
 }
 function renderNamed() {
   $('#named').innerHTML = state.cfg.filters.map(f => `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}">--${f.name}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`).join('')
@@ -272,13 +308,26 @@ $('#viewname').onkeydown = e => {
   if (e.key === 'Escape') e.target.style.display = 'none';
 };
 
-// capture
+// capture. Pasted/dropped files buffer here and attach to the entry once it's added (#8: attach before add).
+let pending = [];
+function renderPending() {
+  $('#pending').innerHTML = pending.map((f, i) => `<span class="att-item">${/^image\//.test(f.type) ? `<img src="${URL.createObjectURL(f)}" alt="${esc(f.name)}">` : esc(f.name)}<span class="x" data-pend="${i}" title="Remove">✕</span></span>`).join('');
+}
+$('#pending').onclick = e => { const x = e.target.closest('[data-pend]'); if (x) { pending.splice(+x.dataset.pend, 1); renderPending(); } };
+const addPending = files => { const fs = [...files]; if (fs.length) { pending.push(...fs); renderPending(); } };
+$('#capture').addEventListener('paste', e => { const fs = [...e.clipboardData.files]; if (fs.length) { e.preventDefault(); addPending(fs); } });
+$('#capture').addEventListener('dragover', e => e.preventDefault());
+$('#capture').addEventListener('drop', e => { const fs = [...e.dataTransfer.files]; if (fs.length) { e.preventDefault(); addPending(fs); } });
 async function capture() {
   const text = $('#capture').value.trim();
-  if (!text) return;
+  if (!text && !pending.length) return;
+  if (!text) return void ($('#cap-err').textContent = 'add a note to save with the attachment');  // an entry needs a body
   $('#cap-err').textContent = '';
-  try { await api('log', { text }); $('#capture').value = ''; refresh(); }
-  catch (e) { $('#cap-err').textContent = e.message; }
+  try {
+    const id = await api('log', { text });
+    if (pending.length) { await upload(id, pending); pending = []; renderPending(); }
+    $('#capture').value = ''; refresh();
+  } catch (e) { $('#cap-err').textContent = e.message; }
 }
 $('#save').onclick = capture;
 $('#capture').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') capture(); };
@@ -297,12 +346,12 @@ document.body.addEventListener('click', e => {
   const a = e.target.closest('[data-tok],[data-id],[data-tag]');
   if (!a) return;
   if (a.dataset.tok) { toggleTok(a.dataset.tok); setQuery($('#filter').value.trim()); }
-  else if (a.dataset.id) { e.stopPropagation(); openEntry(+a.dataset.id); }
+  else if (a.dataset.id) { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); e.stopPropagation(); openEntry(+a.dataset.id); }
   else if (a.dataset.tag !== undefined) { e.stopPropagation(); const tok = '@' + a.dataset.tag; if (!has(tok)) setQuery([...tokens(), tok].join(' ')); }
 });
 document.addEventListener('click', e => {  // outside the open entry (and not into another one, the editor, or the popup) closes it
   const art = cur !== null && $(`.entry[data-id="${cur}"]`);
-  if (art && !e.target.closest('.editor, #ac, [data-id]') && e.target.closest('.entry') !== art) closeEntry();
+  if (art && !e.target.closest('.editor, #ac, [data-id], .composer') && e.target.closest('.entry') !== art) closeEntry();
 });
 document.addEventListener('keydown', e => {  // bare e on an open entry: edit it
   if (e.key === 'e' && cur !== null && !e.metaKey && !e.ctrlKey && !e.altKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); $('.entry.open .editor')?.edit(); }
@@ -331,7 +380,7 @@ async function openEntry(id, scroll = true) {
       <textarea class="content" hidden>${esc(row.content)}</textarea>
       <div class="att">${attHtml(tags)}</div>
       <div class="back">${backlinks.split('\n').filter(Boolean).map(linkify).join('\n')}</div>
-      <div class="actions"><button class="primary act-save">Save changes</button>${'todo' in tags ? `<button class="act-done">${done ? 'Reopen' : 'Mark done'}</button>` : ''}<button class="act-sub">Reply</button><button class="act-att">Attach</button><input class="att-in" type="file" multiple hidden><button class="quiet act-close">Close</button><span class="err"></span></div>`;
+      <div class="actions"><button class="primary act-sub when-view">Reply</button><button class="act-edit when-view">Edit</button>${'todo' in tags ? `<button class="act-done when-view">${done ? 'Reopen' : 'Mark done'}</button>` : ''}<button class="primary act-save when-edit">Save changes</button><button class="act-cancel when-edit">Cancel</button><button class="act-att">Attach</button><input class="att-in" type="file" multiple hidden><button class="quiet act-close">Close</button><span class="err"></span></div>`;
     ed.tags = tags;
     const fail = e => ed.querySelector('.err').textContent = e.message;
     const patch = async p => { try { await api('tag', { id, patch: p }); await refresh(); } catch (e) { fail(e); } };
@@ -339,22 +388,25 @@ async function openEntry(id, scroll = true) {
     const ta = ed.querySelector('.content'), mdEl = ed.querySelector('.md');
     const save = async text => { try { await api('edit', { id, text: tagsLine() + '\n\n' + text }); await refresh(); } catch (e) { fail(e); } };
     ed.querySelector('.act-save').onclick = () => save(ta.value);
-    ed.edit = () => { mdEl.hidden = true; ta.hidden = false; ta.oninput?.(); ta.focus(); };  // rendered -> textarea; Escape swaps back and keeps the draft
-    mdEl.onclick = e => {
+    ed.edit = () => { ed.classList.add('editing'); mdEl.hidden = true; ta.hidden = false; ta.oninput?.(); ta.focus(); };  // rendered -> textarea
+    const cancel = () => { ed.classList.remove('editing'); ta.hidden = true; mdEl.hidden = false; ta.value = row.content; };  // drop the draft, back to rendered
+    ed.querySelector('.act-edit').onclick = ed.edit;
+    ed.querySelector('.act-cancel').onclick = cancel;
+    mdEl.onclick = e => {  // ponytail: click-to-edit dropped (#4); only links/checkboxes act now
       const t = e.target.closest('a,input,img');
-      if (!t) return ed.edit();
+      if (!t) return;
       if (t.dataset.id) openEntry(+t.dataset.id);
       else if (t.dataset.tag) { const tok = '@' + t.dataset.tag; if (!has(tok)) setQuery([...tokens(), tok].join(' ')); }
       else if (t.dataset.task) save(mdToggle(row.content, +t.dataset.task));  // ponytail: flips the saved text, not an unsaved draft
     };
     const doneBtn = ed.querySelector('.act-done');
     if (doneBtn) doneBtn.onclick = () => patch([done ? '-@done' : '@done']);
-    ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@re=#${id} `; closeEntry(); c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };
+    ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@re=#${id} `; c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };  // #4: keep the entry open so it can be referenced while replying
     ed.querySelector('.act-close').onclick = closeEntry;
     attWire(ed, id);
     ta.onkeydown = e => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') save(ta.value);
-      if (e.key === 'Escape') { ta.hidden = true; mdEl.hidden = false; }
+      if (e.key === 'Escape') cancel();
     };
     if (!CSS.supports('field-sizing', 'content')) ta.oninput = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px'; };
     const addin = ed.querySelector('.tagin'); acAttach(addin, true);
@@ -386,7 +438,7 @@ const fileUrl = n => '/files/' + n + (state.db ? '?db=' + encodeURIComponent(sta
 const isImg = n => /\.(png|jpe?g|gif|webp|svg|avif)$/.test(n);
 const fileList = tags => (tags.files || '').split(',').filter(Boolean);
 const clip = tags => 'files' in tags ? `<span class="clip" title="${esc(fileList(tags).join(', '))}">📎 ${fileList(tags).length}</span>` : '';
-const attHtml = tags => fileList(tags).map(n => `<span class="att-item"><a href="${fileUrl(n)}" target="_blank" rel="noopener">${isImg(n) ? `<img src="${fileUrl(n)}" alt="${n}" loading="lazy">` : n}</a><span class="x" data-unatt="${n}" title="Remove from entry">✕</span></span>`).join('');
+const attHtml = tags => fileList(tags).map(n => `<span class="att-item"><a href="${fileUrl(n)}" target="_blank" rel="noopener">${isImg(n) ? `<img src="${fileUrl(n)}" alt="${n}" loading="lazy">` : n}</a><span class="ins" data-embed="${n}" title="Insert an embed into the entry text">embed</span><span class="x" data-unatt="${n}" title="Remove from entry">✕</span></span>`).join('');
 const b64 = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1]); r.onerror = no; r.readAsDataURL(f); });
 async function upload(id, files) { for (const f of files) await api('attach', { id, name: f.name, data: await b64(f) }); }
 function attWire(ed, id) {
@@ -402,7 +454,16 @@ function attWire(ed, id) {
   ta.addEventListener('paste', e => { const fs = [...e.clipboardData.files]; if (fs.length) { e.preventDefault(); send(fs); } });
   ta.addEventListener('dragover', e => e.preventDefault());
   ta.addEventListener('drop', e => { const fs = [...e.dataTransfer.files]; if (fs.length) { e.preventDefault(); send(fs); } });
-  ed.querySelector('.att').onclick = e => { const x = e.target.closest('[data-unatt]'); if (x) api('tag', { id, patch: ['@files-=' + x.dataset.unatt] }).then(refresh, fail); };
+  ed.querySelector('.att').onclick = e => {
+    const x = e.target.closest('[data-unatt]'), em = e.target.closest('[data-embed]');
+    if (x) return void api('tag', { id, patch: ['@files-=' + x.dataset.unatt] }).then(refresh, fail);
+    if (em) {  // #12: drop a markdown embed at the cursor
+      const n = em.dataset.embed, snip = (isImg(n) ? `![](jn:${n})` : `[${n}](jn:${n})`);
+      ed.edit(); const p = ta.selectionStart ?? ta.value.length;
+      ta.value = ta.value.slice(0, p) + snip + ta.value.slice(ta.selectionEnd ?? p);
+      ta.selectionStart = ta.selectionEnd = p + snip.length; ta.oninput?.(); ta.focus();
+    }
+  };
 }
 
 // markdown: a hand-written GFM subset so the page renders offline; the source is escaped before parsing, so raw HTML shows literally.
@@ -410,7 +471,7 @@ function attWire(ed, id) {
 let taskN = 0;
 const blank = l => !/\S/.test(l);
 const item = l => l.match(/^( *)([-*+]|\d+[.)]) +(.*)$/);
-const safeUrl = u => /^(https?:|mailto:|\/|\.|#)/i.test(u) ? u : '#';
+const safeUrl = u => /^jn:/i.test(u) ? fileUrl(u.replace(/^jn:\/*/i, '')) : /^(https?:|mailto:|\/|\.|#)/i.test(u) ? u : '#';  // #12: jn:<stored-name> -> /files/<name>, so ![](jn:ab12.png) embeds an attachment
 const mdHead = s => s.replace(/^\s*(?:#{1,6}\s+|>\s*|(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?|```.*)/, '');  // one-line summary without its sigils
 function mdInline(s) {
   const code = [];
@@ -533,9 +594,10 @@ api('dbs').then(dbs => {
   const sel = $('#dbsel');
   sel.innerHTML = ['', ...dbs].map(n => `<option value="${esc(n)}" ${n === state.db ? 'selected' : ''}>${n ? esc(n) : 'default'}</option>`).join('');
   sel.hidden = false;
-  sel.onchange = () => { state.db = sel.value; try { localStorage.setItem('jn.db', state.db); } catch {} cur = null; setQuery($('#filter').value.trim(), false); };
+  sel.onchange = () => { state.db = sel.value; try { localStorage.setItem('jn.db', state.db); } catch {} cur = null; setQuery($('#filter').value.trim(), false); api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); }); };
 });
-api('config').then(c => { state.cfg = c; renderNamed(); refresh(); });
+function setDbPath(p) { const el = $('#dbpath'); el.textContent = p ? '‎' + p : ''; el.title = p || ''; }  // ‎ (LRM) keeps the ellipsis at the left under direction:rtl
+api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); refresh(); });
 setInterval(() => { if (document.visibilityState === 'visible' && cur === null) refresh(); }, 5000);
 </script>
 </body>
