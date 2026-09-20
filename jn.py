@@ -37,7 +37,7 @@ ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's arg
     "close": ["tag $1 @done", "ls @blocked_by=#$1 --unblocked"],
 }
 FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
-    "default": "-@done -@archived",
+    "default": "-@done -@archived -@parent",
     "mine": "tag('agent') == default('agent')",
     "blocked": "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])",
     "unblocked": "not F('blocked')",
