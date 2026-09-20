@@ -1,190 +1,228 @@
 # jn
 
-Microjournal + task log for humans and agents. One Python file, stdlib only.
+A local microjournal and task log for people and agents. One Python file, standard library only.
 
 ```bash
-jn todo "do 10 pushups @fitness"        # -> 1
-jn close 1
-jn log "@re=#1 shipped discovery"
+jn todo "do 10 pushups @fitness"        # prints 1
+jn close 1                               # adds @done; prints tasks that became unblocked
+jn log "shipped discovery @re=#1"
 jn log <<'EOF'
-# multi-line via stdin
-- decided X over Y
+- chose X over Y
 EOF
-jn ls                                   # everything not @done/@archived (the "default" filter)
-jn ls @todo                             # filters: @tag  -@tag  @k=v  @k=a,b  @k=v*  word  ID
-jn ls @done --since 1w                  # mentioning a default-filter tag lifts it; --all lifts all
-jn ls @blocked_by=#12                   # #12 is an item of the list (not substring)
-jn ls @agent=claude:*                   # any of, * is a wildcard
-jn ls --open                            # named filter from .jn
-jn ls --since 3d --md                   # today | yesterday | 3d | 2w | ISO
-jn ls @todo --mine                      # @agent = whatever log would stamp right now
-jn todo "@blocked_by=#12,#15 ship it"   # blocked until 12 and 15 are @done; `jn close 15` prints what it freed
-jn ls @todo --unblocked                 # actionable now
-jn ls @todo --tree                      # nest under @parent=#N; --tree=blocked_by works too
-jn ls --json | jq ...                   # jsonl: one entry per line
-jn ls --all --json | jq -c 'del(.tags.foo)' | jn import   # bulk edit, ids preserved
-jn tags                                 # tag -> count over what ls would show; where's the mass
-jn tags @home                           # counts within one bucket
-jn show                                 # last entry: tags line, blank, content, backlinks
-jn tag 1 2 @due=tomorrow -@fitness      # patch tags on each id; nothing else changes
-jn edit                                 # document: $EDITOR seeded with show, or stdin; replaces the whole entry
-jn history 1                            # every prior version, tags included
-jn revert 1                             # back one version (or `jn revert 1 v2`); itself versioned
-jn attach 1 shot.png notes.pdf          # copy files in beside the journal, listed under @files
+
+jn ls --all --tree                     # render selected parent/child entries
+jn ls @todo --unblocked                  # tasks with no unresolved blockers
+jn ls @agent=claude:* --since 3d         # entries by any Claude agent
+jn ls @todo --tree                       # nest @parent=#N children
+jn show 1                                # editable document plus backlinks
 ```
 
 ## Install
 
-Python 3.11+, no dependencies.
+Python 3.11+; no runtime dependencies.
 
 ```bash
-uv tool install git+ssh://git@github.com/jarredbarber/jn   # or: pipx install git+ssh://git@github.com/jarredbarber/jn
+uv tool install git+ssh://git@github.com/jarredbarber/jn
+# or
+pipx install git+ssh://git@github.com/jarredbarber/jn
 ```
 
-Or skip packaging and symlink the single file:
+For a checkout, put the script on `PATH`:
 
 ```bash
-ln -s ~/code/jn/jn.py ~/bin/jn          # or wherever is on PATH
+ln -s ~/code/jn/jn.py ~/bin/jn
 ```
 
-## Model
+## Entries and tags
 
-- Entry: `id, created, updated, content`.
-- Tags: `@name` or `@name=value`. A tag is present or absent; when present its value is a comma list, `@name` alone being the empty list. `#` is never a tag sigil.
-- `jn tag N @k=a,b` replaces the list, `@k+=c` appends, `@k-=a` removes items (tag stays, possibly empty), `-@k` drops the tag. Tags you don't mention are untouched. Leading and trailing tags are stripped from the saved text (lead with context: `jn log "@meeting @client=acme agreed on scope"`). Tags mid-sentence stay as prose. One name per entry, last write wins.
-- Date words in values resolve when written: `@due=tomorrow`, `@due=2w`, `@due=-3d`, `@due=today`. Stored as ISO, so `@due=tomorrow` still means the same day next week.
-- `#42` points at entry 42, in prose or in values: `@parent=#42`, `@re=#42`, `@blocks=#42`. `jn show 42` lists everything pointing at it as `<- #N @tag title` lines (title being the referring entry's first line), which `edit` ignores when piped back. No relationship types are built in.
-- `@agent` is stamped automatically from the environment: `claude:$CLAUDE_CODE_SESSION_ID` or `agy:$ANTIGRAVITY_CONVERSATION_ID`, nothing in a human shell. Agents don't set it themselves.
-- Two verbs: `tag` is a patch from args, `edit` is a document from stdin or `$EDITOR` and replaces the whole entry, tags line included. `edit` refuses args. `show` output round-trips through `edit`; backlink lines are ignored. Every change keeps the prior version, see `jn history`.
-- Timestamps are stored in UTC and shown in local time, or in `tz = "America/New_York"` from config. Tag changes are not versioned.
-- No hierarchy. `@project=x @area=y` and filters cover it.
+An entry has an integer `id`, UTC `created` and `updated` timestamps, text content, and tags. Tags have the form `@name` or `@name=value`; values are comma-separated lists. A bare tag has an empty value. `#` is never a tag sigil, so `#42` is ordinary text unless a convention assigns it meaning.
 
-### Attachments
+Put tags at the beginning or end of the input. jn stores those tags separately and removes them from the saved body. Tags in the middle of a sentence remain prose.
 
-`jn attach [ID] path...` copies files into `<journal>.files/` beside the db (`~/.jn.db` → `~/.jn.files/`), named by content (first 16 hex of sha256 + extension, so the same file is stored once), and appends the names to the entry's `@files` tag. That tag is the whole link: `jn tag 1 @files-=<name>` detaches, `jn show` lists them, and a jsonl export carries the names, so back up the `.files/` dir alongside it. Files are never deleted.
+```bash
+jn log "@meeting @client=acme agreed on scope"
+jn tag 42 @due=tomorrow @owner=jarred
+jn tag 42 @owner+=sam @client-=acme -@meeting
+```
 
-## Tags the code knows about
+`@k=value` replaces a tag value; `@k+=value` appends unique items; `@k-=value` removes items and leaves a bare tag when none remain; and `-@k` removes the tag. Unmentioned tags do not change, and the final occurrence of a repeated tag wins.
 
-None. `@agent` is a builtin default stamped from the environment (see Model), and `@todo`, `@done`, `@archived`, `@blocked_by` come from the default actions and filters below. All of it can be redefined in config; `jn -h` shows the effective set.
+Date words in tag values resolve when written: `today`, `tomorrow`, `yesterday`, and signed durations such as `3d`, `2w`, or `-3d` become ISO dates. The stored date does not move later.
 
-Any value `#N` is a pointer to entry N. `jn show N` lists them as backlinks whatever the tag name. `@re=#N` for comments and `@parent=#N` for subtasks are conventions only.
+Every tag value equal to `#N` is a pointer to entry `N`. jn does not reserve relationship types: `@re=#42`, `@parent=#42`, and `@blocks=#42` are conventions. `jn show 42` lists every pointer as a backlink. Its output round-trips through `jn edit`; backlink lines are ignored on input.
 
-## Actions
+`jn tag` patches tags. `jn edit` replaces the complete document, including its first tag line. A changed entry (content or tags) keeps its prior document in history. No-op changes do not add a history version.
 
-`jn <name> args` runs a list of `jn` command lines with `$1`, `$2`, and `$@` substituted. An action that only uses `$1` runs once per argument, so `jn close 1 2 3` works. Built in:
+```bash
+jn edit 42 <<'EOF'
+@todo @re=#7
+
+Rewrote the parser.
+EOF
+jn history 42
+jn revert 42             # restores the prior version
+jn revert 42 v2          # restores version 2
+```
+
+Timestamps are stored in UTC and displayed in the local timezone unless `tz` is set in configuration.
+
+### Automatic tags
+
+The code has no fixed domain tags. `@todo`, `@done`, `@archived`, and `@blocked_by` are conventions used by the default filters and actions. Configuration can replace those filters and actions.
+
+When an agent environment is present, `log` automatically adds `@agent=claude:<session-id>` from `CLAUDE_CODE_SESSION_ID`, or `@agent=agy:<id>` from `ANTIGRAVITY_CONVERSATION_ID`. A human shell gets no `@agent` tag. Project tags from `.jn` are also added automatically. Do not add duplicate `@agent` or project tags in agent entries.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `jn log [@tags] [text]` | Create an entry and print its ID. Tag-only input reads the body from stdin or `$EDITOR`. |
+| `jn tag ID... PATCH...` | Patch tags without changing content. |
+| `jn edit [ID]` | Replace an entry from stdin or `$EDITOR`; omitted ID means the latest entry. |
+| `jn show [ID]` | Print the editable document and its backlinks. |
+| `jn history [ID]` | Print prior versions followed by the current version. |
+| `jn revert [ID] [N]` | Restore the prior version, or version `N`; the restore is versioned. |
+| `jn attach [ID] PATH...` | Copy files into the journal's attachment directory and add `@files`. |
+| `jn ls [FILTERS] [OPTIONS]` | Query entries. |
+| `jn tags [FILTERS]` | Count tags over the rows `ls` would return. |
+| `jn import` | Upsert JSONL rows from stdin, preserving IDs. |
+| `jn <action> ...` | Run a configured action such as `todo` or `close`. |
+| `jn --skill [PAGE]` | Print installed agent documentation. |
+| `jn serve` | Start the local web UI and API. |
+
+`--db=<path-or-name>` works with every command and overrides `JN_DB` for that invocation. A path ending in `.jsonl` or `.json` selects the JSONL journal format.
+
+### Querying
+
+`jn ls` combines all filters with AND:
+
+| Filter | Meaning |
+| --- | --- |
+| `@todo` | Has a tag. |
+| `-@done` | Does not have a tag. |
+| `@blocked_by=#12` | The comma list contains exactly `#12`, not a substring. |
+| `@agent=claude:*` | Matches any value with the `claude:` prefix. |
+| `pushups` | Content contains the word. |
+| `42` | Entry ID. |
+| `--open` | A named filter from configuration. |
+
+Options: `--since today|yesterday|3d|2w|ISO`, `--last N`, `--mine`, `--tree[=tag]`, `--json`, `--md`, and `--all`.
+
+The built-in `default` filter is `-@done -@archived -@parent`. It applies unless `--all`, an explicit ID, or a query that mentions one of those tags lifts it. Thus `jn ls` shows open top-level work; `jn ls @done` and `jn ls @parent=#50` still work.
+```bash
+jn ls @todo --mine
+jn ls --since yesterday --json
+jn ls --all --tree=blocked_by
+jn ls --all --json | jq -c 'del(.tags.foo)' | jn import
+jn tags @home
+```
+
+`--mine` compares `@agent` with the tag a new `log` command would add in the current environment. `--json` emits one JSON object per line. `--md` emits Markdown rows.
+### Tasks and blockers
+
+
+
+The built-in actions are:
 
 ```toml
 todo  = ["log @todo $@"]
 close = ["tag $1 @done", "ls @blocked_by=#$1 --unblocked"]
 ```
 
-Any `.jn` may add or override them under `[actions]`, so a project can redefine `todo`; the blast radius is your journal. If `log`'s arguments are tags only, the body is read from stdin or `$EDITOR`, so `jn todo <<EOF` works.
+Actions are lists of `jn` command lines with `$1`, `$2`, and `$@` substituted. An action that references only `$1` runs once for each argument, so `jn close 1 2 3` closes each task.
 
-## Filters and config
+`@blocked_by=#N` blocks a task until entry `N` has `@done`. A non-pointer item is a manual blocker that you remove yourself.
 
-`--name` on `ls` looks up a filter. The one named `default` is applied to every `ls` unless you pass `--all`, an explicit id, or mention one of its tags yourself, so `jn ls @done` just works. A filter is either a token string (starts with `@`, `-@`, or `--`) that expands into `ls` arguments, opts and other `--names` included (`week = "@todo --since 1w --mine"`), or a Python expression evaluated per entry. Built in:
-
-```toml
-default   = "-@done -@archived"
-mine      = "tag('agent') == default('agent')"
-blocked   = "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])"
-unblocked = "not F('blocked')"
+```bash
+jn todo "@blocked_by=#12,#15 deploy"
+jn close 15
+jn ls @todo --unblocked
+jn tag 42 @blocked_by-=vendor
 ```
 
-Config is TOML, layered: builtin, then `~/.jn`, then every `.jn` from `/` down to the current directory, nearer wins. `jn -h` prints the layers in order and every action and filter with its source.
+Projects and subtasks are conventions. Use a normal entry as the project head and point children at it with `@parent=#N`. `jn ls --all --tree` renders the complete hierarchy. `--tree` only nests rows selected by the query, so filters or the default view can omit a parent or child. Tag-only grouping also works when no head entry is needed.
 
-Project `.jn` (data only):
+### Attachments
+
+`jn attach [ID] PATH...` copies files to `<journal>.files/` beside the database, names them with the first 16 hexadecimal characters of the SHA-256 digest plus the lowercased extension, and adds the names to `@files`. Identical content is stored once. Omit the ID to attach to the latest entry.
+
+`@files` is the link. `jn tag 1 @files-=<name>` detaches a file; it does not delete it. Back up the `.files/` directory with the journal. Files are never deleted automatically.
+
+## Configuration
+
+Configuration is layered: built-ins, `~/.jn`, then every `.jn` from filesystem root to the current directory. Nearer files override named settings; `tags` accumulate and `favorites` merge with nearer tags first. `jn -h` prints the active layers plus effective tags, filters, and actions.
+
+Project `.jn` files are data-only. They may add tags, token filters, actions, databases, colors, favorites, and a display timezone. Python expressions are accepted only in `~/.jn`: project expressions are ignored.
 
 ```toml
+# project/.jn
 tags = ["project=cube-reps"]
+tz = "America/New_York"
+favorites = ["todo", "due"]
 
 [filters]
 open = "@todo -@done"
 
 [actions]
 bug = ["log @todo @bug $@"]
+
+[dbs]
+work = "journal.jsonl"
+
+[colors]
+todo = "#FF7A1A"
 ```
 
-`~/.jn` (the only file that may hold Python):
+A filter is either a token string beginning with `@`, `-@`, or `--`, which expands into `ls` arguments, or a Python expression evaluated for each entry. Python filters use `tag(name)`, `default(name)`, `env(name)`, `cwd`, `F(name)`, and raw `id`, `created`, `updated`, `content`, and `tags` fields. `tag` returns a list, `[]` for a bare tag, or `None` when absent. `default` returns the tags a new entry would receive.
 
 ```toml
+# ~/.jn only
 tags_expr = "'@workspace=' + cwd.split('/')[4] if cwd.startswith(env('HOME') + '/code/') else ''"
 
 [filters]
 overdue = "tag('todo') is not None and (tag('due') or ['9'])[0] < __import__('datetime').date.today().isoformat()"
-claude  = "(tag('agent') or [''])[0].startswith('claude:')"
 ```
 
-Python namespace:
+`tags_expr` can return a string or list of tags and can use `env()` and `cwd`. Tag precedence is built-in agent tag, configured `tags`, `tags_expr`, `JN_TAGS`, then tags in the entry text.
 
-- `tag('name')` returns the value as a list of items, `[]` for a bare tag, `None` if absent. `tag('name', id)` reads another entry. The `@` is optional.
-- `env('VAR')` returns the variable or `None`. The `$` is optional.
-- `default('name')` has the same shape, read from the tags `log` would stamp right now (config, `tags_expr`, `$JN_TAGS`, `$USER`). So `tag('project') == default('project')` means "in the project I'm standing in".
-- `cwd` is the working directory, `F('name')` evaluates another filter.
-- `id created updated content tags` are the raw entry fields, `tags` being `{name: value}`.
+`JN_TAGS` adds tags for a shell or session. `JN_DB` sets the database path; `--db` takes precedence for one command. Named databases under `[dbs]` resolve relative paths against the `.jn` that names them. `favorites` orders web tag chips, and `[colors]` sets their colors.
 
-`tags_expr` sees `env()` and `cwd` and returns a string or list of tags.
+## Agent documentation
 
-`$JN_TAGS` adds tags per shell or session. `$JN_DB` overrides `~/.jn.db`, and `--db=<path>` overrides it for one run (anywhere on the line, any command). Name journals under `[dbs]` in any `.jn` and `--db=<name>` resolves them; `jn -h` lists them. `tz = "UTC"` in any `.jn` sets the display timezone.
-
-```toml
-[dbs]
-work = "~/work.jn.db"
-notes = "~/notes/journal.db"
-```
-
-`favorites = ["todo", "due"]` pins tags to the top of the web tag column, and `[colors]` (`todo = "#FF7A1A"`) tints their chips; both are data, so a project `.jn` may set them, layered like `[dbs]` with the nearer file first. `jn -h` lists both.
-
-## Agents
-
-`skills/jn/SKILL.md` tells an agent when and how to write entries. Symlink it into your tool's skills dir:
+`skills/jn/SKILL.md` is the small entry point for agents. It links to detailed pages for task workflow, configuration, and journaling. Install it in a tool's skills directory:
 
 ```bash
 ln -s ~/code/jn/skills/jn ~/.claude/skills/jn
 ```
 
-The skill is split for progressive discovery: `SKILL.md` (CLI + querying) points to deeper pages an agent pulls on demand via `jn --skill <page>` (`config`, `todo`, `journal`; no arg prints the overview). The pages ship with the package, so `jn --skill` works after `uv tool install` too.
+Installed packages include those pages, so `jn --skill`, `jn --skill todo`, `jn --skill config`, and `jn --skill journal` work without a checkout.
 
-## Web
-
-```bash
-jn serve                     # http://127.0.0.1:8787, --host/--port to change
-```
-
-Capture box on top (**Add**, or ⌘↩), filter box (same tokens as `ls`, mirrored in the URL as `?q=`, so a view is a link), named-filter chips, day-grouped list, and a tag column on the right (under the filter on a phone): every tag in view with its count, `favorites` from config first with a ● and always shown, `[colors]` tinting their chips; click one to add it to the filter. Tap an entry and it opens in place: its tag chips are the tag editor (click one to edit it, ✕ drops it, type in the trailing field to add; the `@` is optional there and completion still pops), the text below is the content rendered as GitHub-flavored markdown (headings, lists, task boxes, code, quotes, tables, links, images; raw HTML shows literally), and `#N` / `@tag` anywhere in it are links. Click the rendered text (or press `e`) to edit it in place in a box that grows with it, Escape goes back to the rendered view keeping your draft, and ticking a task box writes `[x]` straight into the entry. Clicking anywhere outside closes it. Clicking `jn` returns to the default view. Installable as a PWA from the phone. A dropdown in the masthead switches between `[dbs]` journals (names only, never paths). The **tree** chip nests entries under their `@parent=#N` like `ls --tree` (no day breaks in that mode); **Add subtask** in an entry seeds the composer with `@parent=#N @todo`. Typing `@` pops known tag names, `=` their known values. **+ save view** writes the filter box as a token filter under `[filters]` in `~/.jn`, so it is a `--name` in the CLI too; the ✕ on such a chip removes it (only token strings are ever written, never Python). **Attach** in an open entry (or paste/drop files onto its text) uploads to the same `.files/` dir; images show as thumbnails below the content, other files as links, ✕ detaches. Files are served at `/files/<name>` (`?db=` picks a `[dbs]` journal). `POST /api/<verb>` with a JSON body (`ls tags show log tag edit attach config vocab filter dbs`, plus an optional `db` name on any of them) calls the library directly, so config and filters apply as in the shell it was started from; `close` is `tag @done`, and `[actions]` are CLI-only. **No auth.** Keep it on loopback and front it with Cloudflare Zero Trust / Tailscale if you want it from a phone. Entries logged from the web carry whatever `@agent` the server's shell would stamp, so start it from a human shell.
-
-## Backup and sync
-
-The db is SQLite, but the portable form is jsonl. `--json` sorts keys, so a dump is stable and diffs cleanly in git:
+## Web UI
 
 ```bash
-jn ls --all --json > journal.jsonl && git -C ~/journal commit -am "$(date +%F)"
+jn serve                     # http://127.0.0.1:8787
+jn serve --host 127.0.0.1 --port 9000
 ```
 
-Restore or move machines by piping it back — `import` upserts by id, so pointers survive and re-imports are idempotent:
+The browser UI accepts the same query tokens as `ls` and exposes a POST API. The default listener is loopback. It has no authentication; do not bind it to an untrusted network unless another layer protects it.
+
+## Backup and storage
+
+SQLite is the default. `jn ls --all --json` produces a stable, key-sorted JSONL export suitable for version control:
 
 ```bash
-jn import < journal.jsonl                 # whole file
-jn ls --since 3d --all --json | jn import  # or just a slice
+jn ls --all --json > journal.jsonl
+git -C ~/journal add journal.jsonl && git -C ~/journal commit -m "$(date +%F)"
+
+jn import < journal.jsonl
 ```
 
-git is the sync layer: dump/commit/push on one machine, pull/`import` on another. `import` only touches the ids in the stream; it never deletes.
+`import` upserts only IDs in the stream. It preserves pointers and is idempotent, but it does not delete missing entries or import history. Use it to move current journal state; retain native JSONL files or SQLite backups when history matters.
 
-### Storage formats
+A database path ending in `.jsonl` or `.json` is a native JSONL journal. Each line holds `id`, `created`, `updated`, `content`, and `tags`, plus `history` when present. Entries are sorted by ID; keys are sorted; writes use an atomic replacement. jn loads a native JSONL journal into in-memory SQLite for each process and rewrites the file after a successful write. Use this format for journals with thousands of entries.
 
-A db path ending in `.jsonl` (or `.json`) *is* the journal: one entry per line, sorted by id, keys sorted, trailing newline, so it lives in git and diffs cleanly. Anything else is SQLite as before. Point at one with `$JN_DB`, `--db=journal.jsonl`, or a `[dbs]` name:
-
-```toml
-[dbs]
-proj = "journal.jsonl"        # relative paths resolve against the .jn that names them
-```
-
-Each line is the `ls --all --json` shape (`id created updated content tags`) plus an optional `history` list of `{at, content}` (prior versions, as `jn history` shows them). A missing file is an empty journal, created on the first write; the parent directory must exist. Under the hood jn loads the file into an in-memory SQLite per process and rewrites the whole file atomically after every write, so it's fine for thousands of entries, not millions. `jn import` into a jsonl db works, and `ls --json` output is unchanged (no `history` key).
-
-Ids are plain integers, so two machines appending offline will both mint the same next id and git will show a conflict on that line. Resolve it by hand or `import` one side's dump into the other; that is the accepted ceiling, there is no merge driver.
-
-**From beads** (github.com/steveyegge/beads, the `bd` tracker for agents): taken: the JSONL file is the thing you commit, one record per line, in a stable order with stable key order so diffs are per-entry, and SQLite is a disposable per-machine cache rebuilt from the file. Rejected: the `.beads/` directory with a gitignored `.db` beside the JSONL and a debounced two-way sync between them (jn has no cache to drift, it reloads per run and rewrites per commit); hash ids (`bd-a1b2`) to dodge merge collisions (integers keep `#N` pointers readable, collisions are rare and `import` handles them); the git merge driver, daemon, and Dolt backend.
+A missing native JSONL file starts as an empty journal; its parent directory must already exist. Two machines that append offline can mint the same next integer ID and produce a Git conflict. Resolve that conflict manually or import one side's export into the other. jn has no merge driver or sync protocol.
 
 ## Not included
 
-`rm`, tag rename, date comparison on values, sync. All scriptable via `--json`.
+No `rm`, tag rename, date comparisons on tag values, merge driver, or sync service. JSONL output keeps those workflows scriptable.

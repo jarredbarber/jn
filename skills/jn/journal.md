@@ -1,49 +1,50 @@
-# jn: journaling workflow (agents)
+# jn journaling for agents
 
-The journal is shared by the user and every agent. Your entries are how the user (and the next agent) sees what happened.
+The journal gives people and future agents a durable handoff without a transcript, so a few specific notes matter more than a step-by-step activity log.
 
-## Attribution is automatic
+## Attribution
 
-`jn` stamps `@agent=claude:<session-id>` (or `agy:<id>`) on everything you log, derived from your environment. **Don't add `@by` or `@agent` yourself** — it's already there. Project tags come from `.jn` files automatically too.
-
-Filter to your own work with `--mine` (entries stamped the way you'd stamp now):
+`jn log` adds `@agent=claude:<session-id>` or `@agent=agy:<id>` from the current environment. `.jn` configuration can add project tags. Do not add `@agent`, `@by`, or duplicate project tags yourself.
 
 ```bash
-jn ls --mine --since today        # what I did today
-jn ls @agent=claude:* --all       # anything by a claude agent
+jn ls --mine --since today        # entries this environment would create
+jn ls @agent=claude:* --all       # all Claude entries, including done work
 ```
 
-## At session start
+## Session start
+
+Read project work before acting:
 
 ```bash
-jn ls --open          # open tasks in this project (or `jn ls @todo`)
-jn ls --mine --last 5 # your recent context
+jn ls --open
+jn ls --mine --last 5
 ```
 
-## What to write, and when
+If `--open` is unavailable, use `jn ls @todo -@done`.
 
-- **Finished a task the user asked for:** `jn close ID`, then a one-line `jn log` of what actually changed.
-- **Decision or blocker worth remembering:** `jn log "chose X over Y because … @re=#42"`.
-- **Follow-up work you noticed:** `jn todo "…"`, one line. Don't fix it silently and forget it.
-- **Don't** log routine tool calls or step-by-step progress. One entry per milestone, not per command.
+## What to record
 
-## Linking
+- Completed user work: close its task, then log one concise result linked with `@re=#ID`.
+- A decision or blocker that changes later work: state the decision and its reason.
+- Newly discovered follow-up work: create a one-line `todo` entry.
 
-`@re=#ID` comments on or links to another entry; `jn show ID` lists everything pointing at it as backlinks. Use it to thread progress under a task instead of writing disconnected notes:
+Do not log ordinary tool calls, partial progress, or every command. One milestone creates one journal entry.
 
 ```bash
-jn log "middleware approach worked, tests green @re=#42"
-jn show 42            # the task + all its @re / @parent backlinks with titles
+jn log "used middleware because it centralizes token checks @re=#42"
+jn todo "measure refresh-token expiry behavior @re=#42"
 ```
 
-## Multi-line entries
+## Links and full entries
+
+A tag value of `#ID` creates a backlink. `@re=#ID` is the convention for a progress note; `@parent=#ID` makes a subtask. `jn show ID` prints those backlinks below the editable document.
 
 ```bash
 jn log <<'EOF'
 Finished auth refactor @re=#42
-- moved token check to middleware
-- open question: refresh-token expiry
+- moved token checks to middleware
+- left refresh-token expiry open
 EOF
 ```
 
-Body comes from stdin (or `$EDITOR` if interactive). `jn edit ID` replaces a whole entry; `jn tag ID …` patches tags only. See `jn --skill todo` for task structure and `jn --skill config` for filters/tags.
+Body text comes from stdin, or `$EDITOR` in an interactive shell. `jn edit ID` replaces an entire entry, including its tag line. `jn tag ID ...` changes tags without replacing the body. See `jn --skill todo` for task structure and `jn --skill config` for project settings.

@@ -1,49 +1,56 @@
-# jn: task workflow
+# jn task workflow
 
-## Basics
+The built-in actions cover the normal path; the sections below cover the exceptions.
+
+## Create and close tasks
 
 ```bash
-jn todo "ship the parser"                           # adds @todo, prints id
-jn close 42                                         # adds @done, prints tasks it unblocked
-jn ls @todo --unblocked                             # actionable now (nothing open blocking them)
+jn todo "ship the parser"             # creates @todo and prints the entry ID
+jn close 42                            # adds @done and prints newly unblocked tasks
+jn ls @todo --unblocked                # tasks with no unresolved blockers
 ```
 
-`@todo`/`@done` are just tags the default `todo`/`close` actions apply. `jn ls` hides `@done` by default (see `jn --skill config` to change the default filter).
+`@todo` and `@done` are ordinary tags applied by the default `todo` and `close` actions. The built-in `default` filter hides done tasks, archived entries, and subtasks. See `jn --skill config` to change those defaults.
 
 ## Projects and subtasks
 
-There is no project type — a project is a normal entry with children pointing at it via `@parent=#N`:
+A project is a normal entry. Give its children `@parent=#N`:
 
 ```bash
-jn log "auth rewrite"                          # -> 50, the project "head"
-jn todo "@parent=#50 move token check to middleware"
-jn todo "@parent=#50 refresh-token expiry"
+jn log "auth rewrite"                         # prints 50: project head
+jn todo "@parent=#50 move token check"
+jn todo "@parent=#50 set refresh-token expiry"
 ```
 
-- `jn ls @parent=#50` — the children of #50.
-- `jn show 50` — the head plus its children as `<- #N @parent title` backlinks.
-- `jn ls @todo --tree` — nest children under parents visually (`--tree=blocked_by` trees any pointer tag).
+- `jn ls @parent=#50` lists the children of entry 50.
+- `jn show 50` prints the project and its `@parent` backlinks.
+- `jn ls --all --tree` renders a complete parent/child hierarchy.
+- `jn ls --all --tree=blocked_by` can tree any pointer tag.
+The default filter includes `-@parent`, so `jn ls` shows project heads and standalone tasks. `--tree` only nests rows selected by the query; use `--all` when a tree needs both the parent and its children. A query that names `@parent` lifts that hide, but it returns only entries carrying that tag. Tag-only grouping also works: apply `@auth` to related entries and query `jn ls @auth`. Use a project head only when the project itself should appear as an entry.
 
-To make `jn ls` show only high-level items (project heads + standalone tasks) and hide subtasks, add `-@parent` to the default filter. Mentioning `@parent` in a query lifts the hide, so `jn ls @parent=#50` still works. See `jn --skill config`.
-
-Tag-only grouping (no head entry) also works: tag everything `@auth`, then `jn ls @auth` and `jn tags` for a per-tag rollup. Use a head entry when you want the project itself to be one line in `jn ls`.
-
-## Blocking
+## Blockers
 
 ```bash
-jn todo "@blocked_by=#12,#15 deploy"   # blocked until 12 AND 15 are @done
-jn close 15                            # prints what this freed
-jn ls @todo --unblocked                # 'deploy' appears once nothing blocks it
+jn todo "@blocked_by=#12,#15 deploy"
+jn close 15
+jn ls @todo --unblocked
 ```
 
-A `#N` item blocks until entry N is `@done`. A bare word (`@blocked_by=vendor`) is a manual block you clear with `jn tag ID @blocked_by-=vendor`.
+Each `#N` item blocks until entry `N` has `@done`; every listed blocker must be resolved. A non-pointer item is a manual blocker. Clear it explicitly:
+
+```bash
+jn tag 42 @blocked_by-=vendor
+```
+
+`jn close N` prints tasks that become unblocked because `N` was closed.
 
 ## Due dates
 
 ```bash
-jn tag 42 @due=tomorrow      # date words resolve to ISO when written
-jn tag 42 @due=3d            # +3 days; @due=2026-10-01 for an explicit date
-jn ls @due=2026-10-01        # filter by the stored ISO value
+jn tag 42 @due=tomorrow
+jn tag 42 @due=3d
+jn tag 42 @due=2026-10-01
+jn ls @due=2026-10-01
 ```
 
-Define an `overdue` filter in `~/.jn` if you want it (see `jn --skill config`).
+Date words resolve to ISO dates when written. They do not move on later days. Define an `overdue` filter in `~/.jn` when needed; `jn --skill config` includes an example.

@@ -1,74 +1,97 @@
 ---
 name: jn
-description: Microjournal and task log shared by humans and agents. Use at session start to see open tasks, at milestones to log progress, and whenever creating or finishing tasks.
+description: Shared microjournal and task log for humans and agents.
 ---
 
 # jn
 
-`jn` is a CLI journal. Entries are text plus tags (`@name` or `@name=value`). Lead with tags, then text: `jn log "@re=#42 parser handles nested lists"`. Leading/trailing tags are stripped from the saved text; tags mid-sentence stay as prose.
-
-**Attribution is automatic:** `jn` stamps `@agent=claude:<session-id>` on everything you log, and project tags come from `.jn` files. Don't add `@agent` or `@project` yourself.
-
-## Commands
+`jn` stores text entries with tags. Write tags as `@name` or `@name=value`; values are comma-separated lists. Put tags at the beginning or end of an entry so jn stores them as metadata instead of prose.
 
 ```bash
-jn ls --open                    # open tasks in this project (run at session start)
-jn todo "write tests for X"     # -> prints id
-jn close 42                     # mark task 42 done; prints anything it unblocked
-jn tag 42 @blocked_by+=#7 -@urgent   # patch tags: @k sets, += / -= edit items, -@ drops. unmentioned tags stay
-jn tag 42 43 @done              # patch several ids at once
-jn log "milestone: parser works, 3 edge cases left @re=#42"
-jn show 42                      # tags line, blank, content, "<- #N @tag title" backlinks. no id = last entry
-jn edit 42 <<'EOF'              # replaces the WHOLE entry (tags line + content). for tags only use `jn tag`
+jn log "@re=#42 parser handles nested lists"
+```
+
+Agent attribution is automatic. `log` adds `@agent=claude:<session-id>` or `@agent=agy:<id>` when the matching environment variable exists, and `.jn` may add project tags. Do not add duplicate `@agent` or project tags yourself.
+
+## Start here
+
+At the beginning of a session, inspect the project's open work:
+
+```bash
+jn ls --open
+jn ls --mine --last 5
+```
+
+`--open` is a named filter from `.jn`. If the project does not define it, use `jn ls @todo -@done`.
+
+## Common commands
+
+```bash
+jn todo "write tests for parser"             # create @todo task; prints ID
+jn close 42                                   # add @done; prints newly unblocked tasks
+jn log "parser shipped @re=#42"              # record a completed milestone
+jn tag 42 @blocked_by+=#7 -@urgent            # patch tags only
+jn tag 42 43 @done                            # patch several entries
+jn show 42                                    # editable document plus backlinks
+jn history 42                                 # prior versions and current version
+```
+
+Use `jn edit` when replacing the whole entry. Its input includes the tag line and body; use `jn tag` for a tag-only change.
+
+```bash
+jn edit 42 <<'EOF'
 @todo @re=#7
-rewritten text
+
+Rewrote the parser.
 EOF
 ```
 
-Multi-line entries via stdin:
+Multi-line logs read from stdin:
 
 ```bash
 jn log <<'EOF'
 Finished auth refactor @re=#42
-- moved token check to middleware
-- open question: refresh token expiry
+- moved the token check to middleware
+- left refresh-token expiry open
 EOF
 ```
 
 ## Querying
 
-`jn ls` takes any mix of filters, all ANDed:
+`jn ls` combines every filter with AND:
 
-| filter | meaning |
-|---|---|
-| `@todo` | has tag |
-| `-@done` | lacks tag |
-| `@blocked_by=#12` | `#12` is an item of the value's comma list (not substring) |
-| `@agent=claude:*` | any of, `*` is a wildcard |
-| `pushups` | content contains word |
-| `42` | entry id |
-| `--open` | named filter from `.jn`; `jn -h` lists them |
+| Filter | Meaning |
+| --- | --- |
+| `@todo` | Has a tag. |
+| `-@done` | Does not have a tag. |
+| `@blocked_by=#12` | The tag list contains `#12`. |
+| `@agent=claude:*` | Any Claude agent entry. |
+| `pushups` | Content contains the word. |
+| `42` | Entry ID. |
+| `--open` | Named filter from `.jn`. |
 
-Options: `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--mine`, `--tree` (nest by `@parent=#N`), `--json` (jsonl), `--md`, `--all`. Done/archived are hidden unless you pass `--all`, an id, or `@done`/`@archived`.
+Options include `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--mine`, `--tree`, `--json`, `--md`, and `--all`.
 
 ```bash
-jn ls @todo -@done @agent=claude:*       # open tasks by any claude agent
-jn ls --since yesterday --json           # machine-readable, one entry per line
-jn tags                                  # tag -> count: where the work clusters
-jn history 42                            # prior versions (tags + content)
+jn ls @todo -@done @agent=claude:*
+jn ls --since yesterday --json
+jn ls @todo --unblocked
+jn tags
 ```
 
-## Deeper topics
-
-Pull these on demand — they print to stdout:
-
-- `jn --skill todo` — task workflow: projects, `@parent` subtasks, `@blocked_by`, `@due`, collapsing.
-- `jn --skill config` — `.jn` files: default tags, custom filters, actions, timezone, per-session tags.
-- `jn --skill journal` — journaling workflow for agents: what to write, when, and how to link.
+By default, `ls` hides `@done`, `@archived`, and `@parent`. Mentioning one of those tags, passing an entry ID, or using `--all` lifts that default filter.
 
 ## When to write
 
-- After finishing a task the user asked for: `jn close ID`, then a one-line `jn log` of what changed.
-- At a decision point or blocker worth remembering: `jn log`.
-- When you spot follow-up work: `jn todo`, one line.
-- Don't log routine tool calls. One entry per milestone, not per step.
+- After completing a user-requested task: close its entry, then log one line describing the change.
+- At a durable decision or blocker: log the decision and link it with `@re=#ID` when relevant.
+- When you find follow-up work: create one `todo` entry.
+- Do not log routine tool calls or step-by-step progress. One entry per milestone.
+
+## More detail
+
+Print pages only when needed:
+
+- `jn --skill todo`: projects, subtasks, blockers, and due dates.
+- `jn --skill config`: `.jn`, filters, actions, timezones, and session tags.
+- `jn --skill journal`: attribution, milestones, and linking.

@@ -97,12 +97,12 @@ with tempfile.TemporaryDirectory() as d:
     assert "walked" in run("show", b, **env) and "v6" in run("history", b, **env)   # reverts are versioned
     p1 = run("todo", "@tree root", **env); p2 = run("todo", "@tree @parent=#" + p1 + " child", **env)
     p3 = run("todo", "@tree @parent=#" + p2 + " grandchild", **env); p4 = run("todo", "@tree @parent=#999 orphan", **env)
-    out = run("ls", "@tree", "--tree", **env).splitlines()[1:]
+    out = run("ls", "@tree", "--all", "--tree", **env).splitlines()[1:]
     assert [l.split()[0] for l in out] == [p1, p2, p3, p4] and "    grandchild" in out[2] and out[3].split("  ")[3] == "orphan", out
     run("tag", p1, p2, "@multi", **env)
-    assert ids(run("ls", "@multi", **env)) == [p1, p2]
+    assert ids(run("ls", "@multi", "--all", **env)) == [p1, p2]
     run("close", p3, p4, **env)
-    assert ids(run("ls", "@tree", **env)) == [p1, p2]                        # multi-arg action runs per arg
+    assert ids(run("ls", "@tree", "-@done", "--all", **env)) == [p1, p2]     # multi-arg action runs per arg
     g = run("log", "agy note", **{**env, "CLAUDE_CODE_SESSION_ID": "", "ANTIGRAVITY_CONVERSATION_ID": "cv9"})
     assert js(run("ls", g, "--json", **env))[0]["tags"]["agent"] == "agy:cv9"   # second env var wins when first is unset
     hh = run("log", "human note", **{**env, "CLAUDE_CODE_SESSION_ID": ""})
@@ -175,7 +175,7 @@ with tempfile.TemporaryDirectory() as d:
     assert "live" in [f["name"] for f in post("config")[1]["filters"]]
     assert post("dbs")[1] == ["alt", "jl"] and post("ls", db="alt", args=["--all"])[1][0]["content"] == "in alt" and post("ls", args=["--all"])[1][0]["content"] == "from the web"
     post("log", text="@todo parent task"); post("log", text="@todo @parent=#2 child task"); post("log", text="@todo loose")
-    t = post("ls", args=["--tree"])[1]
+    t = post("ls", args=["-@done", "--all", "--tree"])[1]
     assert [(r["id"], r["depth"]) for r in t] == [(4, 0), (2, 0), (3, 1)], t      # newest root first, child under its parent
     assert "depth" not in post("ls")[1][0]
     assert post("ls", db="/nope/x.db")[0] == 400 and post("ls", db="nope")[0] == 400   # names only from the web
