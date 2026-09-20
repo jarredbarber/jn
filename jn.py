@@ -53,7 +53,7 @@ class JsonlConn(sqlite3.Connection):
         super().__exit__(*exc)
         if exc[0] is None:
             lines = []
-            for r in query([]):  # ordered by id, sorted keys: stable bytes -> clean diffs
+            for r in query([]):  # ordered by created,id; sorted keys: stable bytes -> clean diffs
                 h = [{"at": a, "content": t} for a, t in self.execute("SELECT at,content FROM history WHERE entry=? ORDER BY rowid", (r["id"],))]
                 lines.append(json.dumps(r | ({"history": h} if h else {}), sort_keys=True) + "\n")
             tmp = self.path.with_name(self.path.name + ".tmp")
@@ -366,7 +366,7 @@ def query(tokens, since_=None):
             where.append("content LIKE ?"); params.append(f"%{w}%")
     if since_:
         where.append("created>=?"); params.append(to_utc(dateword(since_, future=False)))
-    sql = "SELECT id,created,updated,content FROM entry" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id"
+    sql = "SELECT id,created,updated,content FROM entry" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY created, id"
     c = db()
     rows = [dict(zip(COLS, r)) for r in c.execute(sql, params)]
     for r in rows:  # ponytail: N+1 tag fetch, join+group if ls ever feels slow
