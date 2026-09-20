@@ -153,6 +153,15 @@ with tempfile.TemporaryDirectory() as d:
     assert sl[0] == f"<- #{r2} @re  first reply" and sl[1] == f"  <- #{r3} @re  nested reply", sl   # @re backlinks nest by depth
     run("edit", r1, stdin=run("show", r1, **env), **env)                          # indented backlink lines strip on round-trip
     assert js(run("ls", r1, "--json", **env))[0]["content"] == "root of the thread"
+    literal = r"\@todo explain \@re=#42 -\@done \@tail"
+    escaped = run("log", literal, "@real", **env)
+    before = js(run("ls", escaped, "--json", **env))[0]
+    assert before["content"] == literal and "real" in before["tags"]
+    assert not {"todo", "re", "done", "tail"} & before["tags"].keys(), before
+    history = run("history", escaped, **env)
+    run("edit", escaped, stdin=run("show", escaped, **env), **env)
+    assert js(run("ls", escaped, "--json", **env))[0] == before
+    assert run("history", escaped, **env) == history  # escaped words remain prose across edits
     print("ok")
 
     # jn serve: the library over HTTP. stdin never read, errors are 400s, tags-only log rejected
@@ -196,6 +205,32 @@ with tempfile.TemporaryDirectory() as d:
     assert post("edit", db="jl", id=9, text="@todo\n\nweb edit")[0] == 200 and post("show", db="jl", id=9)[1]["text"] == "@todo\n\nweb edit\n"
     jrows = {json.loads(l)["id"]: json.loads(l) for l in Path(jl).read_text().splitlines()}
     assert "done" in jrows[10]["tags"] and jrows[9]["content"] == "web edit" and len(jrows[9]["history"]) == 1, jrows
+    # A live JSONL server must reload CLI writes before reads AND mutations, without losing old versions.
+    jcli = int(run("log", "@todo cli original", **jenv))
+    run("edit", str(jcli), stdin="@todo\n\ncli revised", **jenv)
+    cli_history = run("history", str(jcli), **jenv)
+    r = post("ls", db="jl", args=["--all"])
+    assert r[0] == 200 and {e["id"]: e["content"] for e in r[1]}[jcli] == "cli revised", r
+    jlate = int(run("log", "@todo cli after web read", **jenv))  # no intervening web read before its write
+    before_web = {e["id"]: e for e in js(Path(jl).read_text())}
+    r = post("log", db="jl", text="@todo web after cli")
+    assert r[0] == 200 and r[1] not in before_web, r
+    jweb = r[1]
+    cli_rows = {e["id"]: e["content"] for e in js(run("ls", "--all", "--json", **jenv))}
+    assert {i: cli_rows[i] for i in (jcli, jlate, jweb)} == {jcli: "cli revised", jlate: "cli after web read", jweb: "web after cli"}, cli_rows
+    after_web = {e["id"]: e for e in js(Path(jl).read_text())}
+    assert {i: after_web[i] for i in before_web} == before_web  # every preexisting entry, tag and history survives
+    assert run("history", str(jcli), **jenv) == cli_history
+    # Even malformed external edits must invalidate the cache, never be overwritten by a stale web snapshot.
+    saved = Path(jl).read_text(); broken = saved + "{broken\n"
+    Path(jl).write_text(broken)
+    assert post("ls", db="jl", args=["--all"])[0] == 400
+    assert post("log", db="jl", text="must not overwrite malformed journal")[0] == 400
+    assert Path(jl).read_text() == broken
+    Path(jl).write_text(saved)
+    assert post("tag", db="jl", id=jweb, patch=["@recovered"])[0] == 200
+    assert "recovered" in js(run("ls", str(jweb), "--json", **jenv))[0]["tags"]
+    assert run("history", str(jcli), **jenv) == cli_history
     assert ids(run("ls", "--fit", "--all", **env)) == []
     png = b"\x89PNG\r\n\x1a\n" + b"x" * 8                                    # attachments over HTTP
     def get(p):

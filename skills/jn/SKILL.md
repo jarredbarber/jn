@@ -11,6 +11,8 @@ description: Shared microjournal and task log for humans and agents.
 jn log "@re=#42 parser handles nested lists"
 ```
 
+For a literal tag-shaped word, write `\@name` (for example, `jn log 'Discuss \@todo'`). The backslash stays in the entry so later edits do not turn the word into a tag. Quote shell input to preserve it.
+
 Agent attribution is automatic. `log` adds `@agent=claude:<session-id>` or `@agent=agy:<id>` when the matching environment variable exists, and `.jn` may add project tags. Do not add duplicate `@agent` or project tags yourself.
 
 ## Start here

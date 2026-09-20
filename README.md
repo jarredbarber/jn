@@ -45,6 +45,8 @@ jn tag 42 @due=tomorrow @owner=jarred
 jn tag 42 @owner+=sam @client-=acme -@meeting
 ```
 
+Escape a literal `@` with a backslash: `jn log 'Explain \@todo and \@re=#42'` creates neither tag. Keep the backslash in stored text and edit buffers so `show` → `edit` remains safe. In a shell, quote the text so the backslash reaches jn; the web composer accepts `\@` directly.
+
 `@k=value` replaces a tag value; `@k+=value` appends unique items; `@k-=value` removes items and leaves a bare tag when none remain; and `-@k` removes the tag. Unmentioned tags do not change, and the final occurrence of a repeated tag wins.
 
 Date words in tag values resolve when written: `today`, `tomorrow`, `yesterday`, and signed durations such as `3d`, `2w`, or `-3d` become ISO dates. The stored date does not move later.
@@ -219,7 +221,7 @@ jn import < journal.jsonl
 
 `import` upserts only IDs in the stream. It preserves pointers and is idempotent, but it does not delete missing entries or import history. Use it to move current journal state; retain native JSONL files or SQLite backups when history matters.
 
-A database path ending in `.jsonl` or `.json` is a native JSONL journal. Each line holds `id`, `created`, `updated`, `content`, and `tags`, plus `history` when present. Entries are sorted by ID; keys are sorted; writes use an atomic replacement. jn loads a native JSONL journal into in-memory SQLite for each process and rewrites the file after a successful write. Use this format for journals with thousands of entries.
+A database path ending in `.jsonl` or `.json` is a native JSONL journal. Each line holds `id`, `created`, `updated`, `content`, and `tags`, plus `history` when present. Entries are sorted by ID; keys are sorted; writes use an atomic replacement. jn loads a native JSONL journal into in-memory SQLite and rewrites the file after a successful write. The web server reloads it before each request so intervening CLI changes remain visible and survive later web writes. Simultaneous writes from separate processes are not coordinated; use SQLite when writers may overlap. Use JSONL for journals with thousands of entries.
 
 A missing native JSONL file starts as an empty journal; its parent directory must already exist. Two machines that append offline can mint the same next integer ID and produce a Git conflict. Resolve that conflict manually or import one side's export into the other. jn has no merge driver or sync protocol.
 

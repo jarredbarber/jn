@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#14261F">
 <title>jn</title>
 <link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2314261F'/%3E%3Ctext x='9' y='47' font-family='Georgia,serif' font-size='44' font-style='italic' fill='%23F2EFE6'%3Ej%3Ctspan font-style='normal' font-weight='bold' fill='%23FF7A1A'%3En%3C/tspan%3E%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:ital,wght@0,300..700;1,300..700&display=swap" rel="stylesheet">
@@ -78,20 +79,21 @@ button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .side .lab { color:var(--mute); font-size:13px; margin-bottom:8px }
 .side .chips { gap:4px }
 /* activity heatmap (github-style), #7 */
-#cal { display:grid; grid-template-rows:repeat(7, 1fr); grid-auto-flow:column; gap:3px; margin-bottom:22px }
+#cal { display:grid; grid-template-rows:repeat(7, 1fr); grid-auto-flow:column; gap:3px; margin-bottom:22px; position:relative }
 #cal .cell { width:100%; aspect-ratio:1; border-radius:2px; background:var(--bg2) }
 #cal .cell.l1 { background:rgba(255,122,26,.3) }
 #cal .cell.l2 { background:rgba(255,122,26,.55) }
 #cal .cell.l3 { background:rgba(255,122,26,.8) }
 #cal .cell.l4 { background:var(--accent) }
 #cal .cell.lx { background:transparent }  /* future days in this week */
+#cal .cell:hover::after { content:attr(aria-label); position:absolute; right:0; bottom:calc(100% + 6px); z-index:10; padding:5px 8px; border:1px solid var(--rule); border-radius:var(--r); background:var(--ink); color:var(--bg); font:13px/1.4 var(--sans); white-space:nowrap; pointer-events:none }
 @media (max-width:760px) { #cal { max-width:340px } }
 
 /* ledger */
 .ledger { margin-top:8px }
-.day { display:grid; grid-template-columns:var(--gutter) 1fr; align-items:end; border-top:3px double var(--ink); margin:34px 0 6px }
+.day { display:grid; grid-template-columns:minmax(var(--gutter), max-content) minmax(0, 1fr); align-items:end; border-top:3px double var(--ink); margin:34px 0 6px }
 .ledger .day:first-child { margin-top:20px }
-.day .num { font:700 64px/0.8 var(--serif); letter-spacing:-.04em; margin-top:-.42em; background:var(--bg); padding-right:8px; width:max-content; color:var(--ink) }
+.day .num { font:700 48px/0.8 var(--serif); letter-spacing:-.04em; margin-top:-.42em; background:var(--bg); padding-right:8px; width:max-content; color:var(--ink) }
 .day .rest { font-size:14px; color:var(--mute); padding:12px 0 6px }
 .day .rest strong { color:var(--ink); font-weight:500; margin-right:10px }
 .entry { display:grid; grid-template-columns:var(--gutter) 1fr; padding:14px 0 12px; border-bottom:1px solid var(--rule); min-width:0 }
@@ -174,7 +176,6 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
   :root { --gutter:56px }
   .mast { padding-top:18px }
   .mast h1 { font-size:34px }
-  .day .num { font-size:52px }
   .head { font-size:16px }
   .entry.child { margin-left:calc(var(--depth) * 14px); padding-left:8px }
 }
@@ -232,10 +233,10 @@ function fromUrl() { const u = new URL(location); if (u.searchParams.has('db')) 
 const entryHref = id => '?q=' + id + (state.db ? '&db=' + encodeURIComponent(state.db) : '');  // #11: shareable link; ⌘-click opens the entry in its own window
 
 // #N and @tag in prose become links
-const refs = s => s.replace(/(^|[\s(=,])#(\d+)\b/g, '$1<a class="ref" data-id="$2">#$2</a>')  // s is already escaped
+const refs = s => s.replace(/(^|[\s(=,])#(\d+)\b/g, (_, p, id) => `${p}<a class="ref" href="${entryHref(id)}" data-id="${id}">#${id}</a>`)  // s is already escaped
                    .replace(/(^|\s)@([A-Za-z_][\w-]*)(=\S+)?/g, '$1<a class="tag" data-tag="$2">@$2$3</a>');
 const linkify = s => refs(esc(s));
-const refify = v => esc(v).replace(/#(\d+)\b/g, '<a class="ref" data-id="$1">#$1</a>');
+const refify = v => esc(v).replace(/#(\d+)\b/g, (_, id) => `<a class="ref" href="${entryHref(id)}" data-id="${id}">#${id}</a>`);
 const tcol = t => { const c = (state.cfg.colors || {})[t] || ''; return /^#[0-9a-f]{3,8}$/i.test(c) ? c : ''; };  // only a #hex gets into a style attr: a project .jn is data, not css
 const chipAttrs = k => { const c = tcol(k); return `class="chip${c ? ' tinted' : ''}"${c ? ` style="--tc:${c}"` : ''} data-tag="${esc(k)}"`; };
 const tagChip = (k, v, extra = '') => `<span ${chipAttrs(k)} ${extra}>@${esc(k)}${v ? '=' + refify(v) : ''}</span>`;
@@ -290,7 +291,8 @@ function renderCal() {  // #7: per-day entry counts for the current view, last 1
   for (let i = 0; i < weeks * 7; i++, cell.setDate(cell.getDate() + 1)) {
     const t = +cell, c = cnt[t] || 0;
     const lvl = t > today ? 'x' : c === 0 ? 0 : Math.min(4, Math.ceil(c / max * 4));
-    cells += `<i class="cell l${lvl}" title="${cell.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}: ${c}"></i>`;
+    const label = cell.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) + `: ${c} ${c === 1 ? 'entry' : 'entries'}`;
+    cells += `<i class="cell l${lvl}" role="img" aria-label="${esc(label)}"></i>`;
   }
   $('#cal').innerHTML = cells;
 }
@@ -345,7 +347,7 @@ addEventListener('popstate', () => { fromUrl(); renderNamed(); refresh(); });
 
 // clicks: view chips, tag chips, refs, entries
 document.body.addEventListener('click', e => {
-  if (e.target.closest('.editor')) return;  // the editor handles its own
+  if (e.target.closest('.editor') && !e.target.closest('a.ref[data-id],a.tag[data-tag]')) return;  // editor controls stay local; references share navigation everywhere
   const del = e.target.closest('[data-del]');
   if (del) { e.stopPropagation(); saveFilter(del.dataset.del, null); return; }
   const a = e.target.closest('[data-tok],[data-id],[data-tag]');
@@ -381,7 +383,7 @@ async function openEntry(id, scroll = true) {
     if (!ed) { ed = document.createElement('div'); ed.className = 'editor'; art.querySelector('.body').appendChild(ed); }
     const done = 'done' in tags;
     ed.innerHTML = `<div class="tagrow">${Object.entries(tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v, `data-k="${esc(k)}"`).replace('</span>', '<span class="x" data-rm="' + esc(k) + '">✕</span></span>')).join('')}<input class="tagin" placeholder="add a tag: @k=v, ↩"></div>
-      ${ancestors.map(a => `<div class="anc"><a class="ref" data-id="${a.id}">#${a.id}</a>${md(a.content)}</div>`).join('')}
+      ${ancestors.map(a => `<div class="anc"><a class="ref" href="${entryHref(a.id)}" data-id="${a.id}">#${a.id}</a>${md(a.content)}</div>`).join('')}
       <div class="md">${md(row.content)}</div>
       <textarea class="content" hidden>${esc(row.content)}</textarea>
       <div class="att">${attHtml(tags)}</div>
@@ -396,15 +398,11 @@ async function openEntry(id, scroll = true) {
     ed.querySelector('.act-save').onclick = () => save(ta.value);
     ed.edit = () => { ed.classList.add('editing'); mdEl.hidden = true; ta.hidden = false; ta.oninput?.(); ta.focus(); };  // rendered -> textarea
     const cancel = () => { ed.classList.remove('editing'); ta.hidden = true; mdEl.hidden = false; ta.value = row.content; };  // drop the draft, back to rendered
-    ed.querySelectorAll('.anc').forEach(a => a.onclick = e => { const r = e.target.closest('a.ref'); if (r) { e.stopPropagation(); openEntry(+r.dataset.id); } });  // parent thread: #N opens that entry
     ed.querySelector('.act-edit').onclick = ed.edit;
     ed.querySelector('.act-cancel').onclick = cancel;
-    mdEl.onclick = e => {  // ponytail: click-to-edit dropped (#4); only links/checkboxes act now
-      const t = e.target.closest('a,input,img');
-      if (!t) return;
-      if (t.dataset.id) openEntry(+t.dataset.id);
-      else if (t.dataset.tag) { const tok = '@' + t.dataset.tag; if (!has(tok)) setQuery([...tokens(), tok].join(' ')); }
-      else if (t.dataset.task) save(mdToggle(row.content, +t.dataset.task));  // ponytail: flips the saved text, not an unsaved draft
+    mdEl.onclick = e => {  // click-to-edit is off; reference navigation is delegated with the rest of the page
+      const t = e.target.closest('input[data-task]');
+      if (t) save(mdToggle(row.content, +t.dataset.task));  // flips the saved text, not an unsaved draft
     };
     const doneBtn = ed.querySelector('.act-done');
     if (doneBtn) doneBtn.onclick = () => patch([done ? '-@done' : '@done']);
@@ -419,10 +417,10 @@ async function openEntry(id, scroll = true) {
     const addin = ed.querySelector('.tagin'); acAttach(addin, true);
     addin.addEventListener('keydown', e => { if (e.key === 'Enter' && addin.value.trim()) { patch(addin.value.trim().split(/\s+/).map(atify)); addin.value = ''; } });
     ed.querySelector('.tagrow').onclick = e => {
+      if (e.target.closest('a.ref')) return;  // references use the shared handler, including modified clicks
       e.stopPropagation();  // a chip may be swapped for an input below; a detached target must not reach the body handler
-      const rm = e.target.closest('[data-rm]'), ref = e.target.closest('a.ref'), chip = e.target.closest('[data-k]');
+      const rm = e.target.closest('[data-rm]'), chip = e.target.closest('[data-k]');
       if (rm) { patch(['-@' + rm.dataset.rm]); return; }
-      if (ref) { openEntry(+ref.dataset.id); return; }
       if (!chip) return;
       const k = chip.dataset.k, v = ed.tags[k], was = '@' + k + (v ? '=' + v : ''), inp = document.createElement('input');  // click a chip: edit it in place
       inp.className = 'tagin editing'; inp.value = was; inp.size = was.length + 2;
@@ -560,7 +558,8 @@ function acUpdate(field) {
   let list, prefix;
   if (eq) { list = (state.vocab[name] || []).filter(v => v.startsWith(part) && !done.split(',').includes(v)).map(v => sigil + name + '=' + done + v); prefix = sigil + name + '=' + done + part; }
   else { list = Object.keys(state.vocab).filter(n => n.startsWith(name)).map(n => sigil + n); prefix = sigil + name; }
-  list = list.filter(t => t !== sigil + prefix.slice(typed.length)).slice(0, 12); prefix = typed + prefix.slice(sigil.length);
+  if (eq) list = list.filter(t => t !== sigil + name + '=' + done + part);
+  prefix = typed + prefix.slice(sigil.length);  // keep every matching name, including an exact match; the popup scrolls
   if (!list.length) return acHide();
   ac.field = field; ac.items = list; ac.sel = 0; ac.span = [before.length - prefix.length, before.length];
   ac.el.innerHTML = list.map((t, i) => `<div class="${i ? '' : 'sel'}" data-i="${i}">${esc(t)}</div>`).join('');

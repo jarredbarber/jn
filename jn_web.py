@@ -96,13 +96,16 @@ def server(jn, host, port):
             seen[0] = stamp; jn.config.cache_clear()
 
     def use(name):
-        """point the library at a [dbs] name (or the startup db) for this request; db() is cached per path"""
+        """select this request's journal; JSONL snapshots last only one request so CLI edits stay visible"""
         fresh()
         if name and name not in jn.config()["dbs"]:
             raise SystemExit(f"no db named {name}; add it under [dbs] in .jn")  # names only from the web, never paths
         path = jn.db_path(name) if name else default_db
-        if path != jn.DB:
-            jn.DB = path; jn.db.cache_clear()
+        if path != jn.DB or path.suffix in (".jsonl", ".json"):
+            if jn.db.cache_info().currsize:
+                jn.db().close()
+            jn.db.cache_clear()
+            jn.DB = path
 
     class H(BaseHTTPRequestHandler):
         def send(self, code, body, ctype="application/json"):
