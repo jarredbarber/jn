@@ -331,7 +331,7 @@ async function openEntry(id, scroll = true) {
       <textarea class="content" hidden>${esc(row.content)}</textarea>
       <div class="att">${attHtml(tags)}</div>
       <div class="back">${backlinks.split('\n').filter(Boolean).map(linkify).join('\n')}</div>
-      <div class="actions"><button class="primary act-save">Save changes</button><button class="act-done">${done ? 'Reopen' : 'Mark done'}</button><button class="act-sub">Add subtask</button><button class="act-att">Attach</button><input class="att-in" type="file" multiple hidden><button class="quiet act-close">Close</button><span class="err"></span></div>`;
+      <div class="actions"><button class="primary act-save">Save changes</button>${'todo' in tags ? `<button class="act-done">${done ? 'Reopen' : 'Mark done'}</button>` : ''}<button class="act-sub">Reply</button><button class="act-att">Attach</button><input class="att-in" type="file" multiple hidden><button class="quiet act-close">Close</button><span class="err"></span></div>`;
     ed.tags = tags;
     const fail = e => ed.querySelector('.err').textContent = e.message;
     const patch = async p => { try { await api('tag', { id, patch: p }); await refresh(); } catch (e) { fail(e); } };
@@ -347,8 +347,9 @@ async function openEntry(id, scroll = true) {
       else if (t.dataset.tag) { const tok = '@' + t.dataset.tag; if (!has(tok)) setQuery([...tokens(), tok].join(' ')); }
       else if (t.dataset.task) save(mdToggle(row.content, +t.dataset.task));  // ponytail: flips the saved text, not an unsaved draft
     };
-    ed.querySelector('.act-done').onclick = () => patch([done ? '-@done' : '@done']);
-    ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@parent=#${id} @todo `; closeEntry(); c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };
+    const doneBtn = ed.querySelector('.act-done');
+    if (doneBtn) doneBtn.onclick = () => patch([done ? '-@done' : '@done']);
+    ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@re=#${id} `; closeEntry(); c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };
     ed.querySelector('.act-close').onclick = closeEntry;
     attWire(ed, id);
     ta.onkeydown = e => {
