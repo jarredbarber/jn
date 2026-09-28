@@ -29,7 +29,7 @@ DB = Path(os.environ.get("JN_DB", Path.home() / ".jn.db"))
 TAG = re.compile(r"(?:^|(?<=\s))(-?)@([A-Za-z_]\w*(?:-\w+)*)(?:([+-]?=)(\S+))?")
 TOK = r"-?@[A-Za-z_]\w*(?:-\w+)*(?:[+-]?=\S+)?"
 LEAD, TRAIL = re.compile(rf"^(?:{TOK}(?:\s+|$))+"), re.compile(rf"(?:(?:^|\s+){TOK})+$")
-BACKLINK = re.compile(r"^[ \t]*<- #\d+ @\S+.*$", re.M)  # indented: show nests @re replies by depth
+BACKLINK = re.compile(r"^[ \t]*<- #\d+ @\S+.*$", re.M)  # indented: show nests @parent children by depth
 COLS = ("id", "created", "updated", "content")
 AGENT = {"CLAUDE_CODE_SESSION_ID": "claude", "ANTIGRAVITY_CONVERSATION_ID": "agy"}  # env -> @agent prefix; first match wins
 ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's args. override/extend in [actions]
@@ -226,24 +226,24 @@ def entry_text(eid, c=None):
 
 
 def backlinks(eid, depth=0, seen=None):
-    """<- #N @tag title, one per pointer. @re replies recurse (2 spaces per level, capped) so show is the thread"""
+    """<- #N @tag title, one per pointer. @parent children recurse (2 spaces per level, capped) so show is the thread"""
     seen = set() if seen is None else seen
     if eid in seen or depth > 10:
         return ""
     seen.add(eid)
     rows = db().execute("SELECT t.entry, t.name, e.content FROM tagged t JOIN entry e ON e.id=t.entry WHERE t.value=? ORDER BY t.entry", (f"#{eid}",)).fetchall()
-    return "".join("  " * depth + f"<- #{e} @{n}  {c.splitlines()[0][:60]}\n" + (backlinks(e, depth + 1, seen) if n == "re" else "")
-                   for e, n, c in rows if n == "re" or not depth)  # below the top only the reply chain nests
+    return "".join("  " * depth + f"<- #{e} @{n}  {c.splitlines()[0][:60]}\n" + (backlinks(e, depth + 1, seen) if n == "parent" else "")
+                   for e, n, c in rows if n == "parent" or not depth)  # below the top only the @parent chain nests
 
 
-def re_parent(row):
-    """entry id a row replies to (@re=#N), else None"""
-    return next((int(i[1:]) for i in aslist(row["tags"], "re") or [] if i.startswith("#") and i[1:].isdigit()), None)
+def parent_of(row):
+    """entry id of a row's first @parent=#N, else None"""
+    return next((int(i[1:]) for i in aslist(row["tags"], "parent") or [] if i.startswith("#") and i[1:].isdigit()), None)
 
 
-def re_quotes(rows, width=80):
-    """row id -> '↳ #N  <first line of N>' for rows with @re=#N; one query for every parent"""
-    want = {r["id"]: p for r in rows if (p := re_parent(r))}
+def parent_quotes(rows, width=80):
+    """row id -> '↳ #N  <first line of N>' for rows with @parent=#N; one query for every parent"""
+    want = {r["id"]: p for r in rows if (p := parent_of(r))}
     if not want:
         return {}
     ids = sorted(set(want.values()))
@@ -439,9 +439,9 @@ def show(rows, fmt, tree=None):
         textw = max(20, width - 5 - 2 - 11 - 2 - tagw - 2)
         cut = lambda t, w: t if len(t) <= w else t[:w - 1] + "…"
         print(f"{'id':>5}  {'when':<11}  {'text':<{textw}}  tags" + (f"  (all: {fmt_tags(common)})" if common else ""))
-        quotes = re_quotes(rows)
+        quotes = parent_quotes([r for r in rows if not depth.get(r["id"])])  # nested rows already sit under their parent
         for r, t in zip(rows, own):
-            if q := quotes.get(r["id"]):  # muted context line above a reply
+            if q := quotes.get(r["id"]):  # muted context line above a child
                 print(f"{'':>5}  {'':<11}  " + cut("  " * depth.get(r["id"], 0) + q, textw))
             lines = r["content"].splitlines() or [""]
             head = "  " * depth.get(r["id"], 0) + lines[0] + (" …" if len(lines) > 1 else "")

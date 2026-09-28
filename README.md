@@ -5,7 +5,7 @@ A local microjournal and task log for people and agents. One Python file, standa
 ```bash
 jn todo "do 10 pushups @fitness"        # prints 1
 jn close 1                               # adds @done; prints tasks that became unblocked
-jn log "shipped discovery @re=#1"
+jn log "shipped discovery @parent=#1"
 jn log <<'EOF'
 - chose X over Y
 EOF
@@ -45,19 +45,19 @@ jn tag 42 @due=tomorrow @owner=jarred
 jn tag 42 @owner+=sam @client-=acme -@meeting
 ```
 
-Escape a literal `@` with a backslash: `jn log 'Explain \@todo and \@re=#42'` creates neither tag. Keep the backslash in stored text and edit buffers so `show` → `edit` remains safe. In a shell, quote the text so the backslash reaches jn; the web composer accepts `\@` directly.
+Escape a literal `@` with a backslash: `jn log 'Explain \@todo and \@parent=#42'` creates neither tag. Keep the backslash in stored text and edit buffers so `show` → `edit` remains safe. In a shell, quote the text so the backslash reaches jn; the web composer accepts `\@` directly.
 
 `@k=value` replaces a tag value; `@k+=value` appends unique items; `@k-=value` removes items and leaves a bare tag when none remain; and `-@k` removes the tag. Unmentioned tags do not change, and the final occurrence of a repeated tag wins.
 
 Date words in tag values resolve when written: `today`, `tomorrow`, `yesterday`, and signed durations such as `3d`, `2w`, or `-3d` become ISO dates. The stored date does not move later.
 
-Every tag value equal to `#N` is a pointer to entry `N`. jn does not reserve relationship types: `@re=#42`, `@parent=#42`, and `@blocks=#42` are conventions. `jn show 42` lists every pointer as a backlink. Its output round-trips through `jn edit`; backlink lines are ignored on input.
+Every tag value equal to `#N` is a pointer to entry `N`. jn does not reserve relationship types: `@parent=#42` and `@blocks=#42` are conventions. `jn show 42` lists every pointer as a backlink. Its output round-trips through `jn edit`; backlink lines are ignored on input.
 
 `jn tag` patches tags. `jn edit` replaces the complete document, including its first tag line. A changed entry (content or tags) keeps its prior document in history. No-op changes do not add a history version.
 
 ```bash
 jn edit 42 <<'EOF'
-@todo @re=#7
+@todo @parent=#7
 
 Rewrote the parser.
 EOF

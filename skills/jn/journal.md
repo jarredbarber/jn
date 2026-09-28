@@ -24,24 +24,24 @@ If `--open` is unavailable, use `jn ls @todo -@done`.
 
 ## What to record
 
-- Completed user work: close its task, then log one concise result linked with `@re=#ID`.
+- Completed user work: close its task, then log one concise result linked with `@parent=#ID`.
 - A decision or blocker that changes later work: state the decision and its reason.
 - Newly discovered follow-up work: create a one-line `todo` entry.
 
 Do not log ordinary tool calls, partial progress, or every command. One milestone creates one journal entry.
 
 ```bash
-jn log "used middleware because it centralizes token checks @re=#42"
-jn todo "measure refresh-token expiry behavior @re=#42"
+jn log "used middleware because it centralizes token checks @parent=#42"
+jn todo "measure refresh-token expiry behavior (follow-up to #42)"
 ```
 
 ## Links and full entries
 
-A tag value of `#ID` creates a backlink. `@re=#ID` is the convention for a progress note; `@parent=#ID` makes a subtask. `jn show ID` prints those backlinks below the editable document.
+A tag value of `#ID` creates a backlink. `@parent=#ID` files an entry under another: a note is a reply, a `@todo` is a subtask. Children are hidden from `jn ls` by default. `jn show ID` prints those backlinks below the editable document.
 
 ```bash
 jn log <<'EOF'
-Finished auth refactor @re=#42
+Finished auth refactor @parent=#42
 - moved token checks to middleware
 - left refresh-token expiry open
 EOF

@@ -16,7 +16,7 @@ The list carried by a present tag. `@k=a,b` is the two-item list; a query `@k=a,
 
 ## Pointer
 
-`#N` — a reference to Entry N, whether in prose or inside a tag value (`@parent=#42`). `#` is *never* a tag sigil; `#42` is a pointer, `# Heading` is prose. No relationship types exist: `@parent`, `@re`, `@blocked_by` are naming conventions, not schema.
+`#N` — a reference to Entry N, whether in prose or inside a tag value (`@parent=#42`). `#` is *never* a tag sigil; `#42` is a pointer, `# Heading` is prose. No relationship types exist: `@parent`, `@blocked_by` are naming conventions, not schema.
 
 ## Backlink
 

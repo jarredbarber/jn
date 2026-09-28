@@ -21,13 +21,13 @@ def verbs(jn):
         rs = jn.select(pos, opts)
         if t := opts.get("tree"):
             rs = [r | {"depth": d} for r, d in jn.as_tree(rs[::-1], "parent" if t is True else t)]
-        q = jn.re_quotes(rs)  # @re=#N context line, batched; only on rows that have one
-        return [r | {"re_ctx": q[r["id"]]} if r["id"] in q else r for r in rs]
+        q = jn.parent_quotes([r for r in rs if not r.get("depth")])  # @parent=#N context line, batched; nested rows already sit under theirs
+        return [r | {"parent_ctx": q[r["id"]]} if r["id"] in q else r for r in rs]
 
     def show(id):
         row = jn.select([str(int(id))], {"all": True})
-        anc, seen, r = [], {int(id)}, row[0] if row else None  # @re chain walked up: root first, cycle-safe, capped
-        while r and (p := jn.re_parent(r)) and p not in seen and len(anc) < 10:
+        anc, seen, r = [], {int(id)}, row[0] if row else None  # @parent chain walked up: root first, cycle-safe, capped
+        while r and (p := jn.parent_of(r)) and p not in seen and len(anc) < 10:
             seen.add(p); pr = jn.select([str(p)], {"all": True}); r = pr[0] if pr else None
             if r: anc.append(r)
         return {"text": jn.entry_text(int(id)), "backlinks": jn.backlinks(int(id)), "row": row[0] if row else None, "ancestors": anc[::-1]}

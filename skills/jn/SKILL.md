@@ -8,7 +8,7 @@ description: Shared microjournal and task log for humans and agents.
 `jn` stores text entries with tags. Write tags as `@name` or `@name=value`; values are comma-separated lists. Put tags at the beginning or end of an entry so jn stores them as metadata instead of prose.
 
 ```bash
-jn log "@re=#42 parser handles nested lists"
+jn log "@parent=#42 parser handles nested lists"
 ```
 
 For a literal tag-shaped word, write `\@name` (for example, `jn log 'Discuss \@todo'`). The backslash stays in the entry so later edits do not turn the word into a tag. Quote shell input to preserve it.
@@ -31,7 +31,7 @@ jn ls --mine --last 5
 ```bash
 jn todo "write tests for parser"             # create @todo task; prints ID
 jn close 42                                   # add @done; prints newly unblocked tasks
-jn log "parser shipped @re=#42"              # record a completed milestone
+jn log "parser shipped @parent=#42"          # record a completed milestone
 jn tag 42 @blocked_by+=#7 -@urgent            # patch tags only
 jn tag 42 43 @done                            # patch several entries
 jn show 42                                    # editable document plus backlinks
@@ -42,7 +42,7 @@ Use `jn edit` when replacing the whole entry. Its input includes the tag line an
 
 ```bash
 jn edit 42 <<'EOF'
-@todo @re=#7
+@todo @parent=#7
 
 Rewrote the parser.
 EOF
@@ -52,7 +52,7 @@ Multi-line logs read from stdin:
 
 ```bash
 jn log <<'EOF'
-Finished auth refactor @re=#42
+Finished auth refactor @parent=#42
 - moved the token check to middleware
 - left refresh-token expiry open
 EOF
@@ -86,7 +86,7 @@ By default, `ls` hides `@done`, `@archived`, and `@parent`. Mentioning one of th
 ## When to write
 
 - After completing a user-requested task: close its entry, then log one line describing the change.
-- At a durable decision or blocker: log the decision and link it with `@re=#ID` when relevant.
+- At a durable decision or blocker: log the decision and link it with `@parent=#ID` when relevant.
 - When you find follow-up work: create one `todo` entry.
 - Do not log routine tool calls or step-by-step progress. One entry per milestone.
 

@@ -265,7 +265,7 @@ async function refresh() {
       const lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
       html += `<article class="entry ${'done' in r.tags ? 'done' : ''} ${r.depth ? 'child' : tree ? 'tree-root' : ''}" style="--depth:${r.depth || 0}" data-id="${r.id}">
         <div class="gut"><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><a class="eid" href="${entryHref(r.id)}" data-id="${r.id}" title="Open this entry (⌘-click for a new window)">#${r.id}</a></div>
-        <div class="body">${r.re_ctx ? `<p class="requote">${linkify(r.re_ctx)}</p>` : ''}<p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
+        <div class="body">${r.parent_ctx ? `<p class="requote">${linkify(r.parent_ctx)}</p>` : ''}<p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
         <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div></div></article>`;
     }
     $('#list').innerHTML = html || '<p class="empty">Nothing matches. Write something, or loosen the filter.</p>';
@@ -406,7 +406,7 @@ async function openEntry(id, scroll = true) {
     };
     const doneBtn = ed.querySelector('.act-done');
     if (doneBtn) doneBtn.onclick = () => patch([done ? '-@done' : '@done']);
-    ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@re=#${id} `; c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };  // #4: keep the entry open so it can be referenced while replying
+    ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@parent=#${id} `; c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };  // #4: keep the entry open so it can be referenced while replying
     ed.querySelector('.act-close').onclick = closeEntry;
     attWire(ed, id);
     ta.onkeydown = e => {

@@ -15,29 +15,29 @@ with tempfile.TemporaryDirectory() as d:
     Path(d, ".jn").write_text('tags = ["global"]\nfavorites = ["due", "home"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[colors]\ntodo = "#000"\ndue = "#0ff"\n[filters]\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
     Path(d, "proj/sub/.jn").write_text('tags_expr = "[\'@evil\']"\n')  # must be ignored
 
-    ids = lambda out: [l.split()[0] for l in out.splitlines()[1:] if l.split()[:1] and l.split()[0].isdigit()]   # skip header + @re context lines
+    ids = lambda out: [l.split()[0] for l in out.splitlines()[1:] if l.split()[:1] and l.split()[0].isdigit()]   # skip header + @parent context lines
     js = lambda out: [json.loads(l) for l in out.splitlines() if l]        # --json is jsonl
     a = run("todo", "@fitness do 10 pushups", "@daily", **env)
-    b = run("log", stdin="# Heading\nwalked @agent=claude:s1 @re=#" + a, **env)
+    b = run("log", stdin="# Heading\nwalked @agent=claude:s1 @see=#" + a, **env)
     run("close", a, **env)
     rows = js(run("ls", "--json", "--all", **env))
     assert rows[0]["content"] == "do 10 pushups" and rows[1]["content"] == "# Heading\nwalked", rows
     t0, t1 = rows[0]["tags"], rows[1]["tags"]
     assert t0["ws"] == "sub" and "evil" not in t0 and t0["agent"] == "claude:s0", t0   # builtin @agent from env
     assert "todo" in t0 and "done" in t0 and t0["project"] == "demo" and "global" in t0, t0   # close adds @done, keeps @todo
-    assert t1["agent"] == "claude:s1" and t1["re"] == "#" + a and "Heading" not in t1, t1   # text overrides the builtin
+    assert t1["agent"] == "claude:s1" and t1["see"] == "#" + a and "Heading" not in t1, t1   # text overrides the builtin
     assert run("ls", "--open", **env) == ""                                 # token filter from project .jn, nothing open
     assert ids(run("ls", "@agent=claude:*", **env))[0] == b                 # value glob (a is @done, hidden)
     assert ids(run("ls", "pushups", "--since", "today", "--all", **env))[0] == a  # text + since
     assert ids(run("ls", "-@done", **env))[0] == b                       # negation
     assert run("show", **env) == run("show", b, **env)                     # no id -> last entry
-    assert run("show", a, **env).endswith(f"<- #{b} @re  # Heading"), run("show", a, **env)   # backlinks with title
+    assert run("show", a, **env).endswith(f"<- #{b} @see  # Heading"), run("show", a, **env)   # backlinks with title
     run("edit", stdin=run("show", **env).replace("walked", "ran") + " @new", **env)   # show (with backlinks) pipes into edit
     e = js(run("ls", b, "--json", **env))[0]
-    assert e["content"] == "# Heading\nran" and e["tags"]["re"] == "#" + a and "new" in e["tags"] and e["tags"]["agent"] == "claude:s1", e
-    run("edit", b, stdin="@agent=claude:s2 @re=#" + a + "\n\nran instead", **env)   # document: buffer is the whole entry (no builtin merge)
+    assert e["content"] == "# Heading\nran" and e["tags"]["see"] == "#" + a and "new" in e["tags"] and e["tags"]["agent"] == "claude:s1", e
+    run("edit", b, stdin="@agent=claude:s2 @see=#" + a + "\n\nran instead", **env)   # document: buffer is the whole entry (no builtin merge)
     e = js(run("ls", b, "--json", **env))[0]
-    assert e["content"] == "ran instead" and e["tags"] == {"agent": "claude:s2", "re": "#" + a}, e
+    assert e["content"] == "ran instead" and e["tags"] == {"agent": "claude:s2", "see": "#" + a}, e
     run("tag", b, "@agent=claude:s1", "@global", **env)          # patch: content untouched
     assert js(run("ls", b, "--json", **env))[0]["content"] == "ran instead"
     assert subprocess.run([sys.executable, JN, "edit", b, "text"], capture_output=True, env={**os.environ, **env}, cwd=env["CWD"]).returncode == 1
@@ -92,13 +92,14 @@ with tempfile.TemporaryDirectory() as d:
     assert e["content"] == "body from stdin" and e["tags"]["note"] is None and e["tags"]["k"] == "v", e
     assert "  note           log @note $@" in h, h
     run("revert", b, **env)                                                  # back to previous version
-    assert run("show", b, **env).startswith("@agent=claude:s2 @re=#" + a + "\n\nran instead"), run("show", b, **env)
+    assert run("show", b, **env).startswith("@agent=claude:s2 @see=#" + a + "\n\nran instead"), run("show", b, **env)
     run("revert", b, "v1", **env)
     assert "walked" in run("show", b, **env) and "v6" in run("history", b, **env)   # reverts are versioned
     p1 = run("todo", "@tree root", **env); p2 = run("todo", "@tree @parent=#" + p1 + " child", **env)
     p3 = run("todo", "@tree @parent=#" + p2 + " grandchild", **env); p4 = run("todo", "@tree @parent=#999 orphan", **env)
     out = run("ls", "@tree", "--all", "--tree", **env).splitlines()[1:]
-    assert [l.split()[0] for l in out] == [p1, p2, p3, p4] and "    grandchild" in out[2] and out[3].split("  ")[3] == "orphan", out
+    assert ids("h\n" + "\n".join(out)) == [p1, p2, p3, p4] and "    grandchild" in out[2] and out[4].split("  ")[3] == "orphan", out
+    assert [l.strip() for l in out if "↳" in l] == ["↳ #999 (missing)"], out     # context only on roots whose parent isn't shown
     run("tag", p1, p2, "@multi", **env)
     assert ids(run("ls", "@multi", "--all", **env)) == [p1, p2]
     run("close", p3, p4, **env)
@@ -125,7 +126,7 @@ with tempfile.TemporaryDirectory() as d:
     assert ids(run("ls", "alt", "--db", f"{d}/alt.db", **env)) and not ids(run("ls", "alt", **env))
     # jsonl storage: a .jsonl db path is the journal itself (one entry per line, sorted by id), sqlite only in memory
     jl = f"{d}/proj/journal.jsonl"; jenv = {**env, "JN_DB": jl}
-    ja = run("todo", "@fitness jsonl pushups", **jenv); jb = run("log", "second @re=#" + ja, **jenv)
+    ja = run("todo", "@fitness jsonl pushups", **jenv); jb = run("log", "second @see=#" + ja, **jenv)
     run("close", ja, **jenv); run("tag", jb, "@k=v", **jenv)
     run("edit", ja, stdin="@todo @done\n\nedited body", **jenv)
     lines = Path(jl).read_text().splitlines()
@@ -135,29 +136,29 @@ with tempfile.TemporaryDirectory() as d:
     run("close", ja, **jenv); assert Path(jl).read_text().splitlines() == lines                     # no-op write: bytes identical
     assert "v3" in run("history", ja, **jenv) and "@fitness" in run("history", ja, **jenv)          # history survives a reload
     run("revert", ja, "v1", **jenv); assert "jsonl pushups" in run("show", ja, **jenv)
-    assert js(run("ls", jb, "--json", **jenv))[0]["tags"] == {"agent": "claude:s0", "global": None, "k": "v", "project": "demo", "re": "#" + ja, "ws": "sub"}
+    assert js(run("ls", jb, "--json", **jenv))[0]["tags"] == {"agent": "claude:s0", "global": None, "k": "v", "project": "demo", "see": "#" + ja, "ws": "sub"}
     assert run("import", stdin=json.dumps({"id": 9, "content": "imported", "tags": {"todo": None}}), **jenv) == "imported 1"
     assert [json.loads(l)["id"] for l in Path(jl).read_text().splitlines()] == [1, 2, 9] and ids(run("ls", "@todo", **jenv)) == ["1", "9"]   # 1 reverted to its @todo-only v1
     Path(d, "proj/.jn").write_text(Path(d, "proj/.jn").read_text() + '[dbs]\njl = "journal.jsonl"\n')   # [dbs] name -> .jsonl, relative to that .jn
     assert ids(run("ls", "imported", "--db=jl", **env)) == ["9"] and ids(run("ls", "--db=jl", "--all", **env)) == ["1", "2", "9"]
-    # replies: @re=#N context line in ls, threaded show
+    # children: @parent=#N context line in ls, threaded show
     r1 = run("log", "@thr root of the thread", **env)
-    r2 = run("log", "@thr @re=#" + r1 + " first reply", **env)
-    r3 = run("log", "@thr @re=#" + r2 + " nested reply", **env)
-    r4 = run("log", "@thr @re=#999 orphan reply", **env)
+    r2 = run("log", "@thr @parent=#" + r1 + " first reply", **env)
+    r3 = run("log", "@thr @parent=#" + r2 + " nested reply", **env)
+    r4 = run("log", "@thr @parent=#999 orphan reply", **env)
     out = run("ls", "@thr", "--all", **env).splitlines()[1:]
     assert ids("h\n" + "\n".join(out)) == [r1, r2, r3, r4], out
     assert out[1].strip() == f"↳ #{r1}  root of the thread", out                 # context line above the reply
     assert out[3].strip() == f"↳ #{r2}  first reply" and out[5].strip() == "↳ #999 (missing)", out
     sl = [l for l in run("show", r1, **env).splitlines() if l.strip().startswith("<-")]
-    assert sl[0] == f"<- #{r2} @re  first reply" and sl[1] == f"  <- #{r3} @re  nested reply", sl   # @re backlinks nest by depth
+    assert sl[0] == f"<- #{r2} @parent  first reply" and sl[1] == f"  <- #{r3} @parent  nested reply", sl   # @parent backlinks nest by depth
     run("edit", r1, stdin=run("show", r1, **env), **env)                          # indented backlink lines strip on round-trip
     assert js(run("ls", r1, "--json", **env))[0]["content"] == "root of the thread"
-    literal = r"\@todo explain \@re=#42 -\@done \@tail"
+    literal = r"\@todo explain \@parent=#42 -\@done \@tail"
     escaped = run("log", literal, "@real", **env)
     before = js(run("ls", escaped, "--json", **env))[0]
     assert before["content"] == literal and "real" in before["tags"]
-    assert not {"todo", "re", "done", "tail"} & before["tags"].keys(), before
+    assert not {"todo", "parent", "done", "tail"} & before["tags"].keys(), before
     history = run("history", escaped, **env)
     run("edit", escaped, stdin=run("show", escaped, **env), **env)
     assert js(run("ls", escaped, "--json", **env))[0] == before

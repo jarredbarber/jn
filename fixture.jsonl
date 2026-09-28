@@ -1,29 +1,29 @@
 {"content": "morning run 5k", "created": "2026-08-20T14:00:00+00:00", "id": 1, "tags": {"agent": null, "daily": null, "done": null, "fitness": null}, "updated": "2026-08-20T14:00:00+00:00"}
 {"content": "write the discovery doc", "created": "2026-08-22T14:00:00+00:00", "id": 2, "tags": {"area": "work", "due": "2026-09-25", "todo": null, "work": "acme"}, "updated": "2026-08-22T14:00:00+00:00"}
 {"content": "ship discovery to client", "created": "2026-08-22T14:00:00+00:00", "id": 3, "tags": {"blocked_by": "#2,#7", "due": "2026-09-30", "todo": null, "work": "acme"}, "updated": "2026-08-22T14:00:00+00:00"}
-{"content": "client wants scope trimmed", "created": "2026-08-23T14:00:00+00:00", "id": 4, "tags": {"agent": "claude:s1", "re": "#2"}, "updated": "2026-08-23T14:00:00+00:00"}
+{"content": "client wants scope trimmed", "created": "2026-08-23T14:00:00+00:00", "id": 4, "tags": {"agent": "claude:s1", "parent": "#2"}, "updated": "2026-08-23T14:00:00+00:00"}
 {"content": "draft the outline", "created": "2026-08-23T14:00:00+00:00", "id": 5, "tags": {"parent": "#2", "todo": null, "work": "acme"}, "updated": "2026-08-23T14:00:00+00:00"}
 {"content": "Chose Postgres over Dynamo for the store.\n- relational queries dominate\n- team already runs PG", "created": "2026-08-24T14:00:00+00:00", "id": 6, "tags": {"decision": null, "work": "acme"}, "updated": "2026-08-24T14:00:00+00:00"}
 {"content": "get sign-off from legal", "created": "2026-08-25T14:00:00+00:00", "id": 7, "tags": {"blocked_by": "#4", "parent": "#2", "todo": null, "work": "acme"}, "updated": "2026-08-25T14:00:00+00:00"}
-{"content": "pinged legal on the MSA", "created": "2026-08-25T14:00:00+00:00", "id": 8, "tags": {"agent": "agy:c1", "done": null, "re": "#7"}, "updated": "2026-08-25T14:00:00+00:00"}
+{"content": "pinged legal on the MSA", "created": "2026-08-25T14:00:00+00:00", "id": 8, "tags": {"agent": "agy:c1", "done": null, "parent": "#7"}, "updated": "2026-08-25T14:00:00+00:00"}
 {"content": "10 pushups", "created": "2026-08-26T14:00:00+00:00", "id": 9, "tags": {"daily": null, "done": null, "fitness": null}, "updated": "2026-08-26T14:00:00+00:00"}
 {"content": "10 pushups", "created": "2026-08-27T14:00:00+00:00", "id": 10, "tags": {"daily": null, "due": "2026-09-19", "fitness": null, "todo": null}, "updated": "2026-08-27T14:00:00+00:00"}
 {"content": "fix login redirect loop", "created": "2026-08-28T14:00:00+00:00", "id": 11, "tags": {"area": "work", "bug": null, "priority": "high", "todo": null}, "updated": "2026-08-28T14:00:00+00:00"}
-{"content": "repro: SSO users bounce between /login and /home", "created": "2026-08-28T14:00:00+00:00", "id": 12, "tags": {"re": "#11"}, "updated": "2026-08-28T14:00:00+00:00"}
+{"content": "repro: SSO users bounce between /login and /home", "created": "2026-08-28T14:00:00+00:00", "id": 12, "tags": {"parent": "#11"}, "updated": "2026-08-28T14:00:00+00:00"}
 {"content": "null deref in the parser on empty input", "created": "2026-08-29T14:00:00+00:00", "id": 13, "tags": {"blocked_by": "#11", "bug": null, "priority": "low", "todo": null}, "updated": "2026-08-29T14:00:00+00:00"}
 {"content": "refactor the config loader", "created": "2026-08-30T14:00:00+00:00", "id": 14, "tags": {"archived": null, "reason": "superseded", "work": "acme"}, "updated": "2026-08-30T14:00:00+00:00"}
 {"content": "book dentist", "created": "2026-08-31T14:00:00+00:00", "id": 15, "tags": {"area": "home", "due": "2026-09-10", "todo": null}, "updated": "2026-08-31T14:00:00+00:00"}
 {"content": "renew car registration", "created": "2026-09-01T14:00:00+00:00", "id": 16, "tags": {"area": "home", "done": null}, "updated": "2026-09-01T14:00:00+00:00"}
 {"content": "plan Q4 roadmap", "created": "2026-09-02T14:00:00+00:00", "id": 17, "tags": {"tags": "planning,strategy", "todo": null, "work": "acme"}, "updated": "2026-09-02T14:00:00+00:00"}
-{"content": "roadmap themes: reliability, onboarding, billing", "created": "2026-09-02T14:00:00+00:00", "id": 18, "tags": {"agent": "claude:s2", "re": "#17"}, "updated": "2026-09-02T14:00:00+00:00"}
+{"content": "roadmap themes: reliability, onboarding, billing", "created": "2026-09-02T14:00:00+00:00", "id": 18, "tags": {"agent": "claude:s2", "parent": "#17"}, "updated": "2026-09-02T14:00:00+00:00"}
 {"content": "read 'Designing Data-Intensive Applications' ch.5", "created": "2026-09-03T14:00:00+00:00", "id": 19, "tags": {"area": "learning", "tags": "reading,distsys", "todo": null}, "updated": "2026-09-03T14:00:00+00:00"}
-{"content": "notes on replication tradeoffs", "created": "2026-09-04T14:00:00+00:00", "id": 20, "tags": {"area": "learning", "re": "#19"}, "updated": "2026-09-04T14:00:00+00:00"}
+{"content": "notes on replication tradeoffs", "created": "2026-09-04T14:00:00+00:00", "id": 20, "tags": {"area": "learning", "parent": "#19"}, "updated": "2026-09-04T14:00:00+00:00"}
 {"content": "migrate CI to the new runners", "created": "2026-09-05T14:00:00+00:00", "id": 21, "tags": {"blocked_by": "#22", "todo": null, "work": "acme"}, "updated": "2026-09-05T14:00:00+00:00"}
 {"content": "provision the runner pool", "created": "2026-09-05T14:00:00+00:00", "id": 22, "tags": {"done": null, "work": "acme"}, "updated": "2026-09-05T14:00:00+00:00"}
 {"content": "weekly review", "created": "2026-09-06T14:00:00+00:00", "id": 23, "tags": {"area": "meta", "daily": null, "done": null}, "updated": "2026-09-06T14:00:00+00:00"}
 {"content": "call mom", "created": "2026-09-07T14:00:00+00:00", "id": 24, "tags": {"area": "home", "due": "2026-09-08", "todo": null}, "updated": "2026-09-07T14:00:00+00:00"}
 {"content": "spike: can we drop the redis dependency?", "created": "2026-09-08T14:00:00+00:00", "id": 25, "tags": {"tags": "spike,infra", "todo": null, "work": "acme"}, "updated": "2026-09-08T14:00:00+00:00"}
-{"content": "redis only used for rate limiting; a token bucket in PG works", "created": "2026-09-09T14:00:00+00:00", "id": 26, "tags": {"agent": "claude:s3", "decision": null, "re": "#25"}, "updated": "2026-09-09T14:00:00+00:00"}
+{"content": "redis only used for rate limiting; a token bucket in PG works", "created": "2026-09-09T14:00:00+00:00", "id": 26, "tags": {"agent": "claude:s3", "decision": null, "parent": "#25"}, "updated": "2026-09-09T14:00:00+00:00"}
 {"content": "update onboarding docs", "created": "2026-09-10T14:00:00+00:00", "id": 27, "tags": {"parent": "#17", "todo": null, "work": "acme"}, "updated": "2026-09-10T14:00:00+00:00"}
 {"content": "archive the old marketing site", "created": "2026-09-11T14:00:00+00:00", "id": 28, "tags": {"archived": null, "area": "work"}, "updated": "2026-09-11T14:00:00+00:00"}
 {"content": "stretch 15 min", "created": "2026-09-12T14:00:00+00:00", "id": 29, "tags": {"daily": null, "fitness": null, "todo": null}, "updated": "2026-09-12T14:00:00+00:00"}

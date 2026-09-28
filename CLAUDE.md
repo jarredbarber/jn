@@ -2,7 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-`jn` is a microjournal + task log for humans and agents. **Stdlib only, no dependencies.** Core is `jn.py`; `jn serve` (web UI) lives in `jn_web.py` + `jn_web.html` and only imports the core. See `README.md` for the full user-facing model, tag syntax, filters, and config; this file is only what isn't in there.
+`jn` is a microjournal + task log for humans and agents. Core is `jn.py`; `jn serve` (web UI) lives in `jn_web.py` + `jn_web.html` and only imports the core. See `README.md` for the full user-facing model, tag syntax, filters, and config; this file is only what isn't in there.
+
+## Philosophy / Project Tenets
+
+The main goal is to be **maximally generic** and avoid prescribing behavior as much as possible
+
+- The data model is simple: Journal entries with kv-style tags and cross-refs (`#42`)
+- Behavior is "emergent": New use cases or custom data organization enabled via creative uses of the tags. 
+- Minimize "special" tags. 
+
+## Special tags
+
+The current special tags are:
+
+**DB**: None
+**Default Config**: `@archived`, `@todo`, `@done`, `@parent`, `@blocked_by`, `@agent` (auto-stamped via `builtin_tags()`, used by `--mine`)
+**CLI** (hardcoded in `jn.py`): `@files` (`attach`), `@parent` (`show` nests children, `ls` prints a `↳ #N` context line on rows whose parent isn't shown; `--tree` defaults to it, but any pointer tag works).
+**Web UI** (`jn_web.html`/`jn_web.py`): `@todo` (shows the Mark done button), `@done` (struck-through, done toggle), `@files` (attachment embeds, hidden from tag chips), `@parent` (Reply button, ancestor thread above an expanded entry)
+
+Adding a tag to these lists needs a reason. Prefer a config filter or action.
 
 ## Commands
 
@@ -34,7 +53,7 @@ python3 jn.py close 4                          # complete task #4 (stamps @done)
 
 ## Architecture
 
-`jn.py` is the whole program (~450 lines). Entry point is `cli()` (in `[project.scripts]`), which calls `main(argv)`.
+`jn.py` is the whole program (~570 lines). Entry point is `cli()` (in `[project.scripts]`), which calls `main(argv)`.
 
 - **Storage:** SQLite at `~/.jn.db` (`$JN_DB` / `--db=` override). Portable form is jsonl via `--json` / `import` (upsert by id, idempotent — that's the sync/backup layer, git holds the file). A db path ending in `.jsonl`/`.json` is loaded into an in-memory SQLite (`JsonlConn`) and the whole file is rewritten on every commit (leaving `with db() as c`), so all write paths go through that `with`. The web server discards JSONL snapshots before each request to preserve intervening CLI writes; simultaneous writers remain uncoordinated.
 - **Config layering** (`config()`): builtin defaults → `~/.jn` → every `.jn` from `/` down to cwd, nearer wins. TOML. Holds `tags`, `[actions]`, `[filters]`.
