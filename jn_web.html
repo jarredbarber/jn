@@ -34,15 +34,23 @@ button, input, textarea, select { font:inherit; color:inherit }
 #dbsel { background:var(--field); color:var(--ink); border:1px solid var(--rule); border-radius:var(--r); padding:4px 8px; font-size:14px }
 #viewseg { margin-left:auto; gap:4px }
 #viewseg .chip { padding:6px 16px; font-size:14px }
-/* lens + write, one bar under the header */
-.bar { display:flex; gap:24px; align-items:flex-start; padding:14px 40px; border-bottom:1px solid var(--rule) }
-.bar label { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--mute); padding-top:12px; flex:none }
-.lens { flex:1 1 55%; display:flex; gap:12px; min-width:0 }
-.lens input { flex:1; min-width:0 }
-.composer { flex:1 1 40%; display:flex; gap:12px; min-width:0 }
-.cbody { flex:1; min-width:0 }
-.composer .actions, .composer .att:empty { display:none }
-.composer:focus-within .actions { display:flex }
+/* write (primary) centered on top, lens under it */
+.bar { padding:22px 40px 14px; border-bottom:1px solid var(--rule) }
+.composer, .lens { max-width:820px; margin:0 auto }
+.composer .att:empty { display:none }
+#capture { font-size:17px; padding:14px 16px; min-height:84px }
+.lens { margin-top:16px }
+.lens summary { cursor:pointer; list-style:none; display:flex; gap:10px; align-items:baseline; color:var(--mute); font-size:12px; letter-spacing:.08em; text-transform:uppercase }
+.lens summary::-webkit-details-marker { display:none }
+.lens summary::before { content:'▸'; font-size:10px } .lens[open] summary::before { content:'▾' }
+#lenssum { text-transform:none; letter-spacing:0; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap } .lens[open] #lenssum { display:none }
+.lensbox { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; background:var(--field); border:1px solid var(--rule); border-radius:var(--r); padding:6px 8px }
+.lensbox:focus-within { border-color:var(--ink) }
+#atoms { display:contents }
+.atom { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--ink); border-radius:var(--r); padding:2px 4px 2px 9px; font-size:14px; line-height:1.4; background:var(--bg) }
+.atom button { border:0; padding:0 4px; font-size:12px; opacity:.55; line-height:1 } .atom button:hover { opacity:1; color:var(--accent); background:none }
+#filter { flex:1; min-width:160px; border:0; background:transparent; padding:5px 4px; font-size:15px }
+#expanded { margin-top:6px; color:var(--mute); font-size:12px; line-height:1.4; word-break:break-word }
 /* composer */
 textarea, input { width:100%; background:var(--field); border:1px solid var(--rule); border-radius:var(--r); padding:12px 14px; color:var(--ink) }
 textarea::placeholder, input::placeholder { color:var(--mute) }
@@ -59,8 +67,6 @@ button.primary kbd { font:500 11px/1 var(--sans); opacity:.65; margin-left:8px; 
 button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .err { color:var(--accent); font-size:13px }
 
-/* lens */
-.lens input { font-size:15px; padding:9px 12px }
 .chips { display:flex; flex-wrap:wrap; gap:6px }
 .chip { display:inline-flex; align-items:center; gap:0; background:transparent; border:1px solid var(--rule); border-radius:var(--r); padding:3px 9px; font-size:13px; cursor:pointer; white-space:nowrap; color:var(--ink); line-height:1.4 }
 .chip:hover { border-color:var(--mute) }
@@ -208,9 +214,7 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
   .side { border-right:0; border-bottom:1px solid var(--rule); padding:16px }
   #list { padding:0 16px }
   .mast { padding:14px 16px; flex-wrap:wrap }
-  .bar { flex-direction:column; gap:8px; padding:12px 16px }
-  .lens, .composer { flex:none; width:100% }
-  .bar label { padding-top:12px; width:44px }
+  .bar { padding:14px 16px }
 }
 @media (max-width: 600px) {
   :root { --gutter:56px }
@@ -225,15 +229,19 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 <div class="col">
 <header class="mast"><h1><a href="/" id="home">j<b>n</b></a></h1><select id="dbsel" hidden></select><span class="statwrap"><span id="dbpath" title=""></span><span id="status"></span></span><nav class="chips" id="viewseg" aria-label="View"></nav></header>
 <div class="bar">
-<div class="lens"><label for="filter">Lens</label><input id="filter" placeholder="@todo -@done @k=v word --since 1w --tree"></div>
-<div class="composer"><label for="capture">Write</label><div class="cbody">
-  <textarea id="capture" placeholder="@todo @parent=#412 …  (tags anywhere, @todo makes a task)" rows="1"></textarea>
+<div class="composer">
+  <textarea id="capture" placeholder="Write it down. @tags anywhere, @todo makes a task, @parent=#412 files it under an entry." rows="2"></textarea>
   <div class="actions">
     <button class="primary" id="save">Add <kbd>⌘↩</kbd></button>
     <span id="cap-err" class="err"></span>
   </div>
   <div class="att" id="pending"></div>
-</div></div>
+</div>
+<details class="lens" id="lens" open>
+  <summary>Lens <span id="lenssum"></span></summary>
+  <div class="lensbox"><span id="atoms"></span><input id="filter" placeholder="@todo -@done @k=v word --since 1w --tree"></div>
+  <div id="expanded"></div>
+</details>
 </div>
 <div class="main">
 <aside class="side" id="tags"><div class="lab">views</div><div id="named"></div><input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn"><div class="lab">activity</div><div id="cal"></div><div class="lab">written by</div><div id="who"></div><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
@@ -257,7 +265,23 @@ async function api(verb, body = {}) {
 }
 
 // the query is the filter box; --name and --tree live in it as tokens, and the URL mirrors it
-const tokens = () => $('#filter').value.trim().split(/\s+/).filter(Boolean);
+// the lens: finished @tags and --options are atoms (blocks with an x); the box holds what's still being typed
+const isAtom = t => /^(-?@|--)\S/.test(t), TAKES = ['--since', '--last'];
+state.atoms = [];
+const tokens = () => [...state.atoms.flatMap(a => a.split(' ')), ...$('#filter').value.trim().split(/\s+/).filter(Boolean)];
+function commitAtoms() {  // typed words that are complete atoms move out of the box; --since keeps its value
+  const ts = $('#filter').value.trim().split(/\s+/).filter(Boolean), keep = [];
+  for (let i = 0; i < ts.length; i++) {
+    if (TAKES.includes(ts[i])) { if (i + 1 < ts.length) state.atoms.push(ts[i] + ' ' + ts[++i]); else keep.push(ts[i]); }
+    else if (isAtom(ts[i])) state.atoms.push(ts[i]); else keep.push(ts[i]);
+  }
+  $('#filter').value = keep.join(' ') + (keep.length ? ' ' : ''); renderAtoms();
+}
+function setInput(q) { state.atoms = []; $('#filter').value = q; commitAtoms(); $('#filter').value = $('#filter').value.trim(); }
+function renderAtoms() {
+  $('#atoms').innerHTML = state.atoms.map((a, i) => `<span class="atom">${esc(a)}<button data-atom="${i}" aria-label="Remove ${esc(a)}">✕</button></span>`).join('');
+  $('#lenssum').textContent = tokens().join(' ');
+}
 const has = t => tokens().includes(t);
 const byTok = () => tokens().filter(t => /^--by(=|$)/.test(t)).pop();  // --by[=tag]: roots view; the last one wins
 const ago = t => { const s = (Date.now() - new Date(t)) / 1e3; return s < 3600 ? Math.max(1, Math.round(s / 60)) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
@@ -270,8 +294,8 @@ const chevron = open => `<svg width="12" height="12" viewBox="0 0 14 14" fill="n
 function renderGroups(res, q) {  // A's ledger: one row per root (or tag value); the newest root starts open with its latest activity beneath
   const total = res.groups.reduce((s, g) => s + g.n, 0);
   return `<div class="rootsbar">${res.groups.length} ${res.pointer ? 'roots' : 'groups'} <span>· ${total} ${res.pointer ? 'entries beneath' : 'entries'} · newest activity first</span></div>` + res.groups.map((g, i) => {
-    const gk = g.row ? String(g.row.id) : 'v:' + g.key, open = state.exp[gk] ?? i === 0;
-    const drill = res.pointer ? (g.row ? `@${res.by}=#${g.row.id} --by=${res.by}` : '') : [...q, g.key ? `@${res.by}=${g.key}` : `-@${res.by}`].join(' ');
+    const gk = g.row ? String(g.row.id) : 'v:' + (g.absent ? '-' : '') + g.key, open = state.exp[gk] ?? i === 0;
+    const drill = res.pointer ? (g.row ? `@${res.by}=#${g.row.id} --by=${res.by}` : '') : [...q, g.absent ? `-@${res.by}` : g.key ? `@${res.by}=${g.key}` : `@${res.by}`].join(' ');
     const dl = txt => `<a data-drill="${esc(drill)}" href="${esc(drillHref(drill))}">${txt}</a>`;
     const kids = g.preview.map(k => `<div class="kid"><a class="ref" href="${entryHref(k.id)}" data-id="${k.id}">#${k.id}</a><span>${k.open ? '<b>todo</b> ' : ''}${linkify(mdHead(k.text))}</span><span class="who">${k.agent ? esc(k.agent.split(':').map((p, j) => j ? p.slice(0, 4) : p).join(':')) : 'you'} · ${ago(k.updated)}</span></div>`).join('')
       + (g.n > g.preview.length ? `<div class="kid more">${dl(`+ ${g.n - g.preview.length} more ${res.pointer ? 'beneath' : 'entries'}`)}</div>` : '');
@@ -279,21 +303,22 @@ function renderGroups(res, q) {  // A's ledger: one row per root (or tag value);
     const chev = `<button class="chev" data-chev="${esc(gk)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'}">${chevron(open)}</button>`;
     const act = `<div class="act"><b title="${esc(new Date(g.updated).toLocaleString())}">${ago(g.updated)}</b><span>${g.n ? dl(`${g.n} ${res.pointer ? 'beneath' : g.n === 1 ? 'entry' : 'entries'}`) : 'nothing beneath'}${g.open ? ` · <em>${g.open} open</em>` : ''}</span></div>`;
     const list = open && g.n ? `<div class="kids">${kids}</div>` : open ? '' : latest;
-    if (!g.row) return `<article class="group root"><div class="gut">${chev}</div><div class="body"><p class="head">${dl(g.key ? '@' + esc(res.by) + '=' + esc(g.key) : 'no @' + esc(res.by))}</p>${list}</div>${act}</article>`;
+    if (!g.row) return `<article class="group root"><div class="gut">${chev}</div><div class="body"><p class="head">${dl(g.absent ? 'no @' + esc(res.by) : '@' + esc(res.by) + (g.key ? '=' + esc(g.key) : ''))}</p>${list}</div>${act}</article>`;
     const r = g.row, lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
     return `<article class="entry root ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}"><div class="gut">${chev}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>
       <div class="body"><p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
       <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div>${list}</div>${act}</article>`;
   }).join('');
 }
-function toggleTok(t) { const ts = tokens(); $('#filter').value = (ts.includes(t) ? ts.filter(x => x !== t) : [...ts, t]).join(' '); }
-function setQuery(q, push = true) {
-  $('#filter').value = q;
-  const u = new URL(location); q ? u.searchParams.set('q', q) : u.searchParams.delete('q'); state.db ? u.searchParams.set('db', state.db) : u.searchParams.delete('db');
+function toggleTok(t) { const ts = tokens(); setInput((ts.includes(t) ? ts.filter(x => x !== t) : [...ts, t]).join(' ')); }
+function setQuery(q, push = true, keep = false) {  // keep: the box is being typed in, don't rewrite it
+  if (!keep) setInput(q);
+  const qs = tokens().join(' '), u = new URL(location);
+  qs ? u.searchParams.set('q', qs) : u.searchParams.delete('q'); state.db ? u.searchParams.set('db', state.db) : u.searchParams.delete('db');
   history[push ? 'pushState' : 'replaceState'](null, '', u);
-  renderNamed(); refresh();
+  renderAtoms(); renderNamed(); refresh();
 }
-function fromUrl() { const u = new URL(location); if (u.searchParams.has('db')) state.db = u.searchParams.get('db'); $('#filter').value = u.searchParams.get('q') || ''; }
+function fromUrl() { const u = new URL(location); if (u.searchParams.has('db')) state.db = u.searchParams.get('db'); setInput(u.searchParams.get('q') || ''); }
 const entryHref = id => '?q=' + id + (state.db ? '&db=' + encodeURIComponent(state.db) : '');  // #11: shareable link; ⌘-click opens the entry in its own window
 
 // #N and @tag in prose become links
@@ -315,7 +340,8 @@ async function refresh() {
   $('#status').textContent = '…';
   try {
     const { by, q } = viewBy();
-    const [rows, tg, vocab, res] = await Promise.all([api('ls', { args: q }), api('tags', { args: q }), api('vocab'), by ? api('roots', { args: [...q, by] }) : null]);
+    const [rows, tg, vocab, res, expl] = await Promise.all([api('ls', { args: q }), api('tags', { args: q }), api('vocab'), by ? api('roots', { args: [...q, by] }) : null, api('explain', { args: q })]);
+    $('#expanded').textContent = 'runs as: ' + expl + (by ? '  ·  rolled up by ' + (by.split('=')[1] ? '@' + by.split('=')[1] : '@parent') : '');
     state.vocab = vocab;
     const tree = !by && rows.some(r => 'depth' in r);
     if (!tree) rows.reverse();
@@ -365,7 +391,8 @@ function renderCal() {  // #7: per-day entry counts for the current view, last 1
   $('#cal').innerHTML = cells;
 }
 function renderNamed() {
-  $('#named').innerHTML = state.cfg.filters.map(f => `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}">${f.name}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`).join('')
+  $('#named').innerHTML = state.cfg.filters.filter(f => f.name !== 'mine').map(f =>  // ponytail: mine is for agents (skills use --mine); typing --mine still works
+     `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}">${f.name}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`).join('')
     + `<span class="chip ${has('--tree') ? 'on' : ''}" data-tok="--tree" title="Nest entries under their @parent">tree</span>`
     + `<span class="chip" id="saveview" title="Save the filter box as a named view in ~/.jn">+ save view</span>`;
   const by = viewBy().by;
@@ -412,7 +439,13 @@ $('#capture').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Ente
 
 // filter box + URL
 let t;
-$('#filter').oninput = () => { clearTimeout(t); t = setTimeout(() => setQuery($('#filter').value.trim(), false), 300); };
+$('#filter').oninput = () => { if (/\s$/.test($('#filter').value)) commitAtoms(); clearTimeout(t); t = setTimeout(() => setQuery('', false, true), 300); };
+$('#filter').onkeydown = e => {
+  if (e.key === 'Enter') { commitAtoms(); clearTimeout(t); setQuery('', false, true); }
+  else if (e.key === 'Backspace' && !e.target.value && state.atoms.length) { e.preventDefault(); e.target.value = state.atoms.pop(); renderAtoms(); clearTimeout(t); setQuery('', false, true); }
+};
+try { $('#lens').open = localStorage.getItem('jn.lens') !== '0'; } catch {}
+$('#lens').ontoggle = () => { try { localStorage.setItem('jn.lens', $('#lens').open ? '1' : '0'); } catch {} };
 $('#home').onclick = e => { e.preventDefault(); cur = null; setQuery(''); };
 addEventListener('popstate', () => { fromUrl(); renderNamed(); refresh(); });
 
@@ -421,6 +454,8 @@ document.body.addEventListener('click', e => {
   if (e.target.closest('.editor') && !e.target.closest('a.ref[data-id],a.tag[data-tag]')) return;  // editor controls stay local; references share navigation everywhere
   const del = e.target.closest('[data-del]');
   if (del) { e.stopPropagation(); saveFilter(del.dataset.del, null); return; }
+  const at = e.target.closest('[data-atom]');
+  if (at) { state.atoms.splice(+at.dataset.atom, 1); setQuery('', true, true); return; }
   const dr = e.target.closest('[data-drill]');
   if (dr) { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); e.stopPropagation(); cur = null; setQuery(dr.dataset.drill); return; }
   const ch = e.target.closest('[data-chev]');
@@ -429,7 +464,7 @@ document.body.addEventListener('click', e => {
   if (vw) { const q = viewBy().q; setQuery(vw.dataset.view === 'roots' ? (q.length ? [...q, '--by=parent'] : []).join(' ') : (q.length ? q : ['--flat']).join(' ')); return; }
   const a = e.target.closest('[data-tok],[data-id],[data-tag]');
   if (!a) return;
-  if (a.dataset.tok) { toggleTok(a.dataset.tok); setQuery($('#filter').value.trim()); }
+  if (a.dataset.tok) { toggleTok(a.dataset.tok); setQuery(tokens().join(' ')); }
   else if (a.dataset.id) { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); e.stopPropagation(); openEntry(+a.dataset.id); }
   else if (a.dataset.tag !== undefined) { e.stopPropagation(); const tok = '@' + a.dataset.tag; if (!has(tok)) setQuery([...tokens(), tok].join(' ')); }
 });
@@ -677,7 +712,7 @@ api('dbs').then(dbs => {
   const sel = $('#dbsel');
   sel.innerHTML = ['', ...dbs].map(n => `<option value="${esc(n)}" ${n === state.db ? 'selected' : ''}>${n ? esc(n) : 'default'}</option>`).join('');
   sel.hidden = false;
-  sel.onchange = () => { state.db = sel.value; try { localStorage.setItem('jn.db', state.db); } catch {} cur = null; setQuery($('#filter').value.trim(), false); api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); }); };
+  sel.onchange = () => { state.db = sel.value; try { localStorage.setItem('jn.db', state.db); } catch {} cur = null; setQuery(tokens().join(' '), false); api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); }); };
 });
 function setDbPath(p) { const el = $('#dbpath'); el.textContent = p ? '‎' + p : ''; el.title = p || ''; }  // ‎ (LRM) keeps the ellipsis at the left under direction:rtl
 api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); refresh(); });

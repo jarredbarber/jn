@@ -207,6 +207,10 @@ with tempfile.TemporaryDirectory() as d:
     g = post("roots", args=["-@done", "--by=parent"])[1]["groups"]; assert [(x["row"]["id"], x["n"]) for x in g if x["row"]["id"] == 2] == [(2, 2)], g   # depth > 1 counts
     g = post("roots", args=["-@done", "--by=sess"])[1]  # value tag: one group per value, entries without it under ""
     assert not g["pointer"] and {x["key"]: x["n"] for x in g["groups"]} == {"s9": 1, "s8": 1, "": 2}, g   # the default filter still hides children
+    post("log", text="just a note")
+    g = post("roots", args=["-@done", "--by=todo"])[1]["groups"]                 # a bare tag splits into present / absent
+    assert sorted((x["absent"], x["n"]) for x in g) == [(False, 4), (True, 1)], g
+    assert post("explain", args=["--tasks", "--since", "2w"])[1] == "@todo -@done -@archived -@parent --since 2w", post("explain", args=["--tasks", "--since", "2w"])
     assert post("ls", db="/nope/x.db")[0] == 400 and post("ls", db="nope")[0] == 400   # names only from the web
     assert post("log", db="jl", text="@todo from the web into jsonl") == (200, 10) and post("tag", db="jl", id=10, patch=["@done"])[0] == 200
     assert post("edit", db="jl", id=9, text="@todo\n\nweb edit")[0] == 200 and post("show", db="jl", id=9)[1]["text"] == "@todo\n\nweb edit\n"

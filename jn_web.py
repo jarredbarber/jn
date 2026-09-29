@@ -56,11 +56,19 @@ def verbs(jn):
                 return out - {root}
             groups = [{"row": r, **roll(under(r["id"]), [r["id"]])} for r in rs]
         else:
-            by_val = {}
+            by_val = {}  # None = tag absent; "" = bare tag (@todo), so a bare tag still splits into two groups
             for r in rs:
-                for v in jn.aslist(r["tags"], by) or [""]: by_val.setdefault(v, []).append(r["id"])
-            groups = [{"key": k, **roll(ids)} for k, ids in by_val.items()]
+                vs = jn.aslist(r["tags"], by)
+                for v in [None] if vs is None else vs or [""]: by_val.setdefault(v, []).append(r["id"])
+            groups = [{"key": k or "", "absent": k is None, **roll(ids)} for k, ids in by_val.items()]
         return {"by": by, "pointer": bool(pointer), "groups": sorted(groups, key=lambda g: (g["updated"], g["row"]["id"] if "row" in g else g["latest"]["id"]), reverse=True)}
+
+    def explain(args):
+        """the query as ls will run it: --names expanded, default filter applied. Python filters stay named"""
+        opts, pos = jn.parse_opts(list(args))
+        pos, opts, py = jn.expand(pos, opts)
+        flags = [f"--{k}" + ("" if opts[k] is True else f" {opts[k]}") for k in ("since", "last", "all") if k in opts]
+        return " ".join([*pos, *flags, *(f"(python --{n})" for n in py)])
 
     def show(id):
         row = jn.select([str(int(id))], {"all": True})
@@ -110,6 +118,7 @@ def verbs(jn):
         "filter": filt,
         "ls": lambda args=(): rows(args),
         "roots": roots,
+        "explain": explain,
         "tags": lambda args=(): jn.tag_counts(rows(args)),
         "show": show,
         "log": log,

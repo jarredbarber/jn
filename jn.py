@@ -41,6 +41,7 @@ FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/ext
     "mine": "tag('agent') == default('agent')",
     "blocked": "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])",
     "unblocked": "not F('blocked')",
+    "tasks": "@todo -@done",
 }
 
 
@@ -468,8 +469,8 @@ def parse_opts(args):
 LS_OPTS = ("since", "last", "json", "md", "all", "tree")
 
 
-def select(pos, opts):
-    """the rows `ls`/`tags` would show: filters (--name), default filter unless lifted, --since, --last.
+def expand(pos, opts):
+    """(pos, opts, python filter names): --names resolved to tokens and the default filter applied, before any row is read.
     A token filter is ls arguments, so it may hold --since and other --names, e.g. week = "@todo --since 1w --mine" """
     pos, opts, py, seen = list(pos), dict(opts), [], set()
     while names := [k for k in opts if k not in LS_OPTS and k not in seen]:
@@ -479,6 +480,12 @@ def select(pos, opts):
     if "all" not in opts and not any(t.isdigit() for t in pos):
         mentioned = {m[1] for m in TAG.findall(" ".join(pos))}
         pos += [t for t in config()["filters"]["default"].split() if TAG.fullmatch(t)[2] not in mentioned]
+    return pos, opts, py
+
+
+def select(pos, opts):
+    """the rows `ls`/`tags` would show: filters (--name), default filter unless lifted, --since, --last"""
+    pos, opts, py = expand(pos, opts)
     rows = apply_filters(query(pos, opts.get("since")), py)
     return rows[-int(opts["last"]):] if "last" in opts else rows
 

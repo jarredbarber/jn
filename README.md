@@ -110,6 +110,8 @@ When an agent environment is present, `log` automatically adds `@agent=claude:<s
 
 Options: `--since today|yesterday|3d|2w|ISO`, `--last N`, `--mine`, `--tree[=tag]`, `--json`, `--md`, and `--all`.
 
+Built-in named filters: `default`, `mine`, `blocked`, `unblocked`, and `tasks` (`@todo -@done`).
+
 The built-in `default` filter is `-@done -@archived -@parent`. It applies unless `--all`, an explicit ID, or a query that mentions one of those tags lifts it. Thus `jn ls` shows open top-level work; `jn ls @done` and `jn ls @parent=#50` still work.
 ```bash
 jn ls @todo --mine
@@ -206,7 +208,7 @@ jn serve                     # http://127.0.0.1:8787
 jn serve --host 127.0.0.1 --port 9000
 ```
 
-The browser UI accepts the same query tokens as `ls` and exposes a POST API. With an empty filter box the home view is the roots ledger (`--flat`, or the `flat` chip, opts out; any other query is the flat feed unless it carries `--by`). `--by[=tag]` rolls the view up: one row per top-level entry with what sits beneath it (count, open `@todo`s, latest activity), or with `--by=agent` (any non-pointer tag) one row per tag value, e.g. one per agent session. Click the count to drill in. It is a web-only token; the CLI does not accept it. The default listener is loopback. It has no authentication; do not bind it to an untrusted network unless another layer protects it.
+The browser UI accepts the same query tokens as `ls` and exposes a POST API. With an empty filter box the home view is the roots ledger (`--flat`, or the `flat` chip, opts out; any other query is the flat feed unless it carries `--by`). `--by[=tag]` rolls the view up: one row per top-level entry with what sits beneath it (count, open `@todo`s, latest activity), or with `--by=agent` (any non-pointer tag) one row per tag value, e.g. one per agent session. Click the count to drill in. The web lens shows finished `@tags` and `--options` as blocks you can clear with their x, and prints the query as it will run (named filters expanded, default filter applied). It is a web-only token; the CLI does not accept it. The default listener is loopback. It has no authentication; do not bind it to an untrusted network unless another layer protects it.
 
 ## Backup and storage
 
