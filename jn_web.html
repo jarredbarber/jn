@@ -39,6 +39,12 @@ button, input, textarea, select { font:inherit; color:inherit }
 .composer, .lens { max-width:820px; margin:0 auto }
 .composer .att:empty { display:none }
 #capture { font-size:17px; padding:14px 16px; min-height:84px }
+.cbox { display:flex; gap:10px; align-items:stretch }
+.cbox textarea { flex:1; min-width:0 }
+button.add { flex:none; width:84px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background:var(--ink); color:var(--bg); border:0; border-radius:var(--r); font-size:16px; font-weight:600; letter-spacing:.02em }
+button.add:hover { background:var(--accent); color:var(--accent-ink) }
+button.add kbd { font:400 11px/1 var(--sans); opacity:.6; letter-spacing:0 }
+.composer .err:not(:empty) { display:block; margin-top:6px }
 .lens { margin-top:16px }
 .lens summary { cursor:pointer; list-style:none; display:flex; gap:10px; align-items:baseline; color:var(--mute); font-size:12px; letter-spacing:.08em; text-transform:uppercase }
 .lens summary::-webkit-details-marker { display:none }
@@ -230,11 +236,11 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 <header class="mast"><h1><a href="/" id="home">j<b>n</b></a></h1><select id="dbsel" hidden></select><span class="statwrap"><span id="dbpath" title=""></span><span id="status"></span></span><nav class="chips" id="viewseg" aria-label="View"></nav></header>
 <div class="bar">
 <div class="composer">
-  <textarea id="capture" placeholder="Write it down. @tags anywhere, @todo makes a task, @parent=#412 files it under an entry." rows="2"></textarea>
-  <div class="actions">
-    <button class="primary" id="save">Add <kbd>⌘↩</kbd></button>
-    <span id="cap-err" class="err"></span>
+  <div class="cbox">
+    <textarea id="capture" placeholder="Write it down. @tags anywhere, @todo makes a task, @parent=#412 files it under an entry." rows="2"></textarea>
+    <button id="save" class="add">Add <kbd>⌘↩</kbd></button>
   </div>
+  <span id="cap-err" class="err"></span>
   <div class="att" id="pending"></div>
 </div>
 <details class="lens" id="lens" open>
