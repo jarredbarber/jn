@@ -36,9 +36,12 @@ def verbs(jn):
         info = {i: (u, c, bool(o)) for i, u, c, o in jn.db().execute(
             "SELECT e.id, e.updated, e.content, EXISTS(SELECT 1 FROM tagged WHERE entry=e.id AND name='todo') AND NOT EXISTS(SELECT 1 FROM tagged WHERE entry=e.id AND name='done') FROM entry e")}
         head = lambda i: {"id": i, "text": next((l for l in info[i][1].splitlines() if l.strip()), "")[:140]}
+        agent = dict(jn.db().execute("SELECT entry, value FROM tagged WHERE name='agent'"))
+        item = lambda i: head(i) | {"updated": info[i][0], "open": info[i][2], "agent": agent.get(i)}
         def roll(ids, own=()):  # ids: the entries beneath a group; own: entries that count toward its activity but not its size
             top = max([*ids, *own], key=lambda i: (info[i][0], i), default=None)
-            return {"n": len(ids), "open": sum(info[i][2] for i in ids), "updated": info[top][0] if top else "", "latest": head(top) if top and top in ids else None}
+            return {"n": len(ids), "open": sum(info[i][2] for i in ids), "updated": info[top][0] if top else "", "latest": head(top) if top and top in ids else None,
+                    "preview": [item(i) for i in sorted(ids, key=lambda i: (info[i][0], i), reverse=True)[:4]]}
         pointer = jn.db().execute("SELECT 1 FROM tagged WHERE name=? AND value LIKE '#%' LIMIT 1", (by,)).fetchone()
         if pointer:
             kids = {}

@@ -89,6 +89,7 @@ button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 #cal .cell:hover::after { content:attr(aria-label); position:absolute; right:0; bottom:calc(100% + 6px); z-index:10; padding:5px 8px; border:1px solid var(--rule); border-radius:var(--r); background:var(--ink); color:var(--bg); font:13px/1.4 var(--sans); white-space:nowrap; pointer-events:none }
 @media (max-width:760px) { #cal { max-width:340px } }
 
+#who { margin-bottom:22px; font-size:14px } #who .who { display:flex; justify-content:space-between; padding:2px 0 } #who b { font-weight:500; color:var(--mute) }
 /* ledger */
 .ledger { margin-top:8px }
 .day { display:grid; grid-template-columns:minmax(var(--gutter), max-content) minmax(0, 1fr); align-items:end; border-top:3px double var(--ink); margin:34px 0 6px }
@@ -112,10 +113,24 @@ button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .tree-root { margin-top:18px }
 /* roots view (--by): a rollup line under each root, or a bare group row when the root is a tag value */
 .rollup { margin:4px 0 0; color:var(--mute); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-.rollup b { color:var(--accent); font-weight:500 }
-.rollup a[data-drill] { color:var(--ink); text-decoration:none; border-bottom:1px solid var(--rule) }
-.rollup a[data-drill]:hover { color:var(--accent); border-color:var(--accent) }
-.entry.open .rollup { display:none }
+.entry.open .rollup, .entry.open .kids, .entry.open .act { display:none }
+.entry.root, .group.root { grid-template-columns:var(--gutter) minmax(0,1fr) auto; column-gap:12px }
+.entry.open.root { grid-template-columns:var(--gutter) minmax(0,1fr) }
+.rootsbar { font:500 22px/1.2 var(--serif); margin:26px 0 6px; padding-top:10px; border-top:3px double var(--ink) }
+.rootsbar span { font:400 14px var(--sans); color:var(--mute) }
+.root .head { font:500 21px/1.25 var(--serif) }
+.gut .chev { display:inline-flex; align-items:center; justify-content:center; width:24px; height:22px; padding:0; margin:0 0 2px -4px; border:0; color:var(--ink) }
+.gut .chev:hover { color:var(--accent) }
+.act { display:flex; flex-direction:column; align-items:flex-end; gap:2px; font-size:13px; color:var(--mute); white-space:nowrap; padding-top:4px }
+.act b { color:var(--ink); font-weight:500 }
+.act em { color:var(--accent); font-style:normal }
+.act a[data-drill] { color:var(--mute); text-decoration:none; border-bottom:1px solid var(--rule) }
+.act a[data-drill]:hover { color:var(--accent); border-color:var(--accent) }
+.kids { margin:10px 0 2px; border-left:1px solid var(--rule); padding-left:14px }
+.kid { display:grid; grid-template-columns:44px minmax(0,1fr) auto; gap:10px; padding:5px 0; font-size:15px; border-bottom:1px dotted var(--rule); align-items:baseline }
+.kid > :first-child { font-size:12px } .kid b { color:var(--accent); font-weight:600 }
+.kid .who { color:var(--mute); font-size:12px; white-space:nowrap }
+.kid.more { display:block; font-size:13px; border:0 } .kid.more a { color:var(--mute); text-decoration:none } .kid.more a:hover { color:var(--accent) }
 .group { display:grid; grid-template-columns:var(--gutter) 1fr; padding:14px 0 12px; border-bottom:1px solid var(--rule); min-width:0 }
 .group .head a { color:var(--ink); text-decoration:none }
 .group .head a:hover { color:var(--accent) }
@@ -208,7 +223,7 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
   <input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn">
 </div>
 <div class="main">
-<aside class="side" id="tags"><div class="lab">activity</div><div id="cal"></div><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
+<aside class="side" id="tags"><div class="lab">activity</div><div id="cal"></div><div class="lab">written by</div><div id="who"></div><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
 <section class="ledger" id="list"></section>
 </div>
 </div>
@@ -217,7 +232,7 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const state = { cfg: { filters: [] }, vocab: {}, db: '', rows: [] };
+const state = { cfg: { filters: [] }, vocab: {}, db: '', rows: [], exp: {}, res: null, q: [] };  // exp: roots-view row id -> expanded
 try { state.db = localStorage.getItem('jn.db') || ''; } catch {}
 let cur = null;  // id of the entry open inline
 
@@ -234,17 +249,28 @@ const has = t => tokens().includes(t);
 const byTok = () => tokens().filter(t => /^--by(=|$)/.test(t)).pop();  // --by[=tag]: roots view; the last one wins
 const ago = t => { const s = (Date.now() - new Date(t)) / 1e3; return s < 3600 ? Math.max(1, Math.round(s / 60)) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
 const drillHref = q => '?q=' + encodeURIComponent(q) + (state.db ? '&db=' + encodeURIComponent(state.db) : '');
-function renderGroups(res, q) {  // one row per root (or tag value) with what's beneath it
-  return res.groups.map(g => {
+const viewBy = () => {  // empty filter box = roots home; --flat opts out; any other query is the flat feed unless it carries --by
+  const ts = tokens(), q = ts.filter(t => !/^--by(=|$)/.test(t) && t !== '--flat');
+  return { q, by: byTok() || (!q.length && !ts.includes('--flat') ? '--by=parent' : null) };
+};
+const chevron = open => `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="${open ? 'M3 5l4 4 4-4' : 'M5 3l4 4-4 4'}"></path></svg>`;
+function renderGroups(res, q) {  // A's ledger: one row per root (or tag value); the newest root starts open with its latest activity beneath
+  const total = res.groups.reduce((s, g) => s + g.n, 0);
+  return `<div class="rootsbar">${res.groups.length} ${res.pointer ? 'roots' : 'groups'} <span>· ${total} ${res.pointer ? 'entries beneath' : 'entries'} · newest activity first</span></div>` + res.groups.map((g, i) => {
+    const gk = g.row ? String(g.row.id) : 'v:' + g.key, open = state.exp[gk] ?? i === 0;
     const drill = res.pointer ? (g.row ? `@${res.by}=#${g.row.id} --by=${res.by}` : '') : [...q, g.key ? `@${res.by}=${g.key}` : `-@${res.by}`].join(' ');
-    const size = g.n ? `<a data-drill="${esc(drill)}" href="${esc(drillHref(drill))}">${g.n} ${res.pointer ? 'beneath' : g.n === 1 ? 'entry' : 'entries'}</a>` : 'nothing beneath';
-    const roll = `<p class="rollup">${size}${g.open ? ` · <b>${g.open} open</b>` : ''}${g.latest ? ` · ${linkify('↳ #' + g.latest.id + '  ' + mdHead(g.latest.text))}` : ''}</p>`;
-    const when = `<span class="time" title="${esc(new Date(g.updated).toLocaleString())}">${ago(g.updated)}</span>`;
-    if (!g.row) return `<article class="group"><div class="gut">${when}</div><div class="body"><p class="head"><a data-drill="${esc(drill)}" href="${esc(drillHref(drill))}">${g.key ? '@' + esc(res.by) + '=' + esc(g.key) : 'no @' + esc(res.by)}</a></p>${roll}</div></article>`;
+    const dl = txt => `<a data-drill="${esc(drill)}" href="${esc(drillHref(drill))}">${txt}</a>`;
+    const kids = g.preview.map(k => `<div class="kid"><a class="ref" href="${entryHref(k.id)}" data-id="${k.id}">#${k.id}</a><span>${k.open ? '<b>todo</b> ' : ''}${linkify(mdHead(k.text))}</span><span class="who">${k.agent ? esc(k.agent.split(':').map((p, j) => j ? p.slice(0, 4) : p).join(':')) : 'you'} · ${ago(k.updated)}</span></div>`).join('')
+      + (g.n > g.preview.length ? `<div class="kid more">${dl(`+ ${g.n - g.preview.length} more ${res.pointer ? 'beneath' : 'entries'}`)}</div>` : '');
+    const latest = g.latest ? `<p class="rollup">${linkify('↳ #' + g.latest.id + '  ' + mdHead(g.latest.text))}</p>` : '';
+    const chev = `<button class="chev" data-chev="${esc(gk)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'}">${chevron(open)}</button>`;
+    const act = `<div class="act"><b title="${esc(new Date(g.updated).toLocaleString())}">${ago(g.updated)}</b><span>${g.n ? dl(`${g.n} ${res.pointer ? 'beneath' : g.n === 1 ? 'entry' : 'entries'}`) : 'nothing beneath'}${g.open ? ` · <em>${g.open} open</em>` : ''}</span></div>`;
+    const list = open && g.n ? `<div class="kids">${kids}</div>` : open ? '' : latest;
+    if (!g.row) return `<article class="group root"><div class="gut">${chev}</div><div class="body"><p class="head">${dl(g.key ? '@' + esc(res.by) + '=' + esc(g.key) : 'no @' + esc(res.by))}</p>${list}</div>${act}</article>`;
     const r = g.row, lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
-    return `<article class="entry ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}"><div class="gut">${when}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>
-      <div class="body"><p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>${roll}
-      <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div></div></article>`;
+    return `<article class="entry root ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}"><div class="gut">${chev}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>
+      <div class="body"><p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
+      <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div>${list}</div>${act}</article>`;
   }).join('');
 }
 function toggleTok(t) { const ts = tokens(); $('#filter').value = (ts.includes(t) ? ts.filter(x => x !== t) : [...ts, t]).join(' '); }
@@ -275,13 +301,14 @@ const dayLabel = d => {
 async function refresh() {
   $('#status').textContent = '…';
   try {
-    const by = byTok(), q = tokens().filter(t => t !== by && !/^--by(=|$)/.test(t));
+    const { by, q } = viewBy();
     const [rows, tg, vocab, res] = await Promise.all([api('ls', { args: q }), api('tags', { args: q }), api('vocab'), by ? api('roots', { args: [...q, by] }) : null]);
     state.vocab = vocab;
     const tree = !by && rows.some(r => 'depth' in r);
     if (!tree) rows.reverse();
     state.rows = rows;
     let html = '', day = '';
+    state.res = res; state.q = q;
     if (by) html = renderGroups(res, q); else for (const r of rows) {
       const d = new Date(r.created), lbl = dayLabel(d);
       if (!tree && lbl !== day) {
@@ -299,6 +326,8 @@ async function refresh() {
     $('#taglist').innerHTML = [...fav, ...tg.map(([t]) => t).filter(t => !fav.includes(t))]
       .map(t => `<span ${chipAttrs(t)}>${fav.includes(t) ? '<span class="fav">●</span>' : ''}@${esc(t)} <span class="n">${cnt[t] || 0}</span></span>`).join('');
     renderCal();
+    const ag = rows.filter(r => 'agent' in r.tags).length;
+    $('#who').innerHTML = rows.length ? `<div class="who"><span>you</span><b>${rows.length - ag}</b></div><div class="who"><span>agents</span><b>${ag}</b></div>` : '';
     $('#status').textContent = (by ? res.groups.length + ' roots · ' : '') + rows.length + ' entries';
     const ts = tokens();
     if (cur !== null) await openEntry(cur, false);
@@ -324,7 +353,8 @@ function renderCal() {  // #7: per-day entry counts for the current view, last 1
 }
 function renderNamed() {
   $('#named').innerHTML = state.cfg.filters.map(f => `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}">--${f.name}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`).join('')
-    + `<span class="chip ${byTok() ? 'on' : ''}" data-roots title="Roots: one row per top-level entry with what's beneath it. Type --by=agent (any tag) to roll up by that tag's values instead">roots</span>`
+    + `<span class="chip ${viewBy().by ? 'on' : ''}" data-view="roots" title="Roots: one row per top-level entry with what's beneath it. Type --by=agent (any tag) to roll up by that tag's values instead">roots</span>`
+    + `<span class="chip ${viewBy().by ? '' : 'on'}" data-view="flat" title="Every matching entry, newest first">flat</span>`
     + `<span class="chip ${has('--tree') ? 'on' : ''}" data-tok="--tree" title="Nest entries under their @parent">tree</span>`
     + `<span class="chip" id="saveview" title="Save the filter box as a named view in ~/.jn">+ save view</span>`;
   $('#saveview').onclick = () => { const v = $('#viewname'); v.style.display = v.style.display === 'block' ? 'none' : 'block'; if (v.style.display === 'block') v.focus(); };
@@ -379,7 +409,10 @@ document.body.addEventListener('click', e => {
   if (del) { e.stopPropagation(); saveFilter(del.dataset.del, null); return; }
   const dr = e.target.closest('[data-drill]');
   if (dr) { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); e.stopPropagation(); cur = null; setQuery(dr.dataset.drill); return; }
-  if (e.target.closest('[data-roots]')) { const ts = tokens().filter(t => !/^--by(=|$)/.test(t)); setQuery((byTok() ? ts : [...ts, '--by=parent']).join(' ')); return; }
+  const ch = e.target.closest('[data-chev]');
+  if (ch) { e.stopPropagation(); const k = ch.dataset.chev; state.exp[k] = ch.getAttribute('aria-expanded') !== 'true'; $('#list').innerHTML = renderGroups(state.res, state.q); if (cur !== null) openEntry(cur, false); return; }
+  const vw = e.target.closest('[data-view]');
+  if (vw) { const q = viewBy().q; setQuery(vw.dataset.view === 'roots' ? (q.length ? [...q, '--by=parent'] : []).join(' ') : (q.length ? q : ['--flat']).join(' ')); return; }
   const a = e.target.closest('[data-tok],[data-id],[data-tag]');
   if (!a) return;
   if (a.dataset.tok) { toggleTok(a.dataset.tok); setQuery($('#filter').value.trim()); }
@@ -394,7 +427,7 @@ document.addEventListener('keydown', e => {  // bare e on an open entry: edit it
   if (e.key === 'e' && cur !== null && !e.metaKey && !e.ctrlKey && !e.altKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); $('.entry.open .editor')?.edit(); }
 });
 $('#list').addEventListener('click', e => {
-  if (e.target.closest('.editor') || e.target.closest('a,[data-tag]')) return;
+  if (e.target.closest('.editor') || e.target.closest('a,button,[data-tag]')) return;
   const art = e.target.closest('.entry');
   if (art) openEntry(+art.dataset.id);
 });
