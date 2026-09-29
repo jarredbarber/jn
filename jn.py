@@ -184,11 +184,18 @@ def default_tags():
     return parse_tags(" ".join(["@" + t.lstrip("@") for t in config()["tags"]] + [os.environ.get("JN_TAGS", "")]))[0]
 
 
+def one_parent(tags):
+    """a hierarchy needs exactly one home per entry; many pointers belong in another tag (@refs=#1,#2)"""
+    if "," in (tags.get("parent") or ""):
+        sys.exit("an entry has one @parent; use another tag for many pointers, e.g. @refs=#1,#2")
+
+
 def add_entry(args):
     text = " ".join(args)
     if not strip_tags(text):  # tags only: body from stdin or $EDITOR
         text = (text + "\n" + read_body()).strip()
     tags = default_tags() | parse_tags(text)[0]
+    one_parent(tags)
     content = strip_tags(text) or sys.exit("empty entry")
     with db() as c:
         eid = c.execute("INSERT INTO entry(created,updated,content) VALUES(?,?,?)", (now(), now(), content)).lastrowid
@@ -266,6 +273,7 @@ def tag(eid, args):
     """patch: @k sets, -@k drops, += / -= edit items. Content untouched"""
     with db() as c:
         add, rm = parse_tags(" ".join(args), dict(c.execute("SELECT name,value FROM tagged WHERE entry=?", (eid,))))
+        one_parent(add)
         versioned(c, eid, lambda: (
             c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()]),
             c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])))
@@ -297,6 +305,7 @@ def edit(eid, text=None):
     """document: the buffer (stdin or $EDITOR) is the whole entry, tags line included. show output round-trips"""
     text = read_body(entry_text(eid)) if text is None else text
     tags, content = parse_tags(text)[0], strip_tags(text) or sys.exit("empty entry")
+    one_parent(tags)
     with db() as c:
         versioned(c, eid, lambda: (
             c.execute("UPDATE entry SET content=? WHERE id=?", (content, eid)),

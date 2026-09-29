@@ -26,42 +26,63 @@ def verbs(jn):
 
     def roots(args):
         """--by[=tag] rolls the view up: one group per root entry (pointer tag, default parent) or per value of a
-        plain tag (agent, project...). Each carries its size, open todos, and latest activity beneath it"""
-        by, rest = "parent", []
+        plain tag (agent, project...). Each carries its size, open todos, and latest activity beneath it.
+        Repeated --by nest: the next one groups inside each group"""
+        bys, rest = [], []
         for a in args:
-            if a.startswith("--by"): by = a.partition("=")[2] or "parent"
+            if a.startswith("--by"): bys.append(a.partition("=")[2] or "parent")
             else: rest.append(a)
         opts, pos = jn.parse_opts(rest)
         rs = jn.select(pos, opts)
         info = {i: (u, c, bool(o)) for i, u, c, o in jn.db().execute(
             "SELECT e.id, e.updated, e.content, EXISTS(SELECT 1 FROM tagged WHERE entry=e.id AND name='todo') AND NOT EXISTS(SELECT 1 FROM tagged WHERE entry=e.id AND name='done') FROM entry e")}
-        head = lambda i: {"id": i, "text": next((l for l in info[i][1].splitlines() if l.strip()), "")[:140]}
         agent = dict(jn.db().execute("SELECT entry, value FROM tagged WHERE name='agent'"))
+        head = lambda i: {"id": i, "text": next((l for l in info[i][1].splitlines() if l.strip()), "")[:140]}
         item = lambda i: head(i) | {"updated": info[i][0], "open": info[i][2], "agent": agent.get(i)}
+        everyone = {}
         def roll(ids, own=()):  # ids: the entries beneath a group; own: entries that count toward its activity but not its size
             top = max([*ids, *own], key=lambda i: (info[i][0], i), default=None)
             return {"n": len(ids), "open": sum(info[i][2] for i in ids), "updated": info[top][0] if top else "", "latest": head(top) if top and top in ids else None,
                     "preview": [item(i) for i in sorted(ids, key=lambda i: (info[i][0], i), reverse=True)[:4]]}
-        pointer = jn.db().execute("SELECT 1 FROM tagged WHERE name=? AND value LIKE '#%' LIMIT 1", (by,)).fetchone()
-        if pointer:
-            kids = {}
-            for e, v in jn.db().execute("SELECT entry, value FROM tagged WHERE name=?", (by,)):
-                for i in (v or "").split(","):
-                    if i[:1] == "#" and i[1:].isdigit(): kids.setdefault(int(i[1:]), []).append(e)
-            def under(root):  # cycle-safe walk down the pointer tag
-                out, stack = {root}, [root]
-                while stack:
-                    for k in kids.get(stack.pop(), []):
-                        if k not in out: out.add(k); stack.append(k)
-                return out - {root}
-            groups = [{"row": r, **roll(under(r["id"]), [r["id"]])} for r in rs]
-        else:
-            by_val = {}  # None = tag absent; "" = bare tag (@todo), so a bare tag still splits into two groups
-            for r in rs:
-                vs = jn.aslist(r["tags"], by)
-                for v in [None] if vs is None else vs or [""]: by_val.setdefault(v, []).append(r["id"])
-            groups = [{"key": k or "", "absent": k is None, **roll(ids)} for k, ids in by_val.items()]
-        return {"by": by, "pointer": bool(pointer), "groups": sorted(groups, key=lambda g: (g["updated"], g["row"]["id"] if "row" in g else g["latest"]["id"]), reverse=True)}
+        def level(rs, bys):
+            by, more = bys[0], bys[1:]
+            def sub(ids):  # the next --by groups inside this group
+                if not more or not ids: return {}
+                if not everyone: everyone.update({r["id"]: r for r in jn.select([], {"all": True})})
+                return {"sub": level([everyone[i] for i in sorted(ids) if i in everyone], more)}
+            pointer = jn.db().execute("SELECT 1 FROM tagged WHERE name=? AND value LIKE '#%' LIMIT 1", (by,)).fetchone()
+            if pointer:
+                kids = {}
+                for e, v in jn.db().execute("SELECT entry, value FROM tagged WHERE name=?", (by,)):
+                    for i in (v or "").split(","):
+                        if i[:1] == "#" and i[1:].isdigit(): kids.setdefault(int(i[1:]), []).append(e)
+                def under(root):  # cycle-safe walk down the pointer tag
+                    out, stack = {root}, [root]
+                    while stack:
+                        for k in kids.get(stack.pop(), []):
+                            if k not in out: out.add(k); stack.append(k)
+                    return out - {root}
+                groups = [{"row": r, **roll(u := under(r["id"]), [r["id"]]), **sub(u)} for r in rs]
+            else:
+                by_val = {}  # None = tag absent; "" = bare tag (@todo), so a bare tag still splits into two groups
+                for r in rs:
+                    vs = jn.aslist(r["tags"], by)
+                    for v in [None] if vs is None else vs or [""]: by_val.setdefault(v, []).append(r["id"])
+                groups = [{"key": k or "", "absent": k is None, **roll(ids), **sub(ids)} for k, ids in by_val.items()]
+            return {"by": by, "pointer": bool(pointer), "groups": sorted(groups, key=lambda g: (g["updated"], g["row"]["id"] if "row" in g else g["latest"]["id"]), reverse=True)}
+        return level(rs, bys or ["parent"])
+
+    def counts(seen=None):
+        """view name -> [entries now, entries updated since seen[name]], for the sidebar's unread badges"""
+        out = {}
+        for n, _ in cfg_filters():
+            try:
+                opts, pos = jn.parse_opts([f"--{n}"])
+                rs = jn.select(pos, opts)
+            except SystemExit:
+                continue  # a broken view shouldn't blank the sidebar
+            out[n] = [len(rs), sum(r["updated"] > (seen or {})[n] for r in rs) if n in (seen or {}) else 0]
+        return out
 
     def explain(args):
         """the query as ls will run it: --names expanded, default filter applied. Python filters stay named"""
@@ -119,6 +140,7 @@ def verbs(jn):
         "ls": lambda args=(): rows(args),
         "roots": roots,
         "explain": explain,
+        "counts": counts,
         "tags": lambda args=(): jn.tag_counts(rows(args)),
         "show": show,
         "log": log,

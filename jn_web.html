@@ -136,6 +136,19 @@ button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .entry.open .rollup, .entry.open .kids, .entry.open .act { display:none }
 .entry.root, .group.root { grid-template-columns:96px minmax(0,1fr) auto; column-gap:12px; padding:20px 0 16px }
 .entry.open.root { grid-template-columns:96px minmax(0,1fr) }
+.jnq, .jnx { margin:0 0 .9em; border:1px solid var(--rule); border-radius:var(--r); background:var(--bg) }
+.jnq-h { padding:5px 10px; color:var(--mute); font-size:12px; border-bottom:1px solid var(--rule) } .jnq-h:last-child { border-bottom:0 }
+.jnq-r { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:6px; padding:5px 10px; border-bottom:1px dotted var(--rule); align-items:baseline; font-size:15px }
+.jnq-r.done > :nth-child(2) { color:var(--mute); text-decoration:line-through }
+.jnq-g { display:flex; justify-content:space-between; gap:10px; padding:5px 10px; border-bottom:1px dotted var(--rule); font-size:15px } .jnq-g em { color:var(--accent); font-style:normal }
+.jnx { border-left:2px solid var(--accent); background:none; padding-bottom:2px } .jnx .md { padding:2px 10px }
+.crumb { margin:22px 0 -10px; font-size:14px; color:var(--mute) } .crumb a { color:var(--mute); text-decoration:none; border-bottom:1px solid var(--rule) } .crumb a:hover { color:var(--accent) } .crumb b { color:var(--ink); font-weight:500 }
+#named .cnt { color:var(--mute); font-size:13px; margin-left:auto; padding-left:10px } #named .new { color:var(--accent); font-size:13px; font-weight:600; margin-left:auto; padding-left:10px } #named .chip .x { margin-left:8px }
+#pagebox .lab { margin-top:24px }
+#pages { display:flex; flex-direction:column; gap:1px; margin:0 0 4px } #pages a { padding:4px 0; font-size:15px; color:var(--ink); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap } #pages a:hover { color:var(--accent) }
+.root.sub { padding:12px 0 10px } .root.sub .head { font-size:17px }
+.subgroups .entry.root, .subgroups .group.root { grid-template-columns:80px minmax(0,1fr) auto }
+.subgroups { margin:8px 0 0 4px; border-left:1px solid var(--rule); padding-left:10px }
 .root .gut { flex-direction:row; align-items:flex-start; gap:8px }
 .root .gut .eid { padding-top:4px }
 .rootsbar { font:500 24px/1.2 var(--serif); margin:26px 0 0; padding:0 0 12px; border-bottom:1px solid var(--ink) }
@@ -250,7 +263,7 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 </details>
 </div>
 <div class="main">
-<aside class="side" id="tags"><div class="lab">views</div><div id="named"></div><input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn"><div class="lab">activity</div><div id="cal"></div><div class="lab">written by</div><div id="who"></div><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
+<aside class="side" id="tags"><div class="lab">views</div><div id="named"></div><input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn"><div id="pagebox" hidden><div class="lab">pages</div><div id="pages"></div></div><div class="lab">activity</div><div id="cal"></div><div class="lab">written by</div><div id="who"></div><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
 <section class="ledger" id="list"></section>
 </div>
 </div>
@@ -259,7 +272,7 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const state = { cfg: { filters: [] }, vocab: {}, db: '', rows: [], exp: {}, res: null, q: [] };  // exp: roots-view row id -> expanded
+const state = { cfg: { filters: [] }, vocab: {}, db: '', rows: [], exp: {}, res: null, q: [], bys: [], counts: {} };  // exp: roots-view row id -> expanded
 try { state.db = localStorage.getItem('jn.db') || ''; } catch {}
 let cur = null;  // id of the entry open inline
 
@@ -289,29 +302,36 @@ function renderAtoms() {
   $('#lenssum').textContent = tokens().join(' ');
 }
 const has = t => tokens().includes(t);
-const byTok = () => tokens().filter(t => /^--by(=|$)/.test(t)).pop();  // --by[=tag]: roots view; the last one wins
 const ago = t => { const s = (Date.now() - new Date(t)) / 1e3; return s < 3600 ? Math.max(1, Math.round(s / 60)) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
 const drillHref = q => '?q=' + encodeURIComponent(q) + (state.db ? '&db=' + encodeURIComponent(state.db) : '');
 const viewBy = () => {  // empty filter box = roots home; --flat opts out; any other query is the flat feed unless it carries --by
-  const ts = tokens(), q = ts.filter(t => !/^--by(=|$)/.test(t) && t !== '--flat');
-  return { q, by: byTok() || (!q.length && !ts.includes('--flat') ? '--by=parent' : null) };
+  const ts = tokens(), q = ts.filter(t => !/^--by(=|$)/.test(t) && t !== '--flat'), given = ts.filter(t => /^--by(=|$)/.test(t));
+  const bys = given.length ? given : !q.length && !ts.includes('--flat') ? ['--by=parent'] : [];
+  return { q, bys, by: bys[0] || null };
 };
 const chevron = open => `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="${open ? 'M3 5l4 4 4-4' : 'M5 3l4 4-4 4'}"></path></svg>`;
-function renderGroups(res, q) {  // A's ledger: one row per root (or tag value); the newest root starts open with its latest activity beneath
+function renderGroups(res, q, bys) {  // A's ledger: one row per root (or tag value); the newest root starts open with its latest activity beneath
   const total = res.groups.reduce((s, g) => s + g.n, 0);
-  return `<div class="rootsbar">${res.groups.length} ${res.pointer ? 'roots' : 'groups'} <span>· ${total} ${res.pointer ? 'entries beneath' : 'entries'} · newest activity first</span></div>` + res.groups.map((g, i) => {
-    const gk = g.row ? String(g.row.id) : 'v:' + (g.absent ? '-' : '') + g.key, open = state.exp[gk] ?? i === 0;
-    const drill = res.pointer ? (g.row ? `@${res.by}=#${g.row.id} --by=${res.by}` : '') : [...q, g.absent ? `-@${res.by}` : g.key ? `@${res.by}=${g.key}` : `@${res.by}`].join(' ');
+  return `<div class="rootsbar">${res.groups.length} ${res.pointer ? 'roots' : 'groups'} <span>· ${total} ${res.pointer ? 'entries beneath' : 'entries'} · newest activity first</span></div>` + renderLevel(res, q, bys, '', 0);
+}
+function renderLevel(res, ctx, bys, path, depth) {  // repeated --by nest: a group's sub-level groups by the next one
+  const rest = bys.slice(depth + 1);
+  return res.groups.map((g, i) => {
+    const gk = path + (g.row ? String(g.row.id) : 'v:' + (g.absent ? '-' : '') + g.key), open = state.exp[gk] ?? (depth === 0 && i === 0);
+    const tag = g.absent ? `-@${res.by}` : g.key ? `@${res.by}=${g.key}` : `@${res.by}`;
+    const drill = res.pointer ? (g.row ? [`@${res.by}=#${g.row.id}`, `--by=${res.by}`, ...rest].join(' ') : '') : [...ctx, tag, ...rest].join(' ');
     const dl = txt => `<a data-drill="${esc(drill)}" href="${esc(drillHref(drill))}">${txt}</a>`;
     const kids = g.preview.map(k => `<div class="kid"><a class="ref" href="${entryHref(k.id)}" data-id="${k.id}">#${k.id}</a><span>${k.open ? '<b>todo</b> ' : ''}${linkify(mdHead(k.text))}</span><span class="who">${k.agent ? esc(k.agent.split(':').map((p, j) => j ? p.slice(0, 4) : p).join(':')) : 'you'} · ${ago(k.updated)}</span></div>`).join('')
       + (g.n > g.preview.length ? `<div class="kid more">${dl(`+ ${g.n - g.preview.length} more ${res.pointer ? 'beneath' : 'entries'}`)}</div>` : '');
     const latest = g.latest ? `<p class="rollup">${linkify('↳ #' + g.latest.id + '  ' + mdHead(g.latest.text))}</p>` : '';
     const chev = `<button class="chev" data-chev="${esc(gk)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'}">${chevron(open)}</button>`;
     const act = `<div class="act"><b title="${esc(new Date(g.updated).toLocaleString())}">${ago(g.updated)}</b><span>${g.n ? dl(`${g.n} ${res.pointer ? 'beneath' : g.n === 1 ? 'entry' : 'entries'}`) : 'nothing beneath'}${g.open ? ` · <em>${g.open} open</em>` : ''}</span></div>`;
-    const list = open && g.n ? `<div class="kids">${kids}</div>` : open ? '' : latest;
-    if (!g.row) return `<article class="group root"><div class="gut">${chev}</div><div class="body"><p class="head">${dl(g.absent ? 'no @' + esc(res.by) : '@' + esc(res.by) + (g.key ? '=' + esc(g.key) : ''))}</p>${list}</div>${act}</article>`;
+    const inside = g.sub ? `<div class="subgroups">${renderLevel(g.sub, res.pointer ? ctx : [...ctx, tag], bys, gk + '/', depth + 1)}</div>` : `<div class="kids">${kids}</div>`;
+    const list = open && g.n ? inside : open ? '' : latest;
+    const cls = depth ? ' sub' : '';
+    if (!g.row) return `<article class="group root${cls}"><div class="gut">${chev}</div><div class="body"><p class="head">${dl(g.absent ? 'no @' + esc(res.by) : '@' + esc(res.by) + (g.key ? '=' + esc(g.key) : ''))}</p>${list}</div>${act}</article>`;
     const r = g.row, lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
-    return `<article class="entry root ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}"><div class="gut">${chev}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>
+    return `<article class="entry root${cls} ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}"><div class="gut">${chev}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>
       <div class="body"><p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
       <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div>${list}</div>${act}</article>`;
   }).join('');
@@ -322,7 +342,7 @@ function setQuery(q, push = true, keep = false) {  // keep: the box is being typ
   const qs = tokens().join(' '), u = new URL(location);
   qs ? u.searchParams.set('q', qs) : u.searchParams.delete('q'); state.db ? u.searchParams.set('db', state.db) : u.searchParams.delete('db');
   history[push ? 'pushState' : 'replaceState'](null, '', u);
-  renderAtoms(); renderNamed(); refresh();
+  renderAtoms(); renderNamed(); refresh(); if (push) refreshCounts();
 }
 function fromUrl() { const u = new URL(location); if (u.searchParams.has('db')) state.db = u.searchParams.get('db'); setInput(u.searchParams.get('q') || ''); }
 const entryHref = id => '?q=' + id + (state.db ? '&db=' + encodeURIComponent(state.db) : '');  // #11: shareable link; ⌘-click opens the entry in its own window
@@ -345,16 +365,20 @@ const dayLabel = d => {
 async function refresh() {
   $('#status').textContent = '…';
   try {
-    const { by, q } = viewBy();
-    const [rows, tg, vocab, res, expl] = await Promise.all([api('ls', { args: q }), api('tags', { args: q }), api('vocab'), by ? api('roots', { args: [...q, by] }) : null, api('explain', { args: q })]);
-    $('#expanded').textContent = 'runs as: ' + expl + (by ? '  ·  rolled up by ' + (by.split('=')[1] ? '@' + by.split('=')[1] : '@parent') : '');
+    const { by, bys, q } = viewBy();
+    const pin = q.map(t => t.match(/^@parent=#(\d+)$/)).find(Boolean)?.[1], hasPages = state.cfg.filters.some(f => f.name === 'pages');
+    const [rows, tg, vocab, res, expl, sh, pg] = await Promise.all([api('ls', { args: q }), api('tags', { args: q }), api('vocab'), by ? api('roots', { args: [...q, ...bys] }) : null, api('explain', { args: q }), pin ? api('show', { id: pin }) : null, hasPages ? api('ls', { args: ['--pages'] }) : null]);
+    $('#expanded').textContent = 'runs as: ' + expl + (by ? '  ·  rolled up by ' + bys.map(b => '@' + (b.split('=')[1] || 'parent')).join(' › ') : '');
     state.vocab = vocab;
     const tree = !by && rows.some(r => 'depth' in r);
     if (!tree) rows.reverse();
     state.rows = rows;
-    let html = '', day = '';
-    state.res = res; state.q = q;
-    if (by) html = renderGroups(res, q); else for (const r of rows) {
+    const title = r => mdHead((r.content.split('\n').find(l => l.trim()) || '')).slice(0, 50), goto = q => `data-drill="${esc(q)}" href="${esc(drillHref(q))}"`;
+    let html = sh && sh.row ? `<div class="crumb"><a ${goto('')}>all</a> › ${sh.ancestors.map(a => `<a ${goto(`@parent=#${a.id} --by=parent`)}>${esc(title(a))}</a> › `).join('')}<b>${esc(title(sh.row))}</b></div>` : '', day = '';
+    $('#pagebox').hidden = !(pg && pg.length);
+    $('#pages').innerHTML = (pg || []).slice().reverse().map(r => `<a href="${entryHref(r.id)}" data-id="${r.id}">${esc(title(r))}</a>`).join('');
+    state.res = res; state.q = q; state.bys = bys;
+    if (by) html += renderGroups(res, q, bys); else for (const r of rows) {
       const d = new Date(r.created), lbl = dayLabel(d);
       if (!tree && lbl !== day) {
         const full = d.toLocaleDateString(undefined, { weekday: 'long' }) + ', ' + d.toLocaleDateString(undefined, { month: 'long', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
@@ -397,14 +421,25 @@ function renderCal() {  // #7: per-day entry counts for the current view, last 1
   $('#cal').innerHTML = cells;
 }
 function renderNamed() {
-  $('#named').innerHTML = state.cfg.filters.filter(f => f.name !== 'mine').map(f =>  // ponytail: mine is for agents (skills use --mine); typing --mine still works
-     `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}">${f.name}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`).join('')
+  $('#named').innerHTML = state.cfg.filters.filter(f => f.name !== 'mine' && f.name !== 'pages').map(f => {  // ponytail: mine is for agents (skills use --mine); pages feeds the Pages list
+      const c = state.counts[f.name] || [0, 0];
+      return `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}">${f.name}${c[1] ? `<span class="new">${c[1]} new</span>` : c[0] ? `<span class="cnt">${c[0]}</span>` : ''}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`;
+    }).join('')
     + `<span class="chip ${has('--tree') ? 'on' : ''}" data-tok="--tree" title="Nest entries under their @parent">tree</span>`
     + `<span class="chip" id="saveview" title="Save the filter box as a named view in ~/.jn">+ save view</span>`;
   const by = viewBy().by;
   $('#viewseg').innerHTML = `<span class="chip ${by ? 'on' : ''}" data-view="roots" title="One row per top-level entry with what's beneath it. Type --by=agent (any tag) to roll up by that tag's values instead">Roots</span>`
     + `<span class="chip ${by ? '' : 'on'}" data-view="flat" title="Every matching entry, newest first">Flat</span>`;
   $('#saveview').onclick = () => { const v = $('#viewname'); v.style.display = v.style.display === 'block' ? 'none' : 'block'; if (v.style.display === 'block') v.focus(); };
+}
+// unread badges: a view's "new" is entries updated since you last had it open (per-browser, per-db high-water mark)
+const seenKey = () => 'jn.seen:' + state.db, stamp = () => new Date().toISOString().slice(0, 19) + '+00:00';
+async function refreshCounts() {
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem(seenKey()) || '{}'); } catch {}
+  for (const f of state.cfg.filters) if (!seen[f.name] || has('--' + f.name)) seen[f.name] = stamp();  // first sight and the open view are seen
+  try { localStorage.setItem(seenKey(), JSON.stringify(seen)); } catch {}
+  try { state.counts = await api('counts', { seen }); renderNamed(); } catch {}
 }
 async function saveFilter(name, expr) {
   try {
@@ -441,6 +476,11 @@ async function capture() {
   } catch (e) { $('#cap-err').textContent = e.message; }
 }
 $('#save').onclick = capture;
+document.body.addEventListener('change', async e => {  // a checkbox in a ```jn block closes or reopens that task
+  const b = e.target.closest('[data-done]');
+  if (!b) return;
+  try { await api('tag', { id: +b.dataset.done, patch: [b.checked ? '@done' : '-@done'] }); b.closest('.jnq-r').classList.toggle('done', b.checked); } catch (err) { b.checked = !b.checked; $('#status').textContent = err.message; }
+});
 $('#capture').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') capture(); };
 
 // filter box + URL
@@ -465,7 +505,7 @@ document.body.addEventListener('click', e => {
   const dr = e.target.closest('[data-drill]');
   if (dr) { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); e.stopPropagation(); cur = null; setQuery(dr.dataset.drill); return; }
   const ch = e.target.closest('[data-chev]');
-  if (ch) { e.stopPropagation(); const k = ch.dataset.chev; state.exp[k] = ch.getAttribute('aria-expanded') !== 'true'; $('#list').innerHTML = renderGroups(state.res, state.q); if (cur !== null) openEntry(cur, false); return; }
+  if (ch) { e.stopPropagation(); const k = ch.dataset.chev; state.exp[k] = ch.getAttribute('aria-expanded') !== 'true'; $('#list').innerHTML = renderGroups(state.res, state.q, state.bys); if (cur !== null) openEntry(cur, false); return; }
   const vw = e.target.closest('[data-view]');
   if (vw) { const q = viewBy().q; setQuery(vw.dataset.view === 'roots' ? (q.length ? [...q, '--by=parent'] : []).join(' ') : (q.length ? q : ['--flat']).join(' ')); return; }
   const a = e.target.closest('[data-tok],[data-id],[data-tag]');
@@ -512,6 +552,7 @@ async function openEntry(id, scroll = true) {
     const patch = async p => { try { await api('tag', { id, patch: p }); await refresh(); } catch (e) { fail(e); } };
     const tagsLine = () => Object.entries(ed.tags).map(([k, v]) => '@' + k + (v ? '=' + v : '')).join(' ');
     const ta = ed.querySelector('.content'), mdEl = ed.querySelector('.md');
+    hydrate(mdEl, new Set([id]));
     const save = async text => { try { await api('edit', { id, text: tagsLine() + '\n\n' + text }); await refresh(); } catch (e) { fail(e); } };
     ed.querySelector('.act-save').onclick = () => save(ta.value);
     ed.edit = () => { ed.classList.add('editing'); mdEl.hidden = true; ta.hidden = false; ta.oninput?.(); ta.focus(); };  // rendered -> textarea
@@ -640,6 +681,8 @@ function mdBlocks(lines) {
     const l = lines[i];
     if (blank(l)) { flush(); i++; }
     else if (m = l.match(/^ {0,3}(#{1,6}) +(.*?) *#* *$/)) { flush(); out += `<h${m[1].length}>${mdInline(m[2])}</h${m[1].length}>`; i++; }
+    else if (m = l.match(/^ {0,3}!\[\[#(\d+)\]\] *$/)) { flush(); out += `<div class="jnx" data-id="${m[1]}"></div>`; i++; }
+    else if (m = l.match(/^ {0,3}(```+|~~~+) *jn *$/)) { flush(); const b = []; for (i++; i < lines.length && !lines[i].startsWith(m[1]); i++) b.push(lines[i]); i++; out += `<div class="jnq" data-q="${b.join(' ')}"></div>`; }
     else if (m = l.match(/^ {0,3}(```+|~~~+)/)) { flush(); const b = []; for (i++; i < lines.length && !lines[i].startsWith(m[1]); i++) b.push(lines[i]); i++; out += `<pre><code>${b.join('\n')}</code></pre>`; }
     else if (!para.length && /^(    |\t)/.test(l)) { flush(); const b = []; for (; i < lines.length && (/^(    |\t)/.test(lines[i]) || blank(lines[i]) && /^(    |\t)/.test(lines[i + 1] || '')); i++) b.push(lines[i].replace(/^(    |\t)/, '')); out += `<pre><code>${b.join('\n')}</code></pre>`; }
     else if (/^ {0,3}([-*_])( *\1){2,} *$/.test(l)) { flush(); out += '<hr>'; i++; }
@@ -653,6 +696,37 @@ function mdBlocks(lines) {
     else { para.push(l); i++; }
   }
   flush(); return out;
+}
+// a page is an entry: ```jn blocks run as queries, ![[#N]] pulls in another entry (read-only, two levels deep)
+async function hydrate(root, chain) {
+  for (const el of root.querySelectorAll('.jnq')) {
+    const args = el.dataset.q.trim().split(/\s+/).filter(Boolean);
+    try {
+      if (args.some(a => /^--by(=|$)/.test(a))) {
+        const res = await api('roots', { args });
+        el.innerHTML = `<div class="jnq-h">${esc(args.join(' '))} · ${res.groups.length} groups</div>` + res.groups.map(g => {
+          const lbl = g.row ? `<a class="ref" href="${entryHref(g.row.id)}" data-id="${g.row.id}">#${g.row.id}</a> ${linkify(mdHead(g.row.content.split('\n')[0]))}` : g.absent ? 'no @' + esc(res.by) : '@' + esc(res.by) + (g.key ? '=' + esc(g.key) : '');
+          return `<div class="jnq-g"><span>${lbl}</span><span>${g.n}${g.open ? ` · <em>${g.open} open</em>` : ''} · ${ago(g.updated)}</span></div>`;
+        }).join('');
+      } else {
+        const rows = (await api('ls', { args })).reverse();
+        el.innerHTML = `<div class="jnq-h">${esc(args.join(' '))} · ${rows.length}</div>` + rows.slice(0, 50).map(r => {
+          const head = mdHead(r.content.split('\n').find(l => l.trim()) || '');
+          return `<div class="jnq-r${'done' in r.tags ? ' done' : ''}">${'todo' in r.tags ? `<input type="checkbox" data-done="${r.id}" aria-label="Done"${'done' in r.tags ? ' checked' : ''}>` : '<span></span>'}<span>${linkify(head)}</span><a class="ref" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>`;
+        }).join('') + (rows.length > 50 ? `<div class="jnq-h">+ ${rows.length - 50} more</div>` : '');
+      }
+    } catch (e) { el.innerHTML = `<div class="jnq-h err">${esc(e.message)}</div>`; }
+  }
+  for (const el of root.querySelectorAll('.jnx')) {
+    const id = +el.dataset.id;
+    if (chain.has(id) || chain.size > 2) { el.innerHTML = `<div class="jnq-h">#${id} · not expanded (${chain.has(id) ? 'cycle' : 'too deep'})</div>`; continue; }
+    try {
+      const [r] = await api('ls', { args: [String(id)] });
+      if (!r) { el.innerHTML = `<div class="jnq-h">#${id} · missing</div>`; continue; }
+      el.innerHTML = `<div class="jnq-h"><a class="ref" href="${entryHref(id)}" data-id="${id}">#${id}</a></div><div class="md">${md(r.content).replace(/ data-task="\d+"/g, ' disabled')}</div>`;
+      await hydrate(el, new Set([...chain, id]));
+    } catch (e) { el.innerHTML = `<div class="jnq-h err">${esc(e.message)}</div>`; }
+  }
 }
 const md = src => { taskN = 0; return mdBlocks(esc(src).replace(/\r/g, '').split('\n')); };
 function mdToggle(src, n) {  // flip the nth task box in the source; fenced code is skipped like the renderer does
@@ -721,7 +795,8 @@ api('dbs').then(dbs => {
   sel.onchange = () => { state.db = sel.value; try { localStorage.setItem('jn.db', state.db); } catch {} cur = null; setQuery(tokens().join(' '), false); api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); }); };
 });
 function setDbPath(p) { const el = $('#dbpath'); el.textContent = p ? '‎' + p : ''; el.title = p || ''; }  // ‎ (LRM) keeps the ellipsis at the left under direction:rtl
-api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); refresh(); });
+api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); refresh(); refreshCounts(); });
+setInterval(() => { if (document.visibilityState === 'visible') refreshCounts(); }, 30000);
 setInterval(() => { if (document.visibilityState === 'visible' && cur === null) refresh(); }, 5000);
 </script>
 </body>

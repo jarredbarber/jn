@@ -100,6 +100,9 @@ with tempfile.TemporaryDirectory() as d:
     out = run("ls", "@tree", "--all", "--tree", **env).splitlines()[1:]
     assert ids("h\n" + "\n".join(out)) == [p1, p2, p3, p4] and "    grandchild" in out[2] and out[4].split("  ")[3] == "orphan", out
     assert [l.strip() for l in out if "↳" in l] == ["↳ #999 (missing)"], out     # context only on roots whose parent isn't shown
+    bad = lambda *a, **k: subprocess.run([sys.executable, JN, *a], input=k.get("stdin"), capture_output=True, text=True, env={**os.environ, **env}, cwd=env["CWD"])
+    assert bad("log", "x @parent=#1,#2").returncode == 1 and "one @parent" in bad("tag", p1, "@parent=#1,#2").stderr and bad("tag", p1, "@parent+=#1,#2").returncode == 1   # one home per entry
+    assert bad("edit", p1, stdin="@parent=#1,#2\n\nx").returncode == 1 and bad("log", "ok @refs=#1,#2").returncode == 0                                              # many pointers: another tag
     run("tag", p1, p2, "@multi", **env)
     assert ids(run("ls", "@multi", "--all", **env)) == [p1, p2]
     run("close", p3, p4, **env)
@@ -207,6 +210,9 @@ with tempfile.TemporaryDirectory() as d:
     g = post("roots", args=["-@done", "--by=parent"])[1]["groups"]; assert [(x["row"]["id"], x["n"]) for x in g if x["row"]["id"] == 2] == [(2, 2)], g   # depth > 1 counts
     g = post("roots", args=["-@done", "--by=sess"])[1]  # value tag: one group per value, entries without it under ""
     assert not g["pointer"] and {x["key"]: x["n"] for x in g["groups"]} == {"s9": 1, "s8": 1, "": 2}, g   # the default filter still hides children
+    post("tag", id=6, patch=["@team=core"]); post("tag", id=2, patch=["@team=core"])
+    g = post("roots", args=["-@done", "--by=team", "--by=parent"])[1]["groups"]   # nested: parent roots inside each team
+    core = next(x for x in g if x["key"] == "core"); assert core["n"] == 2 and [x["row"]["id"] for x in core["sub"]["groups"]] == [6, 2] and core["sub"]["groups"][1]["n"] == 2, g
     post("log", text="just a note")
     g = post("roots", args=["-@done", "--by=todo"])[1]["groups"]                 # a bare tag splits into present / absent
     assert sorted((x["absent"], x["n"]) for x in g) == [(False, 4), (True, 1)], g

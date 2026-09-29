@@ -144,6 +144,8 @@ jn ls @todo --unblocked
 jn tag 42 @blocked_by-=vendor
 ```
 
+An entry has **one** `@parent`: a write with `@parent=#1,#2` is rejected (use another tag, e.g. `@refs=#1,#2`, for many pointers; `import` does not check).
+
 Projects and subtasks are conventions. Use a normal entry as the project head and point children at it with `@parent=#N`. `jn ls --all --tree` renders the complete hierarchy. `--tree` only nests rows selected by the query, so filters or the default view can omit a parent or child. Tag-only grouping also works when no head entry is needed.
 
 ### Attachments
@@ -208,7 +210,13 @@ jn serve                     # http://127.0.0.1:8787
 jn serve --host 127.0.0.1 --port 9000
 ```
 
-The browser UI accepts the same query tokens as `ls` and exposes a POST API. With an empty filter box the home view is the roots ledger (`--flat`, or the `flat` chip, opts out; any other query is the flat feed unless it carries `--by`). `--by[=tag]` rolls the view up: one row per top-level entry with what sits beneath it (count, open `@todo`s, latest activity), or with `--by=agent` (any non-pointer tag) one row per tag value, e.g. one per agent session. Click the count to drill in. The web lens shows finished `@tags` and `--options` as blocks you can clear with their x, and prints the query as it will run (named filters expanded, default filter applied). It is a web-only token; the CLI does not accept it. The default listener is loopback. It has no authentication; do not bind it to an untrusted network unless another layer protects it.
+The browser UI accepts the same query tokens as `ls` and exposes a POST API. With an empty filter box the home view is the roots ledger (`--flat`, or the `flat` chip, opts out; any other query is the flat feed unless it carries `--by`). `--by[=tag]` rolls the view up: one row per top-level entry with what sits beneath it (count, open `@todo`s, latest activity), or with `--by=agent` (any non-pointer tag) one row per tag value, e.g. one per agent session. Repeat `--by` to nest (`--by=project --by=parent` groups by project, then by parent inside each). Click the count to drill in; a breadcrumb appears above a `@parent=#N` view. The web lens shows finished `@tags` and `--options` as blocks you can clear with their x, and prints the query as it will run (named filters expanded, default filter applied). It is a web-only token; the CLI does not accept it. The default listener is loopback. It has no authentication; do not bind it to an untrusted network unless another layer protects it.
+
+### Pages and unread badges (web)
+
+A page is an ordinary entry. In the web UI its body can hold a fenced ```` ```jn ```` block whose lines are query tokens (`@todo --mine`, or with `--by=tag` a rolled-up list) and run live, with checkboxes that close tasks, and a line `![[#N]]` that pulls in entry `N` read-only. Define a filter named `pages` (for example `pages = "@page"`) and the sidebar lists those entries under Pages; the web knows no special tag.
+
+Each view in the sidebar shows its size, or `N new` when entries changed since you last had that view open (a per-browser, per-db marker in `localStorage`).
 
 ## Backup and storage
 
