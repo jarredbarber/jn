@@ -480,7 +480,7 @@ def expand(pos, opts):
     if "all" not in opts and not any(t.isdigit() for t in pos):
         mentioned = {m[1] for m in TAG.findall(" ".join(pos))}
         pos += [t for t in config()["filters"]["default"].split() if TAG.fullmatch(t)[2] not in mentioned]
-    return pos, opts, py
+    return list(dict.fromkeys(pos)), opts, list(dict.fromkeys(py))  # filters can repeat tokens (--tasks --default); every filter ANDs, so drop repeats
 
 
 def select(pos, opts):
