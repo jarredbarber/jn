@@ -11,8 +11,8 @@ def run(*args, stdin=None, **env):
 with tempfile.TemporaryDirectory() as d:
     env = dict(JN_DB=f"{d}/t.db", HOME=d, CWD=f"{d}/proj/sub", CLAUDE_CODE_SESSION_ID="s0", ANTIGRAVITY_CONVERSATION_ID="")
     Path(env["CWD"]).mkdir(parents=True)
-    Path(d, "proj/.jn").write_text('tags = ["project=demo"]\nfavorites = ["todo", "due"]\n[actions]\nnote = "log @note $@"\n[filters]\nopen = "@todo -@done"\nevil = "__import__(\'os\').system(\'touch pwned\')"\n[colors]\ntodo = "#ff0"\n')
-    Path(d, ".jn").write_text('tags = ["global"]\nfavorites = ["due", "home"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[colors]\ntodo = "#000"\ndue = "#0ff"\n[filters]\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
+    Path(d, "proj/.jn").write_text('tags = ["project=ignored"]\nfavorites = ["ignored"]\n[actions]\nnote = "log @note $@"\n[filters]\nopen = "@todo -@done"\nevil = "__import__(\'os\').system(\'touch pwned\')"\n[colors]\ntodo = "#ff0"\n')
+    Path(d, ".jn").write_text('tags = ["global", "project=demo"]\nfavorites = ["todo", "due", "home"]\ntags_expr = "\'@ws=\' + cwd.rsplit(\'/\', 1)[1]"\n[actions]\nnote = "log @note $@"\n[colors]\ntodo = "#ff0"\ndue = "#0ff"\n[filters]\nopen = "@todo -@done"\nfit = "tag(\'@fitness\') == [] and env(\'$JN_DB\')"\n')
     Path(d, "proj/sub/.jn").write_text('tags_expr = "[\'@evil\']"\n')  # must be ignored
 
     ids = lambda out: [l.split()[0] for l in out.splitlines()[1:] if l.split()[:1] and l.split()[0].isdigit()]   # skip header + @parent context lines
@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory() as d:
     assert t0["ws"] == "sub" and "evil" not in t0 and t0["agent"] == "claude:s0", t0   # builtin @agent from env
     assert "todo" in t0 and "done" in t0 and t0["project"] == "demo" and "global" in t0, t0   # close adds @done, keeps @todo
     assert t1["agent"] == "claude:s1" and t1["see"] == "#" + a and "Heading" not in t1, t1   # text overrides the builtin
-    assert run("ls", "--open", **env) == ""                                 # token filter from project .jn, nothing open
+    assert run("ls", "--open", **env) == ""                                 # token filter from ~/.jn, nothing open
     assert ids(run("ls", "@agent=claude:*", **env))[0] == b                 # value glob (a is @done, hidden)
     assert ids(run("ls", "pushups", "--since", "today", "--all", **env))[0] == a  # text + since
     assert ids(run("ls", "-@done", **env))[0] == b                       # negation
@@ -82,11 +82,11 @@ with tempfile.TemporaryDirectory() as d:
     assert run("log", "in alt", "--db=alt", **env) == "1" and ids(run("ls", "--db", "alt", **env)) == ["1"] and "in alt" not in run("ls", **env)   # named db
     assert f"alt            {d}/alt.db" in run("-h", **env)
     h = run("-h", **env)
-    assert "--evil" not in h and not Path(d, "proj/sub/pwned").exists()   # python filter in project .jn ignored
+    assert "--evil" not in h and not Path(d, "proj/sub/pwned").exists()   # a project .jn is not read at all
     rd = str(Path(d).resolve())
-    assert next(l for l in h.splitlines() if l.startswith("config:")).split(", ")[1:] == [f"{rd}/{x}" for x in (".jn", "proj/.jn", "proj/sub/.jn")], (h, rd)
+    assert next(l for l in h.splitlines() if l.startswith("config:")).split(", ")[1:] == [f"{rd}/.jn"], (h, rd)   # only ~/.jn
     assert "fit" in h and "unblocked" in h and "open" in h, h
-    assert "colors:\n  todo           #ff0\n  due            #0ff\n" in h and "favorites: @todo @due @home" in h, h   # [colors]/favorites layer, nearer wins
+    assert "colors:\n  todo           #ff0\n  due            #0ff\n" in h and "favorites: @todo @due @home" in h, h   # [colors]/favorites
     n = run("note", "@k=v", stdin="body from stdin", **env)                  # custom action; tag-only args read stdin
     e = js(run("ls", n, "--json", **env))[0]
     assert e["content"] == "body from stdin" and e["tags"]["note"] is None and e["tags"]["k"] == "v", e
@@ -142,7 +142,7 @@ with tempfile.TemporaryDirectory() as d:
     assert js(run("ls", jb, "--json", **jenv))[0]["tags"] == {"agent": "claude:s0", "global": None, "k": "v", "project": "demo", "see": "#" + ja, "ws": "sub"}
     assert run("import", stdin=json.dumps({"id": 9, "content": "imported", "tags": {"todo": None}}), **jenv) == "imported 1"
     assert [json.loads(l)["id"] for l in Path(jl).read_text().splitlines()] == [1, 2, 9] and ids(run("ls", "@todo", **jenv)) == ["1", "9"]   # 1 reverted to its @todo-only v1
-    Path(d, "proj/.jn").write_text(Path(d, "proj/.jn").read_text() + '[dbs]\njl = "journal.jsonl"\n')   # [dbs] name -> .jsonl, relative to that .jn
+    Path(d, ".jn").write_text(Path(d, ".jn").read_text() + 'jl = "proj/journal.jsonl"\n')   # [dbs] name -> .jsonl, relative to ~/.jn
     assert ids(run("ls", "imported", "--db=jl", **env)) == ["9"] and ids(run("ls", "--db=jl", "--all", **env)) == ["1", "2", "9"]
     # children: @parent=#N context line in ls, threaded show
     r1 = run("log", "@thr root of the thread", **env)

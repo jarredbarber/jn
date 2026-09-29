@@ -72,7 +72,7 @@ Timestamps are stored in UTC and displayed in the local timezone unless `tz` is 
 
 The code has no fixed domain tags. `@todo`, `@done`, `@archived`, and `@blocked_by` are conventions used by the default filters and actions. Configuration can replace those filters and actions.
 
-When an agent environment is present, `log` automatically adds `@agent=claude:<session-id>` from `CLAUDE_CODE_SESSION_ID`, or `@agent=agy:<id>` from `ANTIGRAVITY_CONVERSATION_ID`. A human shell gets no `@agent` tag. Project tags from `.jn` are also added automatically. Do not add duplicate `@agent` or project tags in agent entries.
+When an agent environment is present, `log` automatically adds `@agent=claude:<session-id>` from `CLAUDE_CODE_SESSION_ID`, or `@agent=agy:<id>` from `ANTIGRAVITY_CONVERSATION_ID`. A human shell gets no `@agent` tag. Tags configured in `~/.jn` are also added automatically. Do not add duplicate `@agent` or project tags in agent entries.
 
 ## Commands
 
@@ -156,12 +156,10 @@ Projects and subtasks are conventions. Use a normal entry as the project head an
 
 ## Configuration
 
-Configuration is layered: built-ins, `~/.jn`, then every `.jn` from filesystem root to the current directory. Nearer files override named settings; `tags` accumulate and `favorites` merge with nearer tags first. `jn -h` prints the active layers plus effective tags, filters, and actions.
-
-Project `.jn` files are data-only. They may add tags, token filters, actions, databases, colors, favorites, and a display timezone. Python expressions are accepted only in `~/.jn`: project expressions are ignored.
+Configuration is one TOML file, `~/.jn`, over the built-in defaults. jn reads no other file: a `.jn` in a project directory is ignored, because the file may hold Python. `jn -h` prints the active file plus effective tags, filters, and actions. To tag by directory, use `tags_expr` (below).
 
 ```toml
-# project/.jn
+# ~/.jn
 tags = ["project=cube-reps"]
 tz = "America/New_York"
 favorites = ["todo", "due"]
@@ -182,7 +180,7 @@ todo = "#FF7A1A"
 A filter is either a token string beginning with `@`, `-@`, or `--`, which expands into `ls` arguments, or a Python expression evaluated for each entry. Python filters use `tag(name)`, `default(name)`, `env(name)`, `cwd`, `F(name)`, and raw `id`, `created`, `updated`, `content`, and `tags` fields. `tag` returns a list, `[]` for a bare tag, or `None` when absent. `default` returns the tags a new entry would receive.
 
 ```toml
-# ~/.jn only
+# ~/.jn
 tags_expr = "'@workspace=' + cwd.split('/')[4] if cwd.startswith(env('HOME') + '/code/') else ''"
 
 [filters]
@@ -191,7 +189,7 @@ overdue = "tag('todo') is not None and (tag('due') or ['9'])[0] < __import__('da
 
 `tags_expr` can return a string or list of tags and can use `env()` and `cwd`. Tag precedence is built-in agent tag, configured `tags`, `tags_expr`, `JN_TAGS`, then tags in the entry text.
 
-`JN_TAGS` adds tags for a shell or session. `JN_DB` sets the database path; `--db` takes precedence for one command. Named databases under `[dbs]` resolve relative paths against the `.jn` that names them. `favorites` orders web tag chips, and `[colors]` sets their colors.
+`JN_TAGS` adds tags for a shell or session. `JN_DB` sets the database path; `--db` takes precedence for one command. Named databases under `[dbs]` resolve relative paths against your home directory. `favorites` orders web tag chips, and `[colors]` sets their colors.
 
 ## Agent documentation
 

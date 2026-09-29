@@ -362,7 +362,7 @@ const linkify = s => refs(esc(s));
 const titleHtml = s => mdInline(esc(s).replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1'));  // inline markdown in a one-line title; images dropped, html was escaped
 const plain = s => s.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '');
 const refify = v => esc(v).replace(/#(\d+)\b/g, (_, id) => `<a class="ref" href="${entryHref(id)}" data-id="${id}">#${id}</a>`);
-const tcol = t => { const c = (state.cfg.colors || {})[t] || ''; return /^#[0-9a-f]{3,8}$/i.test(c) ? c : ''; };  // only a #hex gets into a style attr: a project .jn is data, not css
+const tcol = t => { const c = (state.cfg.colors || {})[t] || ''; return /^#[0-9a-f]{3,8}$/i.test(c) ? c : ''; };  // only a #hex gets into a style attr: keep css out of config
 const chipAttrs = k => { const c = tcol(k); return `class="chip${c ? ' tinted' : ''}"${c ? ` style="--tc:${c}"` : ''} data-tag="${esc(k)}"`; };
 const tagChip = (k, v, extra = '') => `<span ${chipAttrs(k)} ${extra}>@${esc(k)}${v ? '=' + refify(v) : ''}</span>`;
 const atify = t => t.replace(/^(-?)(?!@)/, '$1@');  // tag fields take bare words: foo -> @foo, -foo -> -@foo

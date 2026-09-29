@@ -4,7 +4,7 @@ The journal gives people and future agents a durable handoff without a transcrip
 
 ## Attribution
 
-`jn log` adds `@agent=claude:<session-id>` or `@agent=agy:<id>` from the current environment. `.jn` configuration can add project tags. Do not add `@agent`, `@by`, or duplicate project tags yourself.
+`jn log` adds `@agent=claude:<session-id>` or `@agent=agy:<id>` from the current environment. `~/.jn` configuration can add project tags. Do not add `@agent`, `@by`, or duplicate project tags yourself.
 
 ```bash
 jn ls --mine --since today        # entries this environment would create

@@ -161,11 +161,11 @@ def verbs(jn):
 def server(jn, host, port):
     api, default_db = verbs(jn), jn.DB
 
-    candidates = [jn.Path.home() / ".jn", *(p / ".jn" for p in [jn.Path.cwd(), *jn.Path.cwd().parents])]
+    candidates = [jn.Path.home() / ".jn"]
     seen = [None]
 
     def fresh():
-        """config() is cached per process; drop it when any .jn that could layer in changes (or appears)"""
+        """config() is cached per process; drop it when ~/.jn changes (or appears)"""
         stamp = [p.stat().st_mtime_ns if p.is_file() else None for p in candidates]
         if stamp != seen[0]:
             seen[0] = stamp; jn.config.cache_clear()
@@ -174,7 +174,7 @@ def server(jn, host, port):
         """select this request's journal; JSONL snapshots last only one request so CLI edits stay visible"""
         fresh()
         if name and name not in jn.config()["dbs"]:
-            raise SystemExit(f"no db named {name}; add it under [dbs] in .jn")  # names only from the web, never paths
+            raise SystemExit(f"no db named {name}; add it under [dbs] in ~/.jn")  # names only from the web, never paths
         path = jn.db_path(name) if name else default_db
         if path != jn.DB or path.suffix in (".jsonl", ".json"):
             if jn.db.cache_info().currsize:

@@ -13,7 +13,7 @@ jn log "@parent=#42 parser handles nested lists"
 
 For a literal tag-shaped word, write `\@name` (for example, `jn log 'Discuss \@todo'`). The backslash stays in the entry so later edits do not turn the word into a tag. Quote shell input to preserve it.
 
-Agent attribution is automatic. `log` adds `@agent=claude:<session-id>` or `@agent=agy:<id>` when the matching environment variable exists, and `.jn` may add project tags. Do not add duplicate `@agent` or project tags yourself.
+Agent attribution is automatic. `log` adds `@agent=claude:<session-id>` or `@agent=agy:<id>` when the matching environment variable exists, and `~/.jn` may add project tags. Do not add duplicate `@agent` or project tags yourself.
 
 ## Start here
 
@@ -24,7 +24,7 @@ jn ls --open
 jn ls --mine --last 5
 ```
 
-`--open` is a named filter from `.jn`. If the project does not define it, use `jn ls @todo -@done`.
+`--open` is a named filter from `~/.jn`. If it is not defined, use `jn ls --tasks`.
 
 ## Common commands
 
@@ -70,7 +70,7 @@ EOF
 | `@agent=claude:*` | Any Claude agent entry. |
 | `pushups` | Content contains the word. |
 | `42` | Entry ID. |
-| `--open` | Named filter from `.jn`. |
+| `--open` | Named filter from `~/.jn`. |
 
 Options include `--since today|yesterday|3d|2w|2026-09-01`, `--last N`, `--mine`, `--tree`, `--json`, `--md`, and `--all`.
 
@@ -95,5 +95,5 @@ By default, `ls` hides `@done`, `@archived`, and `@parent`. Mentioning one of th
 Print pages only when needed:
 
 - `jn --skill todo`: projects, subtasks, blockers, and due dates.
-- `jn --skill config`: `.jn`, filters, actions, timezones, and session tags.
+- `jn --skill config`: `~/.jn`, filters, actions, timezones, and session tags.
 - `jn --skill journal`: attribution, milestones, and linking.

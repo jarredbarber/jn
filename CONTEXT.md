@@ -32,7 +32,7 @@ A named shortcut expanding to one or more `jn` command lines with `$1`/`$@` subs
 
 ## Filter
 
-A named row predicate for `ls`/`tags`. Two kinds: a **token string** (`@tag -@tag`, data-only, safe in any `.jn`) or a **Python expression** (only ever from `~/.jn` — a project `.jn`'s Python-shaped filter is ignored, the security boundary).
+A named row predicate for `ls`/`tags`. Two kinds: a **token string** (`@tag -@tag`, data-only) or a **Python expression** (both only ever from `~/.jn`, the only config file jn reads — the security boundary).
 
 ## Default filter
 

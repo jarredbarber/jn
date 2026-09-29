@@ -1,16 +1,14 @@
 # jn configuration
 
-Configuration is TOML. jn reads built-ins, `~/.jn`, and `.jn` files on the path to the current directory, resolving each named definition from the nearest file. Run `jn -h` to inspect the result.
-
-Project `.jn` files are data-only. Python expressions in them are ignored. Only `~/.jn` may define Python filters or `tags_expr`.
+Configuration is TOML. jn reads built-ins and one file, `~/.jn`; a `.jn` in a project directory is ignored. Run `jn -h` to inspect the result.
 
 ## Tags
 
-Project tags are added to every new entry made below that directory:
+Tags in `tags` are added to every new entry; use `tags_expr` (below) to vary them by directory:
 
 ```toml
-# project/.jn
-tags = ["project=cube-reps", "area=infra"]
+# ~/.jn
+tags = ["area=infra"]
 ```
 
 When present, jn first adds the built-in agent tag, then configured `tags`, `tags_expr` from `~/.jn`, `JN_TAGS`, and tags supplied in entry text. Later values for the same name win. The agent tag is `@agent=claude:<id>` or `@agent=agy:<id>`; a human shell gets none.
@@ -21,10 +19,9 @@ A filter is either a token string that starts with `@`, `-@`, or `--`, or a Pyth
 
 ```toml
 [filters]
-open    = "@todo -@done"                       # token filter; any .jn
+open    = "@todo -@done"                       # token filter
 default = "-@done -@archived -@parent"         # replaces the built-in default
 
-# ~/.jn only
 overdue = "tag('todo') is not None and (tag('due') or ['9'])[0] < __import__('datetime').date.today().isoformat()"
 ```
 
@@ -58,8 +55,6 @@ todo  = ["log @todo $@"]
 close = ["tag $1 @done", "ls @blocked_by=#$1 --unblocked"]
 ```
 
-An action in a project `.jn` changes behavior for the journal selected in that project.
-
 ## Environment and display settings
 
 - `JN_TAGS`: extra tags for the current shell or session, for example `export JN_TAGS="@by=claude:claude-code"`.
@@ -76,4 +71,4 @@ work = "~/work.jn.db"
 notes = "~/notes/journal.db"
 ```
 
-Named databases can be declared in any `.jn`; relative paths resolve from the file that declares them. `favorites = ["todo", "due"]` pins tags at the top of the web tag list. `[colors]` maps tag names to chip colors, for example `todo = "#FF7A1A"`.
+Relative `[dbs]` paths resolve from your home directory. `favorites = ["todo", "due"]` pins tags at the top of the web tag list. `[colors]` maps tag names to chip colors, for example `todo = "#FF7A1A"`.

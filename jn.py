@@ -16,7 +16,7 @@
   jn <action> ...            todo, close, ... (see below). `jn close 1 2 3` closes each
   jn --skill [page]          print skill docs to stdout (no page = overview; then config, todo, journal)
   jn serve [--host H] [--port P]   web UI + POST /api over this journal (default 127.0.0.1:8787). No auth: front it yourself
-  --db=<path|name>           use another journal for this run (overrides $JN_DB); names come from [dbs] in .jn
+  --db=<path|name>           use another journal for this run (overrides $JN_DB); names come from [dbs] in ~/.jn
                              a path ending in .jsonl is kept as jsonl (one entry per line, diffs cleanly) instead of sqlite
 """
 import functools, getpass, hashlib, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
@@ -36,7 +36,7 @@ ACTIONS = {  # name -> jn command lines. $1.. and $@ substitute the action's arg
     "todo": ["log @todo $@"],
     "close": ["tag $1 @done", "ls @blocked_by=#$1 --unblocked"],
 }
-FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of .jn files
+FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/extend in [filters] of ~/.jn
     "default": "-@done -@archived -@parent",
     "mine": "tag('agent') == default('agent')",
     "blocked": "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])",
@@ -104,28 +104,26 @@ def builtin_tags():
 
 @functools.cache
 def config():
-    """builtin, ~/.jn, then root/.jn ... ./.jn; nearer wins. Only ~/.jn may hold code (python filters, tags_expr)."""
+    """builtin defaults, then ~/.jn (TOML). One file: it may hold code (python filters, tags_expr), so nothing else is read."""
     cfg = {"tags": builtin_tags(), "filters": dict(FILTERS), "actions": dict(ACTIONS), "dbs": {}, "colors": {}, "favorites": [], "files": ["builtin"],
            "src": {n: "builtin" for n in [*FILTERS, *ACTIONS]}}
-    home = (Path.home() / ".jn").resolve()
-    for f in dict.fromkeys(p.resolve() for p in [home, *(p / ".jn" for p in reversed([Path.cwd(), *Path.cwd().parents]))]):
-        if f.is_file():
-            c = tomllib.loads(f.read_text())
-            cfg["files"].append(str(f))
-            cfg["tags"] += c.get("tags", [])
-            if "tz" in c:
-                cfg["tz"] = c["tz"]
-            cfg["dbs"] |= {n: str(f.parent / Path(p).expanduser()) for n, p in c.get("dbs", {}).items()}  # name -> path, any .jn; relative to that .jn
-            cfg["colors"] |= {str(n): str(v) for n, v in c.get("colors", {}).items()}  # tag -> "#hex" for the web; data, any .jn
-            cfg["favorites"] = list(dict.fromkeys([*c.get("favorites", []), *cfg["favorites"]]))  # pinned first in the web tag cloud; nearer first
-            for n, cmds in c.get("actions", {}).items():
-                cfg["actions"][n], cfg["src"][n] = [cmds] if isinstance(cmds, str) else list(cmds), str(f)
-            for n, expr in c.get("filters", {}).items():
-                if f == home or is_tokens(expr):
-                    cfg["filters"][n], cfg["src"][n] = expr, str(f)
-            if f == home and "tags_expr" in c:
-                extra = eval(c["tags_expr"], {"env": envf, "cwd": os.getcwd()})
-                cfg["tags"] += extra.split() if isinstance(extra, str) else list(extra)
+    f = (Path.home() / ".jn").resolve()
+    if f.is_file():
+        c = tomllib.loads(f.read_text())
+        cfg["files"].append(str(f))
+        cfg["tags"] += c.get("tags", [])
+        if "tz" in c:
+            cfg["tz"] = c["tz"]
+        cfg["dbs"] = {n: str(f.parent / Path(p).expanduser()) for n, p in c.get("dbs", {}).items()}  # name -> path, relative to ~/.jn's directory
+        cfg["colors"] = {str(n): str(v) for n, v in c.get("colors", {}).items()}  # tag -> "#hex" for the web
+        cfg["favorites"] = list(c.get("favorites", []))  # pinned first in the web tag cloud
+        for n, cmds in c.get("actions", {}).items():
+            cfg["actions"][n], cfg["src"][n] = [cmds] if isinstance(cmds, str) else list(cmds), str(f)
+        for n, expr in c.get("filters", {}).items():
+            cfg["filters"][n], cfg["src"][n] = expr, str(f)
+        if "tags_expr" in c:
+            extra = eval(c["tags_expr"], {"env": envf, "cwd": os.getcwd()})
+            cfg["tags"] += extra.split() if isinstance(extra, str) else list(extra)
     return cfg
 
 
