@@ -475,7 +475,7 @@ def parse_opts(args):
     return opts, pos
 
 
-LS_OPTS = ("since", "last", "json", "md", "all", "tree")
+LS_OPTS = ("since", "last", "json", "md", "all", "tree", "by", "flat")  # by/flat are web view options: the CLI accepts and ignores them, so a saved view may hold them
 
 
 def expand(pos, opts):

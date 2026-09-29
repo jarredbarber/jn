@@ -119,7 +119,7 @@ def verbs(jn):
         tomllib.loads(new)  # a ValueError here is a 400, and the file is untouched
         f.write_text(new)
         jn.config.cache_clear()  # config() is cached per process; the CLI never lives long enough to notice
-        return {"filters": [{"name": n, "own": src == str(f)} for n, src in cfg_filters()]}
+        return {"filters": flist(str(f))}
 
     def attach(id, name, data):
         """base64 upload -> stored name, appended to @files"""
@@ -129,6 +129,11 @@ def verbs(jn):
         stored = jn.store_file(raw, name)
         jn.tag(int(id), ["@files+=" + stored])
         return stored
+
+    def flist(own):
+        """views for the sidebar. A token view also lists its tokens, so the page can see a --by that lives inside it"""
+        fs = jn.config()["filters"]
+        return [{"name": n, "own": src == own} | ({"tokens": fs[n].split()} if jn.is_tokens(fs[n]) else {}) for n, src in cfg_filters()]
 
     def cfg_filters():
         c = jn.config()
@@ -148,7 +153,7 @@ def verbs(jn):
         "edit": lambda id, text="": jn.edit(int(id), text),
         "attach": attach,
         "dbs": lambda: list(jn.config()["dbs"]),
-        "config": lambda: {"filters": [{"name": n, "own": src == str((jn.Path.home() / ".jn").resolve())} for n, src in cfg_filters()], "tags": jn.fmt_tags(jn.default_tags()),
+        "config": lambda: {"filters": flist(str((jn.Path.home() / ".jn").resolve())), "tags": jn.fmt_tags(jn.default_tags()),
                           "colors": jn.config()["colors"], "favorites": jn.config()["favorites"], "db": str(jn.DB)},
     }
 

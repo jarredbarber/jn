@@ -310,8 +310,10 @@ function renderAtoms() {
 const has = t => tokens().includes(t);
 const ago = t => { const s = (Date.now() - new Date(t)) / 1e3; return s < 3600 ? Math.max(1, Math.round(s / 60)) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
 const drillHref = q => '?q=' + encodeURIComponent(q) + (state.db ? '&db=' + encodeURIComponent(state.db) : '');
+// a saved view may hold --by (and any other tokens): expand views the way the server does so the page sees them
+const expandTok = (ts, d = 0) => ts.flatMap(t => { const f = d < 5 && t.startsWith('--') && state.cfg.filters.find(f => '--' + f.name === t); return f && f.tokens ? expandTok(f.tokens, d + 1) : [t]; });
 const viewBy = () => {  // empty filter box = roots home; --flat opts out; any other query is the flat feed unless it carries --by
-  const ts = tokens(), q = ts.filter(t => !/^--by(=|$)/.test(t) && t !== '--flat'), given = ts.filter(t => /^--by(=|$)/.test(t));
+  const ts = expandTok(tokens()), q = ts.filter(t => !/^--by(=|$)/.test(t) && t !== '--flat'), given = ts.filter(t => /^--by(=|$)/.test(t));
   const bys = given.length ? given : !q.length && !ts.includes('--flat') ? ['--by=parent'] : [];
   return { q, bys, by: bys[0] || null };
 };

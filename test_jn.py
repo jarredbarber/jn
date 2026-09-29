@@ -190,8 +190,10 @@ with tempfile.TemporaryDirectory() as d:
     assert "<!doctype" in urllib.request.urlopen(url + "/?q=%40todo&db=alt").read().decode() and {"name": "mine", "own": False} in post("config")[1]["filters"]
     v = post("vocab")[1]; assert v["done"] == [] and v["x"] == [] and "todo" in v, v
     c = post("config")[1]; assert c["colors"] == {"todo": "#ff0", "due": "#0ff"} and c["favorites"] == ["todo", "due", "home"], c
-    r = post("filter", name="hot", expr="@todo --since 1w"); assert {"name": "hot", "own": True} in r[1]["filters"], (r, Path(d, ".jn").read_text())
+    r = post("filter", name="hot", expr="@todo --since 1w"); assert {"name": "hot", "own": True, "tokens": ["@todo", "--since", "1w"]} in r[1]["filters"], (r, Path(d, ".jn").read_text())
     assert post("filter", name="hot", expr="tag('x')")[0] == 400 and post("filter", name="a b", expr="@x")[0] == 400   # no python from the web
+    assert post("filter", name="grp", expr="@x --by=work --by=parent")[0] == 200 and post("ls", args=["--grp", "--all"])[0] == 200 and run("ls", "--grp", "--all", **env) is not None   # a view may hold --by (was "unknown filter --by")
+    assert post("filter", name="grp")[0] == 200
     r = post("filter", name="fit", expr="@x -@done"); assert r[0] == 200, r
     r = post("ls", args=["--fit", "--all"]); assert r[1] == [], r      # overrides the ~/.jn one in place
     cfg = Path(d, ".jn").read_text()
