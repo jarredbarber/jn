@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard entry</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&amp;family=DM+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:'Newsreader',serif;background:#fbfaf6;color:#20201c}
+a{color:#2f6b4f;text-decoration:none}a:hover{color:#1e4a36;text-decoration:underline}
+button{font:inherit;color:inherit;background:transparent;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 820px; box-sizing: border-box; background: #fbfaf6; display: flex; font-family: 'Newsreader', serif; color: #20201c">
+<nav aria-label="Pinned entries" style="width: 230px; flex-shrink: 0; padding: 32px 20px 32px 32px; border-right: 1px solid #e3e0d6; display: flex; flex-direction: column; gap: 6px; font-size: 16px">
+<div style="font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 500; margin-bottom: 18px">jn</div>
+<div style="font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #66645c; margin-bottom: 4px">Pinned pages</div>
+<a href="#" style="display: flex; justify-content: space-between; padding: 6px 10px; margin: 0 -10px; background: #ebe8dd; border-radius: 4px; color: #20201c">Monday desk <span style="font-family: 'DM Mono', monospace; font-size: 12px; color: {{accent}}">#500</span></a>
+<a href="#" style="display: flex; justify-content: space-between; padding: 6px 10px; margin: 0 -10px; color: #20201c">Ingest cutover <span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">#412</span></a>
+<a href="#" style="display: flex; justify-content: space-between; padding: 6px 10px; margin: 0 -10px; color: #20201c">Agent review <span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">#503</span></a>
+<a href="#" style="display: flex; justify-content: space-between; padding: 6px 10px; margin: 0 -10px; color: #20201c">Personal <span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">#377</span></a>
+<div style="flex-grow: 1"></div>
+<div style="font-size: 14px; color: #66645c; line-height: 1.45">A page is an entry. Its query blocks run live; the text around them is yours.</div>
+</nav>
+<main style="flex-grow: 1; padding: 36px 56px; display: flex; flex-direction: column; gap: 18px; overflow: hidden">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<div style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">#500 · edited Sep 28 · v7</div>
+<div style="display: flex; gap: 8px; font-family: 'DM Mono', monospace; font-size: 12px"><button style="border: 1px solid #d6d2c4; padding: 6px 12px; border-radius: 4px">Edit source</button><button style="border: 1px solid #d6d2c4; padding: 6px 12px; border-radius: 4px">History</button></div>
+</div>
+<h1 style="margin: 0; font-size: 44px; font-weight: 600; line-height: 1.05">Monday desk</h1>
+<p style="margin: 0; font-size: 18px; line-height: 1.5; max-width: 760px; color: #3a3933">Cutover is Thursday. Everything below that isn't about ingest can wait until Friday.</p>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px">
+<section aria-label="Query block: my open tasks" style="background: #f1efe7; border-radius: 6px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c"><span>@todo --mine -@parent</span><span style="color: {{accent}}">2 new</span></div>
+<label style="display: flex; gap: 10px; align-items: baseline; font-size: 17px"><input type="checkbox" style="accent-color: {{accent}}"> Backfill March partitions <span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">#439</span></label>
+<label style="display: flex; gap: 10px; align-items: baseline; font-size: 17px"><input type="checkbox" style="accent-color: {{accent}}"> Decide TTL for idempotency keys <span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">#455</span></label>
+<label style="display: flex; gap: 10px; align-items: baseline; font-size: 17px"><input type="checkbox" style="accent-color: {{accent}}"> Submit September expense report <span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">#380</span></label>
+<label style="display: flex; gap: 10px; align-items: baseline; font-size: 17px; color: #66645c"><input type="checkbox" checked="checked" style="accent-color: {{accent}}"> <span style="text-decoration: line-through">Renew building badge</span></label>
+</section>
+<section aria-label="Query block: agent sessions since yesterday" style="background: #f1efe7; border-radius: 6px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c"><span>@agent --since 1d --fold=agent</span><span>4 sessions</span></div>
+<div style="display: grid; grid-template-columns: 110px minmax(0, 1fr) 40px; gap: 10px; font-size: 16px; align-items: baseline"><span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">claude:7f3a</span><span>Retry logic: backoff capped at 30s</span><span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c; text-align: right">14</span></div>
+<div style="display: grid; grid-template-columns: 110px minmax(0, 1fr) 40px; gap: 10px; font-size: 16px; align-items: baseline"><span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">agy:51d2</span><span>Bloom-filter index prototype</span><span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c; text-align: right">37</span></div>
+<div style="display: grid; grid-template-columns: 110px minmax(0, 1fr) 40px; gap: 10px; font-size: 16px; align-items: baseline"><span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">claude:c091</span><span>Dedupe doc: idempotency keys</span><span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c; text-align: right">22</span></div>
+<div style="display: grid; grid-template-columns: 110px minmax(0, 1fr) 40px; gap: 10px; font-size: 16px; align-items: baseline"><span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c">claude:2b8e</span><span>Load test: p99 under 400ms at 2x</span><span style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c; text-align: right">9</span></div>
+</section>
+</div>
+
+<h2 style="margin: 6px 0 0; font-size: 24px; font-weight: 600">Cutover checklist</h2>
+<p style="margin: 0; font-size: 17px; line-height: 1.5; color: #3a3933">Transcluded from <a href="#">#418 Cutover runbook</a>, kept live so the checkboxes stay in one place.</p>
+<section aria-label="Transcluded entry #418" style="border-left: 2px solid {{accent}}; padding: 4px 0 4px 18px; display: flex; flex-direction: column; gap: 8px; font-size: 17px">
+<label style="display: flex; gap: 10px; align-items: baseline"><input type="checkbox" checked="checked" style="accent-color: {{accent}}"> Freeze writes on the legacy topic</label>
+<label style="display: flex; gap: 10px; align-items: baseline"><input type="checkbox" style="accent-color: {{accent}}"> Dual-read for 24h, diff counts per partition</label>
+<label style="display: flex; gap: 10px; align-items: baseline"><input type="checkbox" style="accent-color: {{accent}}"> Flip consumers; keep the old path warm for rollback</label>
+</section>
+<div style="font-family: 'DM Mono', monospace; font-size: 12px; color: #66645c; background: #f1efe7; border-radius: 6px; padding: 10px 14px; align-self: flex-start">```jn @todo --mine -@parent``` · ```jn @agent --since 1d --fold=agent``` · ![[#418]]</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2f6b4f","options":["#2f6b4f","#b4460f","#1f5fbf"]},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#2f6b4f' };
+}
+}
+</script>
+</body>
+</html>

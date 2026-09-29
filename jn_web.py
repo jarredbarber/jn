@@ -24,6 +24,41 @@ def verbs(jn):
         q = jn.parent_quotes([r for r in rs if not r.get("depth")])  # @parent=#N context line, batched; nested rows already sit under theirs
         return [r | {"parent_ctx": q[r["id"]]} if r["id"] in q else r for r in rs]
 
+    def roots(args):
+        """--by[=tag] rolls the view up: one group per root entry (pointer tag, default parent) or per value of a
+        plain tag (agent, project...). Each carries its size, open todos, and latest activity beneath it"""
+        by, rest = "parent", []
+        for a in args:
+            if a.startswith("--by"): by = a.partition("=")[2] or "parent"
+            else: rest.append(a)
+        opts, pos = jn.parse_opts(rest)
+        rs = jn.select(pos, opts)
+        info = {i: (u, c, bool(o)) for i, u, c, o in jn.db().execute(
+            "SELECT e.id, e.updated, e.content, EXISTS(SELECT 1 FROM tagged WHERE entry=e.id AND name='todo') AND NOT EXISTS(SELECT 1 FROM tagged WHERE entry=e.id AND name='done') FROM entry e")}
+        head = lambda i: {"id": i, "text": next((l for l in info[i][1].splitlines() if l.strip()), "")[:140]}
+        def roll(ids, own=()):  # ids: the entries beneath a group; own: entries that count toward its activity but not its size
+            top = max([*ids, *own], key=lambda i: (info[i][0], i), default=None)
+            return {"n": len(ids), "open": sum(info[i][2] for i in ids), "updated": info[top][0] if top else "", "latest": head(top) if top and top in ids else None}
+        pointer = jn.db().execute("SELECT 1 FROM tagged WHERE name=? AND value LIKE '#%' LIMIT 1", (by,)).fetchone()
+        if pointer:
+            kids = {}
+            for e, v in jn.db().execute("SELECT entry, value FROM tagged WHERE name=?", (by,)):
+                for i in (v or "").split(","):
+                    if i[:1] == "#" and i[1:].isdigit(): kids.setdefault(int(i[1:]), []).append(e)
+            def under(root):  # cycle-safe walk down the pointer tag
+                out, stack = {root}, [root]
+                while stack:
+                    for k in kids.get(stack.pop(), []):
+                        if k not in out: out.add(k); stack.append(k)
+                return out - {root}
+            groups = [{"row": r, **roll(under(r["id"]), [r["id"]])} for r in rs]
+        else:
+            by_val = {}
+            for r in rs:
+                for v in jn.aslist(r["tags"], by) or [""]: by_val.setdefault(v, []).append(r["id"])
+            groups = [{"key": k, **roll(ids)} for k, ids in by_val.items()]
+        return {"by": by, "pointer": bool(pointer), "groups": sorted(groups, key=lambda g: (g["updated"], g["row"]["id"] if "row" in g else g["latest"]["id"]), reverse=True)}
+
     def show(id):
         row = jn.select([str(int(id))], {"all": True})
         anc, seen, r = [], {int(id)}, row[0] if row else None  # @parent chain walked up: root first, cycle-safe, capped
@@ -71,6 +106,7 @@ def verbs(jn):
         "vocab": vocab,
         "filter": filt,
         "ls": lambda args=(): rows(args),
+        "roots": roots,
         "tags": lambda args=(): jn.tag_counts(rows(args)),
         "show": show,
         "log": log,

@@ -206,7 +206,7 @@ jn serve                     # http://127.0.0.1:8787
 jn serve --host 127.0.0.1 --port 9000
 ```
 
-The browser UI accepts the same query tokens as `ls` and exposes a POST API. The default listener is loopback. It has no authentication; do not bind it to an untrusted network unless another layer protects it.
+The browser UI accepts the same query tokens as `ls` and exposes a POST API. The `roots` chip (`--by[=tag]` in the filter box) rolls the view up: one row per top-level entry with what sits beneath it (count, open `@todo`s, latest activity), or with `--by=agent` (any non-pointer tag) one row per tag value, e.g. one per agent session. Click the count to drill in. It is a web-only token; the CLI does not accept it. The default listener is loopback. It has no authentication; do not bind it to an untrusted network unless another layer protects it.
 
 ## Backup and storage
 

@@ -201,6 +201,12 @@ with tempfile.TemporaryDirectory() as d:
     t = post("ls", args=["-@done", "--all", "--tree"])[1]
     assert [(r["id"], r["depth"]) for r in t] == [(4, 0), (2, 0), (3, 1)], t      # newest root first, child under its parent
     assert "depth" not in post("ls")[1][0]
+    g = post("roots", args=["-@done", "--by"])[1]      # roots view: pointer tag rolls children up under their root
+    assert g["pointer"] and [(x["row"]["id"], x["n"], x["open"]) for x in g["groups"]] == [(4, 0, 0), (2, 1, 1)] and g["groups"][1]["latest"]["id"] == 3, g
+    post("log", text="@todo @parent=#3 @sess=s9 grandchild"); post("log", text="@todo @sess=s9 second"); post("log", text="@todo @sess=s8 third")
+    g = post("roots", args=["-@done", "--by=parent"])[1]["groups"]; assert [(x["row"]["id"], x["n"]) for x in g if x["row"]["id"] == 2] == [(2, 2)], g   # depth > 1 counts
+    g = post("roots", args=["-@done", "--by=sess"])[1]  # value tag: one group per value, entries without it under ""
+    assert not g["pointer"] and {x["key"]: x["n"] for x in g["groups"]} == {"s9": 1, "s8": 1, "": 2}, g   # the default filter still hides children
     assert post("ls", db="/nope/x.db")[0] == 400 and post("ls", db="nope")[0] == 400   # names only from the web
     assert post("log", db="jl", text="@todo from the web into jsonl") == (200, 10) and post("tag", db="jl", id=10, patch=["@done"])[0] == 200
     assert post("edit", db="jl", id=9, text="@todo\n\nweb edit")[0] == 200 and post("show", db="jl", id=9)[1]["text"] == "@todo\n\nweb edit\n"
