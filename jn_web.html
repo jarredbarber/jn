@@ -46,10 +46,12 @@ button.add:hover { background:var(--accent); color:var(--accent-ink) }
 button.add kbd { font:400 11px/1 var(--sans); opacity:.6; letter-spacing:0 }
 .composer .err:not(:empty) { display:block; margin-top:6px }
 .lens { margin-top:16px }
-.lens summary { cursor:pointer; list-style:none; display:flex; gap:10px; align-items:baseline; color:var(--mute); font-size:12px; letter-spacing:.08em; text-transform:uppercase }
-.lens summary::-webkit-details-marker { display:none }
-.lens summary::before { content:'▸'; font-size:10px } .lens[open] summary::before { content:'▾' }
-#lenssum { text-transform:none; letter-spacing:0; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap } .lens[open] #lenssum { display:none }
+.composer > summary, .lenshead { cursor:pointer; list-style:none; color:var(--mute); font-size:12px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px }
+.lenshead { cursor:default; margin-bottom:0 }
+.composer > summary::-webkit-details-marker { display:none }
+.composer > summary::before { content:'▾ '; font-size:10px } .composer:not([open]) > summary::before { content:'▸ ' } .composer:not([open]) > summary { margin-bottom:0 }
+#filter::placeholder { color:var(--mute); opacity:.4 }
+#clearq { flex:none; border:0; background:none; color:var(--mute); padding:2px 6px; font-size:14px; line-height:1; border-radius:50% } #clearq:hover { color:var(--accent); background:none }
 .lensbox { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; background:var(--field); border:1px solid var(--rule); border-radius:var(--r); padding:6px 8px }
 .lensbox:focus-within { border-color:var(--ink) }
 #atoms { display:contents }
@@ -126,6 +128,8 @@ button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .time { font-size:12px; color:var(--mute); font-variant-numeric:tabular-nums }
 .head { margin:0; white-space:pre-wrap; word-break:break-word; font-size:17px; line-height:1.4 }
 .head .more { color:var(--mute) }
+.head a:not(.ref):not(.tag) { color:var(--accent); text-decoration:underline; text-underline-offset:3px }
+.head code, .kid code { font:.82em ui-monospace, Menlo, monospace; background:var(--bg2); border-radius:var(--r); padding:1px 5px }
 .entry .tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px }
 .entry .tags .chip { font-size:11px; padding:1px 7px; color:var(--mute) }
 .entry.done .head { color:var(--mute); text-decoration:line-through; text-decoration-color:var(--accent) }
@@ -143,6 +147,7 @@ button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
 .jnq-g { display:flex; justify-content:space-between; gap:10px; padding:5px 10px; border-bottom:1px dotted var(--rule); font-size:15px } .jnq-g em { color:var(--accent); font-style:normal }
 .jnx { border-left:2px solid var(--accent); background:none; padding-bottom:2px } .jnx .md { padding:2px 10px }
 .crumb { margin:22px 0 -10px; font-size:14px; color:var(--mute) } .crumb a { color:var(--mute); text-decoration:none; border-bottom:1px solid var(--rule) } .crumb a:hover { color:var(--accent) } .crumb b { color:var(--ink); font-weight:500 }
+#named .chip[draggable] { cursor:grab }
 #named .cnt { color:var(--mute); font-size:13px; margin-left:auto; padding-left:10px } #named .new { color:var(--accent); font-size:13px; font-weight:600; margin-left:auto; padding-left:10px } #named .chip .x { margin-left:8px }
 #pagebox .lab { margin-top:24px }
 #pages { display:flex; flex-direction:column; gap:1px; margin:0 0 4px } #pages a { padding:4px 0; font-size:15px; color:var(--ink); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap } #pages a:hover { color:var(--accent) }
@@ -248,19 +253,20 @@ a.ref:hover, a.tag:hover { text-decoration:underline }
 <div class="col">
 <header class="mast"><h1><a href="/" id="home">j<b>n</b></a></h1><select id="dbsel" hidden></select><span class="statwrap"><span id="dbpath" title=""></span><span id="status"></span></span><nav class="chips" id="viewseg" aria-label="View"></nav></header>
 <div class="bar">
-<div class="composer">
+<details class="composer" id="compose" open>
+  <summary>New entry</summary>
   <div class="cbox">
     <textarea id="capture" placeholder="Write it down. @tags anywhere, @todo makes a task, @parent=#412 files it under an entry." rows="2"></textarea>
     <button id="save" class="add">Add <kbd>⌘↩</kbd></button>
   </div>
   <span id="cap-err" class="err"></span>
   <div class="att" id="pending"></div>
-</div>
-<details class="lens" id="lens" open>
-  <summary>Lens <span id="lenssum"></span></summary>
-  <div class="lensbox"><span id="atoms"></span><input id="filter" placeholder="@todo -@done @k=v word --since 1w --tree"></div>
-  <div id="expanded"></div>
 </details>
+<div class="lens" id="lens">
+  <div class="lenshead">Lens</div>
+  <div class="lensbox"><span id="atoms"></span><input id="filter" placeholder="@todo -@done @k=v word --since 1w --tree"><button id="clearq" hidden aria-label="Clear the lens" title="Clear the lens">✕</button></div>
+  <div id="expanded"></div>
+</div>
 </div>
 <div class="main">
 <aside class="side" id="tags"><div class="lab">views</div><div id="named"></div><input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn"><div id="pagebox" hidden><div class="lab">pages</div><div id="pages"></div></div><div class="lab">activity</div><div id="cal"></div><div class="lab">written by</div><div id="who"></div><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
@@ -299,7 +305,7 @@ function commitAtoms() {  // typed words that are complete atoms move out of the
 function setInput(q) { state.atoms = []; $('#filter').value = q; commitAtoms(); $('#filter').value = $('#filter').value.trim(); }
 function renderAtoms() {
   $('#atoms').innerHTML = state.atoms.map((a, i) => `<span class="atom">${esc(a)}<button data-atom="${i}" aria-label="Remove ${esc(a)}">✕</button></span>`).join('');
-  $('#lenssum').textContent = tokens().join(' ');
+  $('#clearq').hidden = !tokens().length;
 }
 const has = t => tokens().includes(t);
 const ago = t => { const s = (Date.now() - new Date(t)) / 1e3; return s < 3600 ? Math.max(1, Math.round(s / 60)) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
@@ -321,9 +327,9 @@ function renderLevel(res, ctx, bys, path, depth) {  // repeated --by nest: a gro
     const tag = g.absent ? `-@${res.by}` : g.key ? `@${res.by}=${g.key}` : `@${res.by}`;
     const drill = res.pointer ? (g.row ? [`@${res.by}=#${g.row.id}`, `--by=${res.by}`, ...rest].join(' ') : '') : [...ctx, tag, ...rest].join(' ');
     const dl = txt => `<a data-drill="${esc(drill)}" href="${esc(drillHref(drill))}">${txt}</a>`;
-    const kids = g.preview.map(k => `<div class="kid"><a class="ref" href="${entryHref(k.id)}" data-id="${k.id}">#${k.id}</a><span>${k.open ? '<b>todo</b> ' : ''}${linkify(mdHead(k.text))}</span><span class="who">${k.agent ? esc(k.agent.split(':').map((p, j) => j ? p.slice(0, 4) : p).join(':')) : 'you'} · ${ago(k.updated)}</span></div>`).join('')
+    const kids = g.preview.map(k => `<div class="kid"><a class="ref" href="${entryHref(k.id)}" data-id="${k.id}">#${k.id}</a><span>${k.open ? '<b>todo</b> ' : ''}${titleHtml(mdHead(k.text))}</span><span class="who">${k.agent ? esc(k.agent.split(':').map((p, j) => j ? p.slice(0, 4) : p).join(':')) : 'you'} · ${ago(k.updated)}</span></div>`).join('')
       + (g.n > g.preview.length ? `<div class="kid more">${dl(`+ ${g.n - g.preview.length} more ${res.pointer ? 'beneath' : 'entries'}`)}</div>` : '');
-    const latest = g.latest ? `<p class="rollup">${linkify('↳ #' + g.latest.id + '  ' + mdHead(g.latest.text))}</p>` : '';
+    const latest = g.latest ? `<p class="rollup">${titleHtml('↳ #' + g.latest.id + '  ' + mdHead(g.latest.text))}</p>` : '';
     const chev = `<button class="chev" data-chev="${esc(gk)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'}">${chevron(open)}</button>`;
     const act = `<div class="act"><b title="${esc(new Date(g.updated).toLocaleString())}">${ago(g.updated)}</b><span>${g.n ? dl(`${g.n} ${res.pointer ? 'beneath' : g.n === 1 ? 'entry' : 'entries'}`) : 'nothing beneath'}${g.open ? ` · <em>${g.open} open</em>` : ''}</span></div>`;
     const inside = g.sub ? `<div class="subgroups">${renderLevel(g.sub, res.pointer ? ctx : [...ctx, tag], bys, gk + '/', depth + 1)}</div>` : `<div class="kids">${kids}</div>`;
@@ -332,7 +338,7 @@ function renderLevel(res, ctx, bys, path, depth) {  // repeated --by nest: a gro
     if (!g.row) return `<article class="group root${cls}"><div class="gut">${chev}</div><div class="body"><p class="head">${dl(g.absent ? 'no @' + esc(res.by) : '@' + esc(res.by) + (g.key ? '=' + esc(g.key) : ''))}</p>${list}</div>${act}</article>`;
     const r = g.row, lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
     return `<article class="entry root${cls} ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}"><div class="gut">${chev}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>
-      <div class="body"><p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
+      <div class="body"><p class="head">${titleHtml(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
       <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div>${list}</div>${act}</article>`;
   }).join('');
 }
@@ -351,6 +357,8 @@ const entryHref = id => '?q=' + id + (state.db ? '&db=' + encodeURIComponent(sta
 const refs = s => s.replace(/(^|[\s(=,])#(\d+)\b/g, (_, p, id) => `${p}<a class="ref" href="${entryHref(id)}" data-id="${id}">#${id}</a>`)  // s is already escaped
                    .replace(/(^|\s)@([A-Za-z_][\w-]*)(=\S+)?/g, '$1<a class="tag" data-tag="$2">@$2$3</a>');
 const linkify = s => refs(esc(s));
+const titleHtml = s => mdInline(esc(s).replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1'));  // inline markdown in a one-line title; images dropped, html was escaped
+const plain = s => s.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '');
 const refify = v => esc(v).replace(/#(\d+)\b/g, (_, id) => `<a class="ref" href="${entryHref(id)}" data-id="${id}">#${id}</a>`);
 const tcol = t => { const c = (state.cfg.colors || {})[t] || ''; return /^#[0-9a-f]{3,8}$/i.test(c) ? c : ''; };  // only a #hex gets into a style attr: a project .jn is data, not css
 const chipAttrs = k => { const c = tcol(k); return `class="chip${c ? ' tinted' : ''}"${c ? ` style="--tc:${c}"` : ''} data-tag="${esc(k)}"`; };
@@ -373,7 +381,7 @@ async function refresh() {
     const tree = !by && rows.some(r => 'depth' in r);
     if (!tree) rows.reverse();
     state.rows = rows;
-    const title = r => mdHead((r.content.split('\n').find(l => l.trim()) || '')).slice(0, 50), goto = q => `data-drill="${esc(q)}" href="${esc(drillHref(q))}"`;
+    const title = r => plain(mdHead((r.content.split('\n').find(l => l.trim()) || ''))).slice(0, 50), goto = q => `data-drill="${esc(q)}" href="${esc(drillHref(q))}"`;
     let html = sh && sh.row ? `<div class="crumb"><a ${goto('')}>all</a> › ${sh.ancestors.map(a => `<a ${goto(`@parent=#${a.id} --by=parent`)}>${esc(title(a))}</a> › `).join('')}<b>${esc(title(sh.row))}</b></div>` : '', day = '';
     $('#pagebox').hidden = !(pg && pg.length);
     $('#pages').innerHTML = (pg || []).slice().reverse().map(r => `<a href="${entryHref(r.id)}" data-id="${r.id}">${esc(title(r))}</a>`).join('');
@@ -387,7 +395,7 @@ async function refresh() {
       const lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
       html += `<article class="entry ${'done' in r.tags ? 'done' : ''} ${r.depth ? 'child' : tree ? 'tree-root' : ''}" style="--depth:${r.depth || 0}" data-id="${r.id}">
         <div class="gut"><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><a class="eid" href="${entryHref(r.id)}" data-id="${r.id}" title="Open this entry (⌘-click for a new window)">#${r.id}</a></div>
-        <div class="body">${r.parent_ctx ? `<p class="requote">${linkify(r.parent_ctx)}</p>` : ''}<p class="head">${linkify(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
+        <div class="body">${r.parent_ctx ? `<p class="requote">${linkify(r.parent_ctx)}</p>` : ''}<p class="head">${titleHtml(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
         <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div></div></article>`;
     }
     $('#list').innerHTML = html || '<p class="empty">Nothing matches. Write something, or loosen the filter.</p>';
@@ -420,10 +428,29 @@ function renderCal() {  // #7: per-day entry counts for the current view, last 1
   }
   $('#cal').innerHTML = cells;
 }
+// sidebar views: drag to reorder; the order lives in this browser (config stays untouched)
+function viewList() {  // ponytail: mine is for agents (skills use --mine); pages feeds the Pages list
+  let o = [];
+  try { o = JSON.parse(localStorage.getItem('jn.vieworder') || '[]'); } catch {}
+  const rank = f => o.indexOf(f.name) + 1 || 1e9;
+  return state.cfg.filters.filter(f => f.name !== 'mine' && f.name !== 'pages').sort((a, b) => rank(a) - rank(b));
+}
+let dragName = null;
+$('#named').addEventListener('dragstart', e => { const c = e.target.closest('[data-view-name]'); if (c) { dragName = c.dataset.viewName; e.dataTransfer.effectAllowed = 'move'; } });
+$('#named').addEventListener('dragover', e => { if (dragName && e.target.closest('[data-view-name]')) e.preventDefault(); });
+$('#named').addEventListener('drop', e => {
+  const t = e.target.closest('[data-view-name]');
+  if (!dragName || !t) return;
+  e.preventDefault();
+  const names = [...document.querySelectorAll('#named [data-view-name]')].map(c => c.dataset.viewName).filter(n => n !== dragName);
+  names.splice(names.indexOf(t.dataset.viewName), 0, dragName);
+  try { localStorage.setItem('jn.vieworder', JSON.stringify(names)); } catch {}
+  dragName = null; renderNamed();
+});
 function renderNamed() {
-  $('#named').innerHTML = state.cfg.filters.filter(f => f.name !== 'mine' && f.name !== 'pages').map(f => {  // ponytail: mine is for agents (skills use --mine); pages feeds the Pages list
+  $('#named').innerHTML = viewList().map(f => {  // ponytail: mine is for agents (skills use --mine); pages feeds the Pages list
       const c = state.counts[f.name] || [0, 0];
-      return `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}">${f.name}${c[1] ? `<span class="new">${c[1]} new</span>` : c[0] ? `<span class="cnt">${c[0]}</span>` : ''}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`;
+      return `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}" data-view-name="${esc(f.name)}" draggable="true">${f.name}${c[1] ? `<span class="new">${c[1]} new</span>` : c[0] ? `<span class="cnt">${c[0]}</span>` : ''}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`;
     }).join('')
     + `<span class="chip ${has('--tree') ? 'on' : ''}" data-tok="--tree" title="Nest entries under their @parent">tree</span>`
     + `<span class="chip" id="saveview" title="Save the filter box as a named view in ~/.jn">+ save view</span>`;
@@ -490,8 +517,9 @@ $('#filter').onkeydown = e => {
   if (e.key === 'Enter') { commitAtoms(); clearTimeout(t); setQuery('', false, true); }
   else if (e.key === 'Backspace' && !e.target.value && state.atoms.length) { e.preventDefault(); e.target.value = state.atoms.pop(); renderAtoms(); clearTimeout(t); setQuery('', false, true); }
 };
-try { $('#lens').open = localStorage.getItem('jn.lens') !== '0'; } catch {}
-$('#lens').ontoggle = () => { try { localStorage.setItem('jn.lens', $('#lens').open ? '1' : '0'); } catch {} };
+try { $('#compose').open = localStorage.getItem('jn.compose') !== '0'; } catch {}
+$('#compose').ontoggle = () => { try { localStorage.setItem('jn.compose', $('#compose').open ? '1' : '0'); } catch {} };
+$('#clearq').onclick = () => { cur = null; setQuery(''); $('#filter').focus(); };
 $('#home').onclick = e => { e.preventDefault(); cur = null; setQuery(''); };
 addEventListener('popstate', () => { fromUrl(); renderNamed(); refresh(); });
 
@@ -517,6 +545,12 @@ document.body.addEventListener('click', e => {
 document.addEventListener('click', e => {  // outside the open entry (and not into another one, the editor, or the popup) closes it
   const art = cur !== null && $(`.entry[data-id="${cur}"]`);
   if (art && !e.target.closest('.editor, #ac, [data-id], .composer') && e.target.closest('.entry') !== art) closeEntry();
+});
+document.addEventListener('keydown', e => {  // j/k or arrows on an open entry: collapse it and open the next/previous one
+  const dir = { j: 1, ArrowDown: 1, k: -1, ArrowUp: -1 }[e.key];
+  if (!dir || cur === null || e.metaKey || e.ctrlKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
+  const all = [...document.querySelectorAll('#list .entry[data-id]')], i = all.findIndex(a => +a.dataset.id === cur), n = all[i + dir];
+  if (i >= 0 && n) { e.preventDefault(); openEntry(+n.dataset.id); }
 });
 document.addEventListener('keydown', e => {  // bare e on an open entry: edit it
   if (e.key === 'e' && cur !== null && !e.metaKey && !e.ctrlKey && !e.altKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); $('.entry.open .editor')?.edit(); }
@@ -565,7 +599,7 @@ async function openEntry(id, scroll = true) {
     };
     const doneBtn = ed.querySelector('.act-done');
     if (doneBtn) doneBtn.onclick = () => patch([done ? '-@done' : '@done']);
-    ed.querySelector('.act-sub').onclick = () => { const c = $('#capture'); c.value = `@parent=#${id} `; c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };  // #4: keep the entry open so it can be referenced while replying
+    ed.querySelector('.act-sub').onclick = () => { $('#compose').open = true; const c = $('#capture'); c.value = `@parent=#${id} `; c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };  // #4: keep the entry open so it can be referenced while replying
     ed.querySelector('.act-close').onclick = closeEntry;
     attWire(ed, id);
     ta.onkeydown = e => {
@@ -712,7 +746,7 @@ async function hydrate(root, chain) {
         const rows = (await api('ls', { args })).reverse();
         el.innerHTML = `<div class="jnq-h">${esc(args.join(' '))} · ${rows.length}</div>` + rows.slice(0, 50).map(r => {
           const head = mdHead(r.content.split('\n').find(l => l.trim()) || '');
-          return `<div class="jnq-r${'done' in r.tags ? ' done' : ''}">${'todo' in r.tags ? `<input type="checkbox" data-done="${r.id}" aria-label="Done"${'done' in r.tags ? ' checked' : ''}>` : '<span></span>'}<span>${linkify(head)}</span><a class="ref" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>`;
+          return `<div class="jnq-r${'done' in r.tags ? ' done' : ''}">${'todo' in r.tags ? `<input type="checkbox" data-done="${r.id}" aria-label="Done"${'done' in r.tags ? ' checked' : ''}>` : '<span></span>'}<span>${titleHtml(head)}</span><a class="ref" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>`;
         }).join('') + (rows.length > 50 ? `<div class="jnq-h">+ ${rows.length - 50} more</div>` : '');
       }
     } catch (e) { el.innerHTML = `<div class="jnq-h err">${esc(e.message)}</div>`; }
