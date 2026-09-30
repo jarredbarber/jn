@@ -157,6 +157,27 @@ with tempfile.TemporaryDirectory() as d:
     assert sl[0] == f"<- #{r2} @parent  first reply" and sl[1] == f"  <- #{r3} @parent  nested reply", sl   # @parent backlinks nest by depth
     run("edit", r1, stdin=run("show", r1, **env), **env)                          # indented backlink lines strip on round-trip
     assert js(run("ls", r1, "--json", **env))[0]["content"] == "root of the thread"
+    # on_write hook (~/.jn.py): one function, every write path, before (transform/reject) and after (commit) phases
+    Path(d, ".jn.py").write_text('''import os
+def on_write(e):
+    c = e["content"]
+    if e["phase"] == "after":
+        if c.startswith("hooked:"): open(os.path.join(os.path.dirname(__file__), "after.log"), "a").write(f'{e["op"]} {e["id"]}\\n')
+        return
+    if c.startswith("hook:reject"): raise Reject("nope")
+    if c.startswith("hook:boom"): 1 / 0
+    if c.startswith("hook"):
+        if c.startswith("hook:"): e["content"] = "hooked:" + c[5:]
+        e["tags"]["hooked"] = e["op"] + (":had-prev" if e["prev"] else "")
+''')
+    h1 = run("log", "hook: hello", **env); e1 = js(run("ls", h1, "--json", **env))[0]
+    assert e1["content"] == "hooked: hello" and e1["tags"]["hooked"] == "create", e1                       # before-phase rewrote content and added a tag
+    run("tag", h1, "@hk", **env); assert js(run("ls", h1, "--json", **env))[0]["tags"]["hooked"] == "tag:had-prev"   # tag patches go through it too, with prev
+    r = bad("log", "hook:reject me"); assert r.returncode == 1 and "nope" in r.stderr and "reject" not in run("ls", "--all", **env), r.stderr   # Reject vetoes; nothing stored
+    r = bad("log", "hook:boom x"); assert r.returncode == 0 and "on_write failed" in r.stderr, r            # a crash never blocks the write
+    assert js(run("ls", "--all", "--json", **env))[-1]["content"] == "hook:boom x"
+    run("import", stdin=json.dumps({"id": 900, "content": "hook: imp", "tags": {}}), **env); assert js(run("ls", "900", "--json", **env))[0]["content"] == "hooked: imp"   # import too
+    log = Path(d, "after.log").read_text().split("\n"); assert f"create {h1}" in log and f"tag {h1}" in log and "import 900" in log, log         # after-phase ran post-commit
     literal = r"\@todo explain \@parent=#42 -\@done \@tail"
     escaped = run("log", literal, "@real", **env)
     before = js(run("ls", escaped, "--json", **env))[0]
@@ -220,6 +241,7 @@ with tempfile.TemporaryDirectory() as d:
     assert sorted((x["absent"], x["n"]) for x in g) == [(False, 4), (True, 1)], g
     assert post("explain", args=["--tasks", "--default", "--tasks"])[1] == "@todo -@done -@archived -@parent", post("explain", args=["--tasks", "--default"])
     assert post("explain", args=["--tasks", "--since", "2w"])[1] == "@todo -@done -@archived -@parent --since 2w", post("explain", args=["--tasks", "--since", "2w"])
+    wid = post("log", text="hook: from the web")[1]; assert post("ls", args=[str(wid), "--all"])[1][0]["content"] == "hooked: from the web"   # web writes hit the same hook
     assert post("ls", db="/nope/x.db")[0] == 400 and post("ls", db="nope")[0] == 400   # names only from the web
     assert post("log", db="jl", text="@todo from the web into jsonl") == (200, 10) and post("tag", db="jl", id=10, patch=["@done"])[0] == 200
     assert post("edit", db="jl", id=9, text="@todo\n\nweb edit")[0] == 200 and post("show", db="jl", id=9)[1]["text"] == "@todo\n\nweb edit\n"

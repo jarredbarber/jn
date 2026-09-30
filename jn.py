@@ -19,7 +19,7 @@
   --db=<path|name>           use another journal for this run (overrides $JN_DB); names come from [dbs] in ~/.jn
                              a path ending in .jsonl is kept as jsonl (one entry per line, diffs cleanly) instead of sqlite
 """
-import functools, getpass, hashlib, json, os, re, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
+import functools, getpass, hashlib, json, os, re, runpy, shlex, shutil, sqlite3, subprocess, sys, tempfile, tomllib, zoneinfo
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -188,23 +188,87 @@ def one_parent(tags):
         sys.exit("an entry has one @parent; use another tag for many pointers, e.g. @refs=#1,#2")
 
 
+class Reject(Exception):
+    """raise in on_write to veto a write: the message is the error, nothing is stored"""
+
+
+@functools.cache
+def hook_fn():
+    """on_write from ~/.jn.py (code lives there and in ~/.jn only), or None. A broken file warns once and is skipped"""
+    f = Path.home() / ".jn.py"
+    if not f.is_file():
+        return None
+    try:
+        fn = runpy.run_path(str(f), init_globals={"Reject": Reject}).get("on_write")
+    except Exception as e:
+        print(f"jn: {f} failed to load ({type(e).__name__}: {e}); no hook", file=sys.stderr); return None
+    return fn if callable(fn) else None
+
+
+def hook(phase, op, eid, content, tags, prev):
+    """call on_write({phase, op, id, content, tags, prev}). phase "before" may change content/tags (mutate the dict or return one);
+    "after" runs once the write has committed and its return is ignored. A crash warns and the write goes ahead unchanged"""
+    fn = hook_fn()
+    if not fn:
+        return content, tags
+    entry = {"phase": phase, "op": op, "id": eid, "content": content, "tags": dict(tags), "prev": prev}
+    try:
+        out = fn(entry)
+        if phase == "after":
+            return content, tags
+        out = entry if out is None else out
+        new, ts = out["content"], {str(k): (None if v in (None, "") else str(v)) for k, v in out["tags"].items()}
+        if not isinstance(new, str) or not new.strip():
+            raise ValueError("content must be a non-empty string")
+        return new.strip(), ts
+    except Reject as e:
+        if phase == "before":
+            sys.exit(str(e) or "rejected by on_write")
+    except Exception as e:
+        print(f"jn: on_write failed ({type(e).__name__}: {e}); {'wrote unchanged' if phase == 'before' else 'ignored'}", file=sys.stderr)
+    return content, tags
+
+
+def stage(c, op, eid, content, tags, stamps=None):
+    """the one write path, on connection c: before-hook, checks, store (versioned). eid None = new entry; stamps = (created, updated)
+    keeps import's timestamps and skips history. -> (eid, after) where after() fires the after-hook once c has committed"""
+    row = eid is not None and c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone()
+    prev = {"content": row[0], "tags": dict(c.execute("SELECT name,value FROM tagged WHERE entry=?", (eid,)))} if row else None
+    content, tags = hook("before", op, eid, content, tags, prev)
+    one_parent(tags)
+    put = lambda: (c.execute("DELETE FROM tagged WHERE entry=?", (eid,)), c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()]))
+    if stamps:
+        c.execute("INSERT INTO entry(id,created,updated,content) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET "
+                  "created=excluded.created, updated=excluded.updated, content=excluded.content", (eid, *stamps, content))
+        put()
+    elif prev:
+        versioned(c, eid, lambda: (c.execute("UPDATE entry SET content=? WHERE id=?", (content, eid)), *put()))
+    else:
+        eid = c.execute("INSERT INTO entry(created,updated,content) VALUES(?,?,?)", (now(), now(), content)).lastrowid
+        put()
+    return eid, lambda: hook("after", op, eid, content, tags, prev)
+
+
+def save(op, eid, content, tags):
+    with db() as c:
+        eid, after = stage(c, op, eid, content, tags)
+    after()
+    return eid
+
+
 def add_entry(args):
     text = " ".join(args)
     if not strip_tags(text):  # tags only: body from stdin or $EDITOR
         text = (text + "\n" + read_body()).strip()
     tags = default_tags() | parse_tags(text)[0]
-    one_parent(tags)
-    content = strip_tags(text) or sys.exit("empty entry")
-    with db() as c:
-        eid = c.execute("INSERT INTO entry(created,updated,content) VALUES(?,?,?)", (now(), now(), content)).lastrowid
-        c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])
-    return eid
+    return save("create", None, strip_tags(text) or sys.exit("empty entry"), tags)
 
 
 def import_jsonl(text):
     """upsert entries from `ls --json` jsonl on stdin, ids preserved; round-trips edits: ls --json | jq ... | import.
-    ponytail: no history kept for the change (bulk op); your export is the backup. Absent entries are untouched, not deleted."""
-    n = 0
+    ponytail: no history kept for the change (bulk op); your export is the backup. Absent entries are untouched, not deleted.
+    on_write sees every row (op "import"), so a hook that acts on writes should check op"""
+    afters = []
     with db() as c:
         for i, line in enumerate(text.splitlines(), 1):
             if not line.strip():
@@ -215,13 +279,10 @@ def import_jsonl(text):
             except (json.JSONDecodeError, KeyError, TypeError) as err:
                 sys.exit(f"import: line {i}: {err}")
             ts = e.get("updated") or e.get("created") or now()
-            c.execute("INSERT INTO entry(id,created,updated,content) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET "
-                      "created=excluded.created, updated=excluded.updated, content=excluded.content",
-                      (eid, e.get("created", ts), e.get("updated", ts), content))
-            c.execute("DELETE FROM tagged WHERE entry=?", (eid,))
-            c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])
-            n += 1
-    return n
+            afters.append(stage(c, "import", eid, content, tags, (e.get("created", ts), e.get("updated", ts)))[1])
+    for after in afters:
+        after()
+    return len(afters)
 
 
 def entry_text(eid, c=None):
@@ -269,12 +330,11 @@ def versioned(c, eid, write):
 
 def tag(eid, args):
     """patch: @k sets, -@k drops, += / -= edit items. Content untouched"""
-    with db() as c:
-        add, rm = parse_tags(" ".join(args), dict(c.execute("SELECT name,value FROM tagged WHERE entry=?", (eid,))))
-        one_parent(add)
-        versioned(c, eid, lambda: (
-            c.executemany("INSERT OR REPLACE INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in add.items()]),
-            c.executemany("DELETE FROM tagged WHERE entry=? AND name=?", [(eid, n) for n in rm])))
+    c = db()
+    row = c.execute("SELECT content FROM entry WHERE id=?", (eid,)).fetchone() or sys.exit(f"no entry {eid}")
+    cur = dict(c.execute("SELECT name,value FROM tagged WHERE entry=?", (eid,)))
+    add, rm = parse_tags(" ".join(args), cur)
+    save("tag", eid, row[0], {k: v for k, v in (cur | add).items() if k not in rm})
 
 
 def files_dir():
@@ -299,23 +359,18 @@ def attach(eid, paths):
     return names
 
 
-def edit(eid, text=None):
+def edit(eid, text=None, op="edit"):
     """document: the buffer (stdin or $EDITOR) is the whole entry, tags line included. show output round-trips"""
     text = read_body(entry_text(eid)) if text is None else text
     tags, content = parse_tags(text)[0], strip_tags(text) or sys.exit("empty entry")
-    one_parent(tags)
-    with db() as c:
-        versioned(c, eid, lambda: (
-            c.execute("UPDATE entry SET content=? WHERE id=?", (content, eid)),
-            c.execute("DELETE FROM tagged WHERE entry=?", (eid,)),
-            c.executemany("INSERT INTO tagged VALUES(?,?,?)", [(eid, k, v) for k, v in tags.items()])))
+    save(op, eid, content, tags)
 
 
 def revert(eid, n=None):
     versions = [r[0] for r in db().execute("SELECT content FROM history WHERE entry=? ORDER BY rowid", (eid,))]
     if not versions:
         sys.exit(f"no history for {eid}")
-    edit(eid, versions[(n or len(versions)) - 1] if 0 < (n or 1) <= len(versions) else sys.exit(f"versions: 1..{len(versions)}"))
+    edit(eid, versions[(n or len(versions)) - 1] if 0 < (n or 1) <= len(versions) else sys.exit(f"versions: 1..{len(versions)}"), "revert")
 
 
 def last():
@@ -549,7 +604,7 @@ def main(argv):
         run_action(actions[cmd], args)
     else:
         cfg = config()
-        print(__doc__ + "\nconfig: " + ", ".join(cfg["files"]) + "\ntags: " + fmt_tags(default_tags()) + "\nactions:")
+        print(__doc__ + "\nconfig: " + ", ".join(cfg["files"]) + ("\nhook: ~/.jn.py on_write" if hook_fn() else "") + "\ntags: " + fmt_tags(default_tags()) + "\nactions:")
         for n, v in cfg["actions"].items():
             print(f"  {n:<14} {' ; '.join(v)}   # {cfg['src'][n]}")
         print("filters:")

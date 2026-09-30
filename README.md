@@ -191,6 +191,25 @@ overdue = "tag('todo') is not None and (tag('due') or ['9'])[0] < __import__('da
 
 `JN_TAGS` adds tags for a shell or session. `JN_DB` sets the database path; `--db` takes precedence for one command. Named databases under `[dbs]` resolve relative paths against your home directory. `favorites` orders web tag chips, and `[colors]` sets their colors.
 
+### Hooks
+
+Code goes in `~/.jn.py`, the only place besides `~/.jn` that jn runs anything from. If it defines `on_write(entry)`, every write calls it: `log`, `edit`, `tag`, `attach`, `revert`, `import`, and every web write, since they share one write path in the data layer. `entry` is a dict `{phase, op, id, content, tags, prev}`. `op` is `create|edit|tag|revert|import`; `tags` maps a name to `None` (bare) or a `"a,b"` string; `prev` is the earlier `{content, tags}` or `None` on create.
+
+- `phase == "before"`: runs before the write is stored. Mutate `entry` (or return a dict with `content` and `tags`) to change what is stored; `raise Reject("why")` to refuse it. `id` is `None` on create.
+- `phase == "after"`: runs once per write after it has committed; the return is ignored. Use it for triggers, such as starting a review when a task gains `@done`.
+
+```python
+# ~/.jn.py
+import re
+def on_write(e):
+    if e["phase"] == "before":
+        e["content"] = re.sub(r"\bJIRA-(\d+)\b", r"[JIRA-\1](https://jira.example/browse/JIRA-\1)", e["content"])
+    elif e["op"] != "import" and "done" in e["tags"] and "done" not in ((e["prev"] or {}).get("tags") or {}):
+        ...  # shell out here
+```
+
+A hook that crashes prints a warning and the write goes ahead unchanged; a broken `~/.jn.py` is skipped. A hook sees its own earlier output on the next edit, so rewrites must be idempotent. `import` runs the hook for every row, so check `op` before triggering anything. There is no chaining: `on_write` is one function that can call others. The hook can change entries but does not create new ones.
+
 ## Agent documentation
 
 `skills/jn/SKILL.md` is the small entry point for agents. It links to detailed pages for task workflow, configuration, and journaling. Install it in a tool's skills directory:

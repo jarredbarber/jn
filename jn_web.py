@@ -161,14 +161,14 @@ def verbs(jn):
 def server(jn, host, port):
     api, default_db = verbs(jn), jn.DB
 
-    candidates = [jn.Path.home() / ".jn"]
+    candidates = [jn.Path.home() / ".jn", jn.Path.home() / ".jn.py"]
     seen = [None]
 
     def fresh():
-        """config() is cached per process; drop it when ~/.jn changes (or appears)"""
+        """config() is cached per process; drop it (and the loaded hook) when ~/.jn or ~/.jn.py changes or appears"""
         stamp = [p.stat().st_mtime_ns if p.is_file() else None for p in candidates]
         if stamp != seen[0]:
-            seen[0] = stamp; jn.config.cache_clear()
+            seen[0] = stamp; jn.config.cache_clear(); jn.hook_fn.cache_clear()
 
     def use(name):
         """select this request's journal; JSONL snapshots last only one request so CLI edits stay visible"""

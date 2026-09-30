@@ -55,6 +55,10 @@ todo  = ["log @todo $@"]
 close = ["tag $1 @done", "ls @blocked_by=#$1 --unblocked"]
 ```
 
+## Hooks
+
+`~/.jn.py` may define `on_write(entry)`, called for every write (CLI and web) before it is stored (`phase == "before"`: change `content`/`tags` or `raise Reject("why")`) and after it commits (`phase == "after"`). See the README "Hooks" section for the entry fields. Do not edit `~/.jn.py` on a user's behalf without asking: it runs code on every write.
+
 ## Environment and display settings
 
 - `JN_TAGS`: extra tags for the current shell or session, for example `export JN_TAGS="@by=claude:claude-code"`.
