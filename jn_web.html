@@ -296,7 +296,7 @@ function renderChips() {
 // ---- URL mirrors tab, group, search and the open entry
 function toUrl(push = true) {
   const u = new URL(location), set = (k, v) => v === null || v === '' || v === undefined ? u.searchParams.delete(k) : u.searchParams.set(k, v);
-  set('tab', state.tab); set('g', state.group); set('q', state.q); set('open', cur); set('db', state.db);
+  set('tab', state.tab); state.group === null ? u.searchParams.delete('g') : u.searchParams.set('g', state.group);  // g='' is a bare-tag group set('q', state.q); set('open', cur); set('db', state.db);
   history[push ? 'pushState' : 'replaceState'](null, '', u);
 }
 function fromUrl() {
@@ -331,7 +331,7 @@ const dayLabel = d => {
 };
 
 // ---- the list. One ls call per refresh; groups, counts and the sidebar list are computed here from those rows.
-const NONE = '\u0000none';  // group key: the row lacks the --by tag ('' = bare tag, e.g. @home)
+const NONE = ' none';  // group key: the row lacks the --by tag ('' = bare tag, e.g. @home). Tag values never hold a space; NUL would turn into U+FFFD in an attribute
 const valsOf = (r, by) => { const v = r.tags[by]; return v === undefined ? [NONE] : v === null ? [''] : v.split(',').filter(Boolean); };
 const grpLabel = (by, k) => k === NONE ? 'no @' + by : k === '' ? '@' + by : k;
 const searchToks = () => state.q.trim().split(/\s+/).filter(Boolean);
