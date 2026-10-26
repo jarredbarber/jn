@@ -50,6 +50,7 @@ const heat = () => {  // 12 weeks, Sunday-aligned columns, counts from the tab's
 const who = r => { const a = r.tags.agent; return a ? `<span class="ag">${esc(a.split(':')[0])}·${esc((a.split(':')[1] || '').slice(0, 4))}</span>` : ''; };
 const chips = (r, skip) => tagStr(r, [...skip, 'agent', 'done']).map(t => `<span class="tg${t.startsWith('@project') ? ' pj' : ''}">${esc(t)}</span>`).join('');
 const rowA = (r, lead) => `<div class="r ${S.done.has(r.id) || 'done' in r.tags ? 'done' : ''} ${S.open === r.id ? 'sel' : ''}" data-open="${r.id}">${lead}<span class="x">${esc(title(r))}</span><span class="meta">${chips(r, [BY])}${who(r)}<span class="id">#${r.id}</span></span></div>`;
+const inherit = () => [...TABS[S.tab].args.filter(a => /^@[\w-]+(=[^*\s]+)?$/.test(a)), ...(S.group && !/^\(/.test(S.group) ? ['@' + BY + '=' + S.group] : [])];  // positive exact tags of the view + selected group
 const A = { name: 'Dense utility · teal', css: `
 :root{--bg:#0d1214;--side:#111a1c;--line:#1d2a2d;--hover:#142023;--sel:#16302f;--ink:#dbe4e4;--mute:#6f8285;--dim:#4a5a5d;--acc:#2dd4bf;--acc2:#14b8a6;--accbg:#2dd4bf1f;--warm:#f59e0b;--field:#111a1c}
 @media(prefers-color-scheme:light){:root{--bg:#fbfdfd;--side:#f1f6f6;--line:#e1eaea;--hover:#ecf4f3;--sel:#d9f0ec;--ink:#132225;--mute:#5d7175;--dim:#94a5a8;--acc:#0f766e;--acc2:#0d9488;--accbg:#0d94881a;--warm:#b45309;--field:#fff}}
@@ -66,7 +67,10 @@ nav .new{color:var(--acc);font-weight:600;font-size:11px}
 .heat .l1{background:color-mix(in srgb,var(--acc) 28%,transparent)} .heat .l2{background:color-mix(in srgb,var(--acc) 50%,transparent)} .heat .l3{background:color-mix(in srgb,var(--acc) 75%,transparent)} .heat .l4{background:var(--acc)} .heat .lx{background:none}
 main{padding:14px 22px;min-width:0}
 .cap{display:flex;gap:8px;margin-bottom:10px} textarea,input[data-q]{width:100%;box-sizing:border-box;background:var(--field);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px 10px;font:inherit;outline:none}
-textarea{min-height:38px;resize:vertical} textarea:focus,input[data-q]:focus{border-color:var(--acc2);box-shadow:0 0 0 3px var(--accbg)}
+textarea{min-height:38px;resize:vertical;border:0!important;box-shadow:none!important;padding:8px 4px!important;flex:1;min-width:160px;background:none!important}
+.qe{flex:1;display:flex;flex-wrap:wrap;align-items:flex-start;gap:5px;background:var(--field);border:1px solid var(--line);border-radius:7px;padding:4px 6px}
+.qe:focus-within{border-color:var(--acc2);box-shadow:0 0 0 3px var(--accbg)}
+.ih{margin-top:5px;font-size:11.5px;color:var(--acc);background:var(--accbg);border-radius:5px;padding:2px 4px 2px 7px;white-space:nowrap} .ih b{font-weight:400;opacity:.6;margin-left:5px;cursor:pointer} textarea:focus,input[data-q]:focus{border-color:var(--acc2);box-shadow:0 0 0 3px var(--accbg)}
 .cap button{all:unset;cursor:pointer;background:var(--acc2);color:#fff;font-weight:600;padding:0 14px;border-radius:7px} .cap button:hover{background:var(--acc)}
 .h{display:flex;gap:8px;align-items:baseline;color:var(--mute);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 2px;padding:0 8px}
 .h .c{color:var(--acc);font-weight:500} .h::after{content:"";flex:1;border-bottom:1px solid var(--line);transform:translateY(-3px)}
@@ -78,7 +82,10 @@ textarea{min-height:38px;resize:vertical} textarea:focus,input[data-q]:focus{bor
 .tg{font-size:11px;color:var(--mute);overflow:hidden;text-overflow:ellipsis} .tg.pj{color:var(--acc)}
 .ag{font-size:10.5px;color:var(--warm);border:1px solid color-mix(in srgb,var(--warm) 40%,transparent);border-radius:99px;padding:0 6px}
 .id{color:var(--dim);font:11px ui-monospace,Menlo,monospace}
-input[type=checkbox]{accent-color:var(--acc2);margin:0;width:14px;height:14px}
+input[type=checkbox]{appearance:none;margin:0;width:14px;height:14px;border:1.5px solid var(--dim);border-radius:4px;background:transparent;cursor:pointer;display:grid;place-content:center;transition:background .12s,border-color .12s}
+input[type=checkbox]:hover{border-color:var(--acc)}
+input[type=checkbox]:checked{background:var(--acc2);border-color:var(--acc2)}
+input[type=checkbox]:checked::after{content:"";width:7px;height:4px;border:solid #fff;border-width:0 0 2px 2px;transform:translateY(-1px) rotate(-45deg)}
 aside.det{border-left:1px solid var(--line);background:var(--side);padding:18px 20px;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow:auto}
 aside.det .top{display:flex;justify-content:space-between;color:var(--mute);font-size:12px;margin-bottom:10px} aside.det .top a{cursor:pointer;color:var(--mute)}
 aside.det h2{font-size:16px;margin:0 0 10px;line-height:1.3} aside.det pre{white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.55;margin:12px 0;color:var(--ink)}
@@ -93,7 +100,7 @@ aside.det .bt{display:flex;gap:6px;margin-top:14px} aside.det .bt span{border:1p
     return `<div class="w ${o ? 'det' : ''}"><nav><div class="brand">j<b>n</b></div>
     ${TABS.map((t, i) => `<a data-tab="${i}" class="${i === S.tab ? 'on' : ''}">${t.name}${i === 0 ? '<span class="new">4 new</span>' : ''}</a>${i === S.tab ? `<div class="sub">${Object.entries(m.groups).sort((a, b) => b[1].length - a[1].length).map(([g, rs]) => `<a data-group="${esc(g)}" class="${S.group === g ? 'on' : ''}">${esc(g)}<span class="n">${rs.length}</span></a>`).join('')}</div>` : ''}`).join('')}
     <div class="lab">activity</div><div class="heat">${heat()}</div></nav>
-    <main><div class="cap"><textarea placeholder="New entry…  @tags  ⌘↩"></textarea><button>Add</button></div><input data-q value="${esc(S.q)}" placeholder="Search  ( / )">${list}</main>
+    <main><div class="cap"><div class="qe">${inherit().map(t => `<span class="ih">${esc(t)}<b>✕</b></span>`).join('')}<textarea placeholder="Quick entry…  ⌘↩"></textarea></div><button>Add</button></div><input data-q value="${esc(S.q)}" placeholder="Search  ( / )">${list}</main>
     ${o ? `<aside class="det"><div class="top"><span>#${o.id} · ${new Date(o.created).toLocaleString()} ${who(o)}</span><a data-open="">✕</a></div><h2>${esc(title(o))}</h2>
       <div class="tags">${tagStr(o).map(t => `<span class="${t.startsWith('@project') ? 'pj' : ''}">${esc(t)}</span>`).join('')}</div><pre>${esc(o.content)}</pre>
       <div class="bt"><span>Reply</span><span>Edit</span>${'todo' in o.tags ? '<span>Mark done</span>' : ''}<span>Attach</span></div></aside>` : ''}</div>`;
