@@ -17,7 +17,7 @@ const TABS = [
   { name: 'Journal', args: ['-@todo'], as: 'journal' },
   { name: 'Tasks', args: ['@todo', '-@done', '-@archived'], as: 'tasks' },
 ];
-const S = { tab: 1, group: null, q: '', rows: [], done: new Set() };
+const S = { tab: 1, group: null, q: '', rows: [], done: new Set(), open: null };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const api = async (v, b) => (await (await fetch('/api/' + v, { method: 'POST', body: JSON.stringify(b) })).json()).out;
 const title = r => (r.content.split('\n').find(l => l.trim()) || '').replace(/^#+\s*/, '');
@@ -35,34 +35,69 @@ function model() {
   if (t.as === 'journal') for (const r of rows) (days[day(r)] ??= []).push(r);
   return { t, rows, groups, days };
 }
-async function load() { S.rows = (await api('ls', { args: TABS[S.tab].args })).reverse(); S.group = null; render(); }
+async function load() { S.rows = (await api('ls', { args: TABS[S.tab].args })).reverse(); S.group = null; S.open = null; render(); }
 
-// ---------- A: dense utility (dark, sidebar nav, tight rows) ----------
-const A = { name: 'Dense utility', css: `
-body{margin:0;background:#0f1115;color:#d7dae0;font:13px/1.45 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
-.w{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
-nav{background:#15181e;border-right:1px solid #242833;padding:14px 10px}
-nav .brand{font-weight:700;color:#fff;padding:4px 8px 14px}
-nav a{display:flex;justify-content:space-between;padding:5px 8px;border-radius:5px;color:#a3a8b4;cursor:pointer;text-decoration:none}
-nav a:hover{background:#1d212a} nav a.on{background:#262b36;color:#fff}
-nav .sub a{padding-left:22px;font-size:12px} nav .n{color:#5d6370}
-main{padding:14px 24px;max-width:980px}
-input{width:100%;box-sizing:border-box;background:#15181e;border:1px solid #2a2f3a;color:#e6e8ec;border-radius:6px;padding:7px 10px;font:inherit;margin-bottom:12px}
-textarea{width:100%;box-sizing:border-box;background:#15181e;border:1px solid #2a2f3a;color:#e6e8ec;border-radius:6px;padding:8px 10px;font:inherit;min-height:38px;resize:vertical}
-.h{color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 4px}
-.r{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center;padding:6px 8px;border-bottom:1px solid #1c2028}
-.r:hover{background:#161a21} .r .id{color:#5d6370;font-size:11px}
-.r .t{color:#6b7280;font-size:11px;margin-left:8px} .r.done .x{text-decoration:line-through;color:#5d6370}
-.j{display:grid;grid-template-columns:48px 1fr;gap:10px;padding:7px 8px;border-bottom:1px solid #1c2028} .j .tm{color:#5d6370;font-size:11px;padding-top:2px}
-input[type=checkbox]{accent-color:#6e8bff;margin:0}
-@media(max-width:700px){.w{grid-template-columns:1fr}nav{border-right:0;border-bottom:1px solid #242833}}`,
-  html: m => `<div class="w"><nav><div class="brand">jn</div>
-    ${TABS.map((t, i) => `<a data-tab="${i}" class="${i === S.tab ? 'on' : ''}">${t.name}</a>${i === S.tab && t.as === 'tasks' ? `<div class="sub">${Object.entries(m.groups).map(([g, rs]) => `<a data-group="${esc(g)}" class="${S.group === g ? 'on' : ''}">${esc(g)}<span class="n">${rs.length}</span></a>`).join('')}</div>` : ''}`).join('')}
-    </nav><main><textarea placeholder="New entry… (⌘↩)"></textarea><div style="height:8px"></div><input data-q value="${esc(S.q)}" placeholder="Search">
-    ${m.t.as === 'tasks'
-      ? (S.group ? [[S.group, m.rows]] : Object.entries(m.groups)).map(([g, rs]) => `<div class="h">${esc(g)} · ${rs.length}</div>` + rs.map(r => `<div class="r ${S.done.has(r.id) ? 'done' : ''}"><input type="checkbox" data-done="${r.id}" ${S.done.has(r.id) ? 'checked' : ''}><span><span class="x">${esc(title(r))}</span><span class="t">${esc(tagStr(r, [BY]).join(' '))}</span></span><span class="id">#${r.id} · ${ago(r.updated)}</span></div>`).join('')).join('')
-      : Object.entries(m.days).map(([d, rs]) => `<div class="h">${d}</div>` + rs.map(r => `<div class="j"><span class="tm">${time(r)}</span><span>${esc(r.content)}<span class="r t"> ${esc(tagStr(r).join(' '))}</span></span></div>`).join('')).join('')}
-  </main></div>` };
+// ---------- A: dense utility, teal (sidebar nav + heatmap, one-line rows, detail pane, follows system light/dark) ----------
+const heat = () => {  // 12 weeks, Sunday-aligned columns, counts from the tab's rows
+  const d0 = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return +d; }, cnt = {};
+  for (const r of S.rows) cnt[d0(r.created)] = (cnt[d0(r.created)] || 0) + 1;
+  const today = d0(Date.now()), c = new Date(today), max = Math.max(1, ...Object.values(cnt));
+  c.setDate(c.getDate() + (6 - c.getDay()) - 83);
+  let out = '';
+  for (let i = 0; i < 84; i++, c.setDate(c.getDate() + 1)) { const n = cnt[+c] || 0; out += `<i class="l${+c > today ? 'x' : n && Math.min(4, Math.ceil(n / max * 4))}" title="${c.toDateString()}: ${n}"></i>`; }
+  return out;
+};
+const who = r => { const a = r.tags.agent; return a ? `<span class="ag">${esc(a.split(':')[0])}·${esc((a.split(':')[1] || '').slice(0, 4))}</span>` : ''; };
+const chips = (r, skip) => tagStr(r, [...skip, 'agent', 'done']).map(t => `<span class="tg${t.startsWith('@project') ? ' pj' : ''}">${esc(t)}</span>`).join('');
+const rowA = (r, lead) => `<div class="r ${S.done.has(r.id) || 'done' in r.tags ? 'done' : ''} ${S.open === r.id ? 'sel' : ''}" data-open="${r.id}">${lead}<span class="x">${esc(title(r))}</span><span class="meta">${chips(r, [BY])}${who(r)}<span class="id">#${r.id}</span></span></div>`;
+const A = { name: 'Dense utility · teal', css: `
+:root{--bg:#0d1214;--side:#111a1c;--line:#1d2a2d;--hover:#142023;--sel:#16302f;--ink:#dbe4e4;--mute:#6f8285;--dim:#4a5a5d;--acc:#2dd4bf;--acc2:#14b8a6;--accbg:#2dd4bf1f;--warm:#f59e0b;--field:#111a1c}
+@media(prefers-color-scheme:light){:root{--bg:#fbfdfd;--side:#f1f6f6;--line:#e1eaea;--hover:#ecf4f3;--sel:#d9f0ec;--ink:#132225;--mute:#5d7175;--dim:#94a5a8;--acc:#0f766e;--acc2:#0d9488;--accbg:#0d94881a;--warm:#b45309;--field:#fff}}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
+.w{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh} .w.det{grid-template-columns:232px minmax(0,1fr) 440px}
+nav{background:var(--side);border-right:1px solid var(--line);padding:14px 10px;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow:auto}
+.brand{font:700 18px/1 ui-serif,Georgia,serif;font-style:italic;padding:4px 8px 16px;letter-spacing:-.02em} .brand b{color:var(--acc);font-style:normal}
+nav a{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:6px;color:var(--mute);cursor:pointer;border-left:2px solid transparent}
+nav a:hover{background:var(--hover);color:var(--ink)} nav a.on{background:var(--accbg);color:var(--ink);border-left-color:var(--acc)}
+nav .sub a{padding-left:20px;font-size:12px} nav .sub a.on{color:var(--acc);background:none} nav .n{color:var(--dim);font-variant-numeric:tabular-nums}
+nav .new{color:var(--acc);font-weight:600;font-size:11px}
+.lab{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;margin:20px 8px 8px}
+.heat{display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;gap:2px;padding:0 8px} .heat i{aspect-ratio:1;border-radius:2px;background:var(--line)}
+.heat .l1{background:color-mix(in srgb,var(--acc) 28%,transparent)} .heat .l2{background:color-mix(in srgb,var(--acc) 50%,transparent)} .heat .l3{background:color-mix(in srgb,var(--acc) 75%,transparent)} .heat .l4{background:var(--acc)} .heat .lx{background:none}
+main{padding:14px 22px;min-width:0}
+.cap{display:flex;gap:8px;margin-bottom:10px} textarea,input[data-q]{width:100%;box-sizing:border-box;background:var(--field);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px 10px;font:inherit;outline:none}
+textarea{min-height:38px;resize:vertical} textarea:focus,input[data-q]:focus{border-color:var(--acc2);box-shadow:0 0 0 3px var(--accbg)}
+.cap button{all:unset;cursor:pointer;background:var(--acc2);color:#fff;font-weight:600;padding:0 14px;border-radius:7px} .cap button:hover{background:var(--acc)}
+.h{display:flex;gap:8px;align-items:baseline;color:var(--mute);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 2px;padding:0 8px}
+.h .c{color:var(--acc);font-weight:500} .h::after{content:"";flex:1;border-bottom:1px solid var(--line);transform:translateY(-3px)}
+.r{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px 8px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.r:hover{background:var(--hover)} .r.sel{background:var(--sel);box-shadow:inset 2px 0 var(--acc)}
+.r .x{overflow:hidden;text-overflow:ellipsis} .r.done .x{text-decoration:line-through;color:var(--dim)}
+.r .tm{color:var(--dim);font-size:11.5px;font-variant-numeric:tabular-nums;width:38px}
+.meta{display:flex;gap:6px;align-items:center;overflow:hidden;max-width:48ch;justify-content:flex-end}
+.tg{font-size:11px;color:var(--mute);overflow:hidden;text-overflow:ellipsis} .tg.pj{color:var(--acc)}
+.ag{font-size:10.5px;color:var(--warm);border:1px solid color-mix(in srgb,var(--warm) 40%,transparent);border-radius:99px;padding:0 6px}
+.id{color:var(--dim);font:11px ui-monospace,Menlo,monospace}
+input[type=checkbox]{accent-color:var(--acc2);margin:0;width:14px;height:14px}
+aside.det{border-left:1px solid var(--line);background:var(--side);padding:18px 20px;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow:auto}
+aside.det .top{display:flex;justify-content:space-between;color:var(--mute);font-size:12px;margin-bottom:10px} aside.det .top a{cursor:pointer;color:var(--mute)}
+aside.det h2{font-size:16px;margin:0 0 10px;line-height:1.3} aside.det pre{white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.55;margin:12px 0;color:var(--ink)}
+aside.det .tags{display:flex;flex-wrap:wrap;gap:5px} aside.det .tags span{border:1px solid var(--line);border-radius:5px;padding:1px 7px;font-size:11.5px;color:var(--mute)} aside.det .tags span.pj{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 40%,transparent)}
+aside.det .bt{display:flex;gap:6px;margin-top:14px} aside.det .bt span{border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer} aside.det .bt span:first-child{background:var(--acc2);color:#fff;border-color:var(--acc2)}
+@media(max-width:760px){.w,.w.det{grid-template-columns:1fr}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}aside.det{position:fixed;inset:0;height:auto;z-index:50}.meta{max-width:22ch}}`,
+  html: m => {
+    const o = S.open && S.rows.find(r => r.id === S.open);
+    const list = m.t.as === 'tasks'
+      ? (S.group ? [[S.group, m.rows]] : Object.entries(m.groups)).map(([g, rs]) => `<div class="h">${esc(g)}<span class="c">${rs.length}</span></div>` + rs.map(r => rowA(r, `<input type="checkbox" data-done="${r.id}" ${S.done.has(r.id) ? 'checked' : ''}>`)).join('')).join('')
+      : Object.entries(m.days).map(([d, rs]) => `<div class="h">${d}<span class="c">${rs.length}</span></div>` + rs.map(r => rowA(r, `<span class="tm">${time(r)}</span>`)).join('')).join('');
+    return `<div class="w ${o ? 'det' : ''}"><nav><div class="brand">j<b>n</b></div>
+    ${TABS.map((t, i) => `<a data-tab="${i}" class="${i === S.tab ? 'on' : ''}">${t.name}${i === 0 ? '<span class="new">4 new</span>' : ''}</a>${i === S.tab && t.as === 'tasks' ? `<div class="sub">${Object.entries(m.groups).sort((a, b) => b[1].length - a[1].length).map(([g, rs]) => `<a data-group="${esc(g)}" class="${S.group === g ? 'on' : ''}">${esc(g)}<span class="n">${rs.length}</span></a>`).join('')}</div>` : ''}`).join('')}
+    <div class="lab">activity</div><div class="heat">${heat()}</div></nav>
+    <main><div class="cap"><textarea placeholder="New entry…  @tags  ⌘↩"></textarea><button>Add</button></div><input data-q value="${esc(S.q)}" placeholder="Search  ( / )">${list}</main>
+    ${o ? `<aside class="det"><div class="top"><span>#${o.id} · ${new Date(o.created).toLocaleString()} ${who(o)}</span><a data-open="">✕</a></div><h2>${esc(title(o))}</h2>
+      <div class="tags">${tagStr(o).map(t => `<span class="${t.startsWith('@project') ? 'pj' : ''}">${esc(t)}</span>`).join('')}</div><pre>${esc(o.content)}</pre>
+      <div class="bt"><span>Reply</span><span>Edit</span>${'todo' in o.tags ? '<span>Mark done</span>' : ''}<span>Attach</span></div></aside>` : ''}</div>`;
+  } };
 
 // ---------- B: terminal (mono, single column, jn ls look, inline group headers) ----------
 const B = { name: 'Terminal', css: `
@@ -121,13 +156,17 @@ function render() {
 }
 const go = d => { cur = keys[(keys.indexOf(cur) + d + keys.length) % keys.length]; const u = new URL(location); u.searchParams.set('variant', cur); history.replaceState(null, '', u); render(); };
 prev.onclick = () => go(-1); next.onclick = () => go(1);
-addEventListener('keydown', e => { if (!/INPUT|TEXTAREA/.test(document.activeElement.tagName) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) go(e.key === 'ArrowLeft' ? -1 : 1); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && S.open) { S.open = null; return render(); }
+  if (!/INPUT|TEXTAREA/.test(document.activeElement.tagName) && S.open && (e.key === 'j' || e.key === 'k')) { const ids = [...document.querySelectorAll('[data-open]')].map(x => +x.dataset.open).filter(Boolean), i = ids.indexOf(S.open), n = ids[i + (e.key === 'j' ? 1 : -1)]; if (n) { S.open = n; render(); document.querySelector('.r.sel')?.scrollIntoView({ block: 'nearest' }); } return; }
+  if (!/INPUT|TEXTAREA/.test(document.activeElement.tagName) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) go(e.key === 'ArrowLeft' ? -1 : 1); });
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-tab],[data-group],[data-done]'); if (!t) return;
+  const t = e.target.closest('[data-done],[data-tab],[data-group],[data-open]'); if (!t) return;
+  if (t.dataset.done) { e.stopPropagation(); const id = +t.dataset.done; S.done.has(id) ? S.done.delete(id) : S.done.add(id); return render(); }
+  if (t.dataset.open !== undefined) { S.open = +t.dataset.open || null; return render(); }
   if (t.dataset.tab) { S.tab = +t.dataset.tab; load(); }
   else if (t.dataset.group !== undefined) { S.group = t.dataset.group && S.group !== t.dataset.group ? t.dataset.group : null; render(); }
   else { const id = +t.dataset.done; S.done.has(id) ? S.done.delete(id) : S.done.add(id); render(); }
 });
 document.addEventListener('input', e => { if (e.target.dataset.q !== undefined) { S.q = e.target.value; render(); } });
-load();
+load().then(() => { const o = +new URL(location).searchParams.get('open'); if (o) { S.open = o; render(); } });  // ?open=N for screenshots
 </script></body></html>
