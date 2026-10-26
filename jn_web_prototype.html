@@ -1,0 +1,133 @@
+<!doctype html>
+<!-- PROTOTYPE — throwaway. Three structurally different themes for the jn web UI, switch with ?variant=A|B|C or ←/→.
+     Question: which visual direction replaces the cream/Bodoni ledger? Read-only; checkboxes toggle locally only.
+     Model under test: tabs = views (Journal = -@todo day feed, Tasks = @todo -@done grouped by a tag), plain search box. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jn prototype</title>
+<style id="vcss"></style>
+<style>
+#sw { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:99; display:flex; gap:10px; align-items:center;
+  background:#ff2d75; color:#fff; font:600 13px/1 system-ui; padding:8px 12px; border-radius:99px; box-shadow:0 4px 16px #0005 }
+#sw button { all:unset; cursor:pointer; padding:2px 8px; font-size:16px }
+</style></head><body><div id="app"></div>
+<div id="sw"><button id="prev">←</button><span id="lbl"></span><button id="next">→</button></div>
+<script>
+const BY = new URL(location).searchParams.get('by') || 'area';  // the tasks tab's grouping tag; ?by=project on your real db
+const TABS = [
+  { name: 'Journal', args: ['-@todo'], as: 'journal' },
+  { name: 'Tasks', args: ['@todo', '-@done', '-@archived'], as: 'tasks' },
+];
+const S = { tab: 1, group: null, q: '', rows: [], done: new Set() };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const api = async (v, b) => (await (await fetch('/api/' + v, { method: 'POST', body: JSON.stringify(b) })).json()).out;
+const title = r => (r.content.split('\n').find(l => l.trim()) || '').replace(/^#+\s*/, '');
+const tagStr = (r, skip = []) => Object.entries(r.tags).filter(([k]) => !['todo', 'files', ...skip].includes(k)).map(([k, v]) => '@' + k + (v ? '=' + v : ''));
+const day = r => new Date(r.created).toDateString();
+const time = r => new Date(r.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const ago = t => { const s = (Date.now() - new Date(t)) / 1e3; return s < 3600 ? Math.round(s / 60) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
+function model() {
+  const t = TABS[S.tab], q = S.q.toLowerCase();
+  let rows = S.rows.filter(r => !q || (r.content + ' ' + tagStr(r).join(' ')).toLowerCase().includes(q));
+  const groups = {};
+  if (t.as === 'tasks') for (const r of rows) for (const g of (r.tags[BY] ?? '(none)').split(',')) (groups[g || '(bare)'] ??= []).push(r);
+  if (t.as === 'tasks' && S.group) rows = groups[S.group] || [];
+  const days = {};
+  if (t.as === 'journal') for (const r of rows) (days[day(r)] ??= []).push(r);
+  return { t, rows, groups, days };
+}
+async function load() { S.rows = (await api('ls', { args: TABS[S.tab].args })).reverse(); S.group = null; render(); }
+
+// ---------- A: dense utility (dark, sidebar nav, tight rows) ----------
+const A = { name: 'Dense utility', css: `
+body{margin:0;background:#0f1115;color:#d7dae0;font:13px/1.45 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
+.w{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+nav{background:#15181e;border-right:1px solid #242833;padding:14px 10px}
+nav .brand{font-weight:700;color:#fff;padding:4px 8px 14px}
+nav a{display:flex;justify-content:space-between;padding:5px 8px;border-radius:5px;color:#a3a8b4;cursor:pointer;text-decoration:none}
+nav a:hover{background:#1d212a} nav a.on{background:#262b36;color:#fff}
+nav .sub a{padding-left:22px;font-size:12px} nav .n{color:#5d6370}
+main{padding:14px 24px;max-width:980px}
+input{width:100%;box-sizing:border-box;background:#15181e;border:1px solid #2a2f3a;color:#e6e8ec;border-radius:6px;padding:7px 10px;font:inherit;margin-bottom:12px}
+textarea{width:100%;box-sizing:border-box;background:#15181e;border:1px solid #2a2f3a;color:#e6e8ec;border-radius:6px;padding:8px 10px;font:inherit;min-height:38px;resize:vertical}
+.h{color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 4px}
+.r{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center;padding:6px 8px;border-bottom:1px solid #1c2028}
+.r:hover{background:#161a21} .r .id{color:#5d6370;font-size:11px}
+.r .t{color:#6b7280;font-size:11px;margin-left:8px} .r.done .x{text-decoration:line-through;color:#5d6370}
+.j{display:grid;grid-template-columns:48px 1fr;gap:10px;padding:7px 8px;border-bottom:1px solid #1c2028} .j .tm{color:#5d6370;font-size:11px;padding-top:2px}
+input[type=checkbox]{accent-color:#6e8bff;margin:0}
+@media(max-width:700px){.w{grid-template-columns:1fr}nav{border-right:0;border-bottom:1px solid #242833}}`,
+  html: m => `<div class="w"><nav><div class="brand">jn</div>
+    ${TABS.map((t, i) => `<a data-tab="${i}" class="${i === S.tab ? 'on' : ''}">${t.name}</a>${i === S.tab && t.as === 'tasks' ? `<div class="sub">${Object.entries(m.groups).map(([g, rs]) => `<a data-group="${esc(g)}" class="${S.group === g ? 'on' : ''}">${esc(g)}<span class="n">${rs.length}</span></a>`).join('')}</div>` : ''}`).join('')}
+    </nav><main><textarea placeholder="New entry… (⌘↩)"></textarea><div style="height:8px"></div><input data-q value="${esc(S.q)}" placeholder="Search">
+    ${m.t.as === 'tasks'
+      ? (S.group ? [[S.group, m.rows]] : Object.entries(m.groups)).map(([g, rs]) => `<div class="h">${esc(g)} · ${rs.length}</div>` + rs.map(r => `<div class="r ${S.done.has(r.id) ? 'done' : ''}"><input type="checkbox" data-done="${r.id}" ${S.done.has(r.id) ? 'checked' : ''}><span><span class="x">${esc(title(r))}</span><span class="t">${esc(tagStr(r, [BY]).join(' '))}</span></span><span class="id">#${r.id} · ${ago(r.updated)}</span></div>`).join('')).join('')
+      : Object.entries(m.days).map(([d, rs]) => `<div class="h">${d}</div>` + rs.map(r => `<div class="j"><span class="tm">${time(r)}</span><span>${esc(r.content)}<span class="r t"> ${esc(tagStr(r).join(' '))}</span></span></div>`).join('')).join('')}
+  </main></div>` };
+
+// ---------- B: terminal (mono, single column, jn ls look, inline group headers) ----------
+const B = { name: 'Terminal', css: `
+body{margin:0;background:#101010;color:#c8c8c8;font:14px/1.5 ui-monospace,"SF Mono",Menlo,monospace}
+.w{max-width:960px;margin:0 auto;padding:16px}
+.top{display:flex;gap:18px;border-bottom:1px dashed #444;padding-bottom:8px;margin-bottom:10px}
+.top a{cursor:pointer;color:#777} .top a.on{color:#e5c07b} .top a.on::before{content:"["} .top a.on::after{content:"]"}
+.top .p{margin-left:auto;color:#555}
+.prompt{display:flex;gap:8px;color:#98c379} .prompt input,.prompt textarea{flex:1;background:none;border:0;color:#eee;font:inherit;outline:none;resize:none}
+.g{color:#61afef;margin:14px 0 2px;cursor:pointer} .g:hover{text-decoration:underline}
+.r{display:grid;grid-template-columns:4ch 5ch 1fr auto;gap:1ch;white-space:nowrap} .r:hover{background:#1b1b1b}
+.r .id{color:#666;text-align:right} .r .tg{color:#c678dd;overflow:hidden;text-overflow:ellipsis;max-width:40ch} .r .x{overflow:hidden;text-overflow:ellipsis}
+.r.done .x{color:#555;text-decoration:line-through} .r .bx{cursor:pointer;color:#98c379}
+.d{color:#e5c07b;margin:14px 0 2px} .j{display:grid;grid-template-columns:6ch 4ch 1fr;gap:1ch} .j .id,.j .tm{color:#666} .j .tg{color:#c678dd}
+.crumbs{color:#666;margin:4px 0} .crumbs a{color:#61afef;cursor:pointer}`,
+  html: m => `<div class="w"><div class="top">${TABS.map((t, i) => `<a data-tab="${i}" class="${i === S.tab ? 'on' : ''}">${t.name.toLowerCase()}</a>`).join('')}<span class="p">jn ls ${esc(m.t.args.join(' '))}${S.group ? ' @' + BY + '=' + esc(S.group) : ''}</span></div>
+    <div class="prompt">jn log &gt;<textarea rows="1" placeholder="…"></textarea></div><div class="prompt">grep &gt;<input data-q value="${esc(S.q)}"></div>
+    ${S.group ? `<div class="crumbs"><a data-group="">all</a> / ${esc(S.group)}</div>` : ''}
+    ${m.t.as === 'tasks'
+      ? (S.group ? [[S.group, m.rows]] : Object.entries(m.groups)).map(([g, rs]) => `<div class="g" data-group="${esc(g)}">▸ @${BY}=${esc(g)} (${rs.length})</div>` + rs.map(r => `<div class="r ${S.done.has(r.id) ? 'done' : ''}"><span class="id">${r.id}</span><span class="bx" data-done="${r.id}">${S.done.has(r.id) ? '[x]' : '[ ]'}</span><span class="x">${esc(title(r))}</span><span class="tg">${esc(tagStr(r, [BY]).join(' '))}</span></div>`).join('')).join('')
+      : Object.entries(m.days).map(([d, rs]) => `<div class="d">── ${d} ──</div>` + rs.map(r => `<div class="j"><span class="tm">${time(r)}</span><span class="id">${r.id}</span><span>${esc(r.content)} <span class="tg">${esc(tagStr(r).join(' '))}</span></span></div>`).join('')).join('')}
+  </div>` };
+
+// ---------- C: plain native (light, top tabs, project pills, roomy single column, cards-free) ----------
+const C = { name: 'Plain native', css: `
+body{margin:0;background:#fff;color:#111;font:16px/1.5 system-ui,-apple-system,sans-serif}
+@media(prefers-color-scheme:dark){body{background:#1c1c1e;color:#eee}.r,.j{border-color:#333!important}.pills a{border-color:#444!important}}
+header{position:sticky;top:0;background:inherit;border-bottom:1px solid #ddd;display:flex;align-items:center;gap:24px;padding:0 20px}
+header b{font-size:18px} header a{cursor:pointer;padding:14px 0;border-bottom:2px solid transparent;color:#666}
+header a.on{color:inherit;border-color:currentColor;font-weight:600} header input{margin-left:auto;max-width:220px}
+.w{max-width:720px;margin:0 auto;padding:20px}
+input,textarea{font:inherit;padding:8px 10px;border:1px solid #ccc;border-radius:8px;width:100%;box-sizing:border-box;background:transparent;color:inherit}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.pills a{cursor:pointer;border:1px solid #ccc;border-radius:99px;padding:3px 12px;font-size:14px} .pills a.on{background:#111;color:#fff;border-color:#111}
+h3{font-size:14px;color:#888;font-weight:500;margin:24px 0 4px}
+.r{display:flex;gap:12px;align-items:baseline;padding:10px 0;border-bottom:1px solid #eee} .r label{flex:1;cursor:pointer}
+.r small,.j small{color:#888;font-size:13px} .r.done label{color:#999;text-decoration:line-through}
+.j{padding:12px 0;border-bottom:1px solid #eee;white-space:pre-wrap} .j small{display:block}`,
+  html: m => `<header><b>jn</b>${TABS.map((t, i) => `<a data-tab="${i}" class="${i === S.tab ? 'on' : ''}">${t.name}</a>`).join('')}<input data-q value="${esc(S.q)}" placeholder="Search"></header>
+    <div class="w"><textarea rows="2" placeholder="What's on your mind?"></textarea>
+    ${m.t.as === 'tasks'
+      ? `<div class="pills"><a data-group="" class="${S.group ? '' : 'on'}">All</a>${Object.entries(m.groups).map(([g, rs]) => `<a data-group="${esc(g)}" class="${S.group === g ? 'on' : ''}">${esc(g)} ${rs.length}</a>`).join('')}</div>`
+        + m.rows.map(r => `<div class="r ${S.done.has(r.id) ? 'done' : ''}"><input type="checkbox" style="width:auto" data-done="${r.id}" ${S.done.has(r.id) ? 'checked' : ''}><label>${esc(title(r))}<br><small>${esc([...tagStr(r), '#' + r.id].join('  '))}</small></label></div>`).join('')
+      : Object.entries(m.days).map(([d, rs]) => `<h3>${d}</h3>` + rs.map(r => `<div class="j">${esc(r.content)}<small>${time(r)} · #${r.id} ${esc(tagStr(r).join(' '))}</small></div>`).join('')).join('')}
+  </div>` };
+
+// ---------- switcher ----------
+const V = { A, B, C }, keys = Object.keys(V);
+let cur = new URL(location).searchParams.get('variant') || 'A';
+function render() {
+  const v = V[cur], focus = document.activeElement?.dataset?.q !== undefined;
+  document.getElementById('vcss').textContent = v.css;
+  document.getElementById('app').innerHTML = v.html(model());
+  document.getElementById('lbl').textContent = `${cur} — ${v.name}`;
+  if (focus) { const q = document.querySelector('[data-q]'); q.focus(); q.selectionStart = q.value.length; }
+}
+const go = d => { cur = keys[(keys.indexOf(cur) + d + keys.length) % keys.length]; const u = new URL(location); u.searchParams.set('variant', cur); history.replaceState(null, '', u); render(); };
+prev.onclick = () => go(-1); next.onclick = () => go(1);
+addEventListener('keydown', e => { if (!/INPUT|TEXTAREA/.test(document.activeElement.tagName) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) go(e.key === 'ArrowLeft' ? -1 : 1); });
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-group],[data-done]'); if (!t) return;
+  if (t.dataset.tab) { S.tab = +t.dataset.tab; load(); }
+  else if (t.dataset.group !== undefined) { S.group = t.dataset.group && S.group !== t.dataset.group ? t.dataset.group : null; render(); }
+  else { const id = +t.dataset.done; S.done.has(id) ? S.done.delete(id) : S.done.add(id); render(); }
+});
+document.addEventListener('input', e => { if (e.target.dataset.q !== undefined) { S.q = e.target.value; render(); } });
+load();
+</script></body></html>

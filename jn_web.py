@@ -192,6 +192,8 @@ def server(jn, host, port):
             path, _, qs = self.path.partition("?")  # the page keeps its query in the URL
             if path == "/":
                 self.send(200, (HERE / "jn_web.html").read_text(), "text/html; charset=utf-8")
+            elif path == "/prototype":  # PROTOTYPE — throwaway theme variants, branch prototype/themes only
+                self.send(200, (HERE / "jn_web_prototype.html").read_text(), "text/html; charset=utf-8")
             elif path == "/manifest.json":
                 self.send(200, json.dumps({"name": "jn", "short_name": "jn", "start_url": "/", "display": "standalone",
                                            "background_color": "#111", "theme_color": "#111", "icons": []}), "application/manifest+json")
