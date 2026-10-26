@@ -243,9 +243,9 @@ tasks   = "@todo -@done -@archived --all --as=tasks --by=project"
 agents  = "@agent --all --by=agent"
 ```
 
-Quick entry adds the open tab's positive, exact tags and the selected group, shown as chips you can remove: in Tasks › infra a new entry gets `@todo @project=infra`. Reply in the detail pane adds `@parent=#N`. The search box takes `ls` tokens and words and narrows the tab. Keys: `/` search, `c` quick entry, `j`/`k` next and previous entry, `e` edit, `Esc` close.
+Quick entry adds the open tab's positive, exact tags and the selected group, shown as chips you can remove: in Tasks › infra a new entry gets `@todo @project=infra`. Reply in the detail pane adds `@parent=#N`. The search box takes `ls` tokens and words and narrows the tab. Keys: `/` search, `c` quick entry, `,` settings, `j`/`k` next and previous entry, `e` edit, `Esc` close.
 
-Colors come from a base16 palette, so a scheme is sixteen colors plus the slot used as the accent. The sidebar footer picks the scheme (`jn`, `vague`, `everforest`, `github`) and light, dark, or the system setting; the choice is per browser. Add a scheme by adding an entry to `THEMES` in `jn_web.html`.
+Colors come from a base16 palette, so a scheme is sixteen colors plus the slot used as the accent. Settings (the gear beside the logo, or `,`) picks the scheme (`github`, the default, `vague`, `everforest`) and light, dark, or the system setting; the choice is per browser. Add a scheme by adding an entry to `THEMES` in `jn_web.html`.
 
 ### Pages and unread badges (web)
 

@@ -10,15 +10,15 @@
 <style>
 /* Colors are a base16 palette (--base00..--base0F) plus --acc, one of its slots. Every rule below reads the semantic
    names, which derive from those 16; a theme (see THEMES) only sets the 16 + the accent slot. These defaults are the
-   jn theme, so the page paints right before the script runs. */
+   github scheme, so the page paints right before the script runs. */
 :root {
-  --base00:#0d1214; --base01:#111a1c; --base02:#1f3533; --base03:#4a5a5d; --base04:#6f8285; --base05:#dbe4e4; --base06:#eef3f3; --base07:#ffffff;
-  --base08:#f87171; --base09:#f59e0b; --base0A:#facc15; --base0B:#4ade80; --base0C:#2dd4bf; --base0D:#60a5fa; --base0E:#c084fc; --base0F:#fb923c;
-  --acc:var(--base0C);
+  --base00:#0d1117; --base01:#161b22; --base02:#30363d; --base03:#6e7681; --base04:#8b949e; --base05:#e6edf3; --base06:#f0f6fc; --base07:#f0f6fc;
+  --base08:#ff7b72; --base09:#f0883e; --base0A:#d29922; --base0B:#3fb950; --base0C:#76e3ea; --base0D:#58a6ff; --base0E:#bc8cff; --base0F:#f778ba;
+  --acc:var(--base0D);
 }
 @media (prefers-color-scheme: light) { :root {
-  --base00:#fbfdfd; --base01:#f1f6f6; --base02:#d9f0ec; --base03:#94a5a8; --base04:#5d7175; --base05:#132225; --base06:#0b1517; --base07:#000000;
-  --base08:#dc2626; --base09:#b45309; --base0A:#a16207; --base0B:#15803d; --base0C:#0f766e; --base0D:#1d4ed8; --base0E:#7e22ce; --base0F:#c2410c;
+  --base00:#ffffff; --base01:#f6f8fa; --base02:#d0d7de; --base03:#57606a; --base04:#32383f; --base05:#1f2328; --base06:#24292f; --base07:#1f2328;
+  --base08:#cf222e; --base09:#bc4c00; --base0A:#9a6700; --base0B:#116329; --base0C:#1b7c83; --base0D:#0969da; --base0E:#8250df; --base0F:#953800;
 } }
 :root {
   --bg:var(--base00); --side:var(--base01); --field:var(--base01); --ink:var(--base05); --mute:var(--base04); --dim:var(--base03);
@@ -61,8 +61,22 @@ nav { background:var(--side); border-right:1px solid var(--line); padding:12px 1
 #cal .l1 { background:color-mix(in srgb, var(--acc) 28%, transparent) } #cal .l2 { background:color-mix(in srgb, var(--acc) 50%, transparent) }
 #cal .l3 { background:color-mix(in srgb, var(--acc) 75%, transparent) } #cal .l4 { background:var(--acc) } #cal .lx { background:transparent }
 #cal .cell:hover::after { content:attr(aria-label); position:absolute; left:8px; bottom:calc(100% + 4px); z-index:10; padding:4px 8px; border-radius:var(--r); background:var(--ink); color:var(--bg); font-size:12px; white-space:nowrap; pointer-events:none }
-.foot { margin-top:auto; padding:16px 8px 4px; display:flex; flex-wrap:wrap; gap:6px; align-items:center }
-#dbpath { flex-basis:100%; color:var(--dim); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl; text-align:left }
+.gear { border:0; padding:2px 4px; color:var(--dim); font-size:15px; line-height:1 } .gear:hover { color:var(--acc) } #dbsel:not([hidden]) + .gear { margin-left:0 } .brand .gear { margin-left:auto }
+#dbsel:not([hidden]) { margin-left:auto }
+#settings { background:var(--side); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:16px 18px 18px; width:min(460px, calc(100vw - 32px)); box-shadow:0 12px 40px #0008 }
+#settings::backdrop { background:color-mix(in srgb, var(--base00) 55%, transparent) }
+#settings .sh { display:flex; align-items:center; font-size:14px; font-weight:600 } #settings .sh .x { margin-left:auto; border:0; font-size:15px; padding:0 4px }
+#settings .lab { margin:16px 0 6px }
+.schemes { display:grid; grid-template-columns:1fr 1fr; gap:8px }
+.scheme { display:flex; flex-direction:column; gap:7px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; cursor:pointer }
+.scheme:hover { border-color:var(--mute) } .scheme:has(input:checked) { border-color:var(--acc); box-shadow:0 0 0 2px var(--accbg) }
+.scheme input, .seg input { position:absolute; opacity:0; pointer-events:none }
+.scheme .nm { display:flex; justify-content:space-between; font-weight:500 } .scheme .nm small { color:var(--dim); font-weight:400 }
+.sw { display:flex; border-radius:4px; overflow:hidden; height:16px } .sw i { flex:1 }
+.seg { display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden }
+.seg label { padding:5px 14px; cursor:pointer; color:var(--mute) } .seg label + label { border-left:1px solid var(--line) }
+.seg label:has(input:checked) { background:var(--accbg); color:var(--ink) } .seg label:has(input:focus-visible) { outline:2px solid var(--acc); outline-offset:-2px }
+#dbpath { color:var(--mute); font:12px var(--mono); word-break:break-all }
 
 main { padding:14px 22px 60px; min-width:0 }
 .cap { display:flex; gap:8px; align-items:stretch }
@@ -168,7 +182,7 @@ a.ref, a.tag { color:var(--acc); text-decoration:none; cursor:pointer } a.ref:ho
   .brand { padding:0 0 8px } #tabs { display:flex; flex-wrap:wrap; gap:4px }
   #tabs .grps { flex-basis:100%; display:flex; overflow-x:auto; gap:2px; margin:2px 0 } .grp { padding-left:8px }
   .tab { border-left:0; border-bottom:2px solid transparent; border-radius:0 } .tab.on { border-bottom-color:var(--acc) }
-  #calbox, #pagebox, .foot { display:none }
+  #calbox, #pagebox { display:none }
   main { padding:10px 12px 60px }
   .meta { max-width:14ch } .meta .chip, .meta .eid, .r .ctx { display:none }
   #det { position:fixed; inset:0; height:auto; z-index:30; border-left:0 }
@@ -179,11 +193,10 @@ a.ref, a.tag { color:var(--acc); text-decoration:none; cursor:pointer } a.ref:ho
 <body>
 <div class="w" id="w">
 <nav>
-  <div class="brand"><a href="/" id="home">j<b>n</b></a><select id="dbsel" hidden aria-label="Journal"></select></div>
+  <div class="brand"><a href="/" id="home">j<b>n</b></a><select id="dbsel" hidden aria-label="Journal"></select><button class="gear" id="gear" aria-label="Settings" title="Settings  ( , )">⚙</button></div>
   <div id="tabs"></div>
   <div id="pagebox" hidden><div class="lab">pages</div><div id="pages"></div></div>
   <div id="calbox"><div class="lab">activity</div><div id="cal"></div></div>
-  <div class="foot"><select id="theme" aria-label="Color scheme"></select><select id="mode" aria-label="Light or dark"><option value="system">system</option><option value="dark">dark</option><option value="light">light</option></select><span id="dbpath"></span></div>
 </nav>
 <main>
   <div class="cap"><div class="qe"><span id="chips"></span><textarea id="capture" rows="1" placeholder="Quick entry…  @tags  ⌘↩"></textarea></div><button id="save" class="primary add">Add</button></div>
@@ -194,6 +207,12 @@ a.ref, a.tag { color:var(--acc); text-decoration:none; cursor:pointer } a.ref:ho
 <aside id="det" hidden></aside>
 </div>
 <div id="ac"></div>
+<dialog id="settings" aria-label="Settings"><form method="dialog">
+  <div class="sh">Settings<button class="x" value="close" aria-label="Close">✕</button></div>
+  <div class="lab">Color scheme</div><div class="schemes" id="schemes"></div>
+  <div class="lab">Appearance</div><div class="seg" id="modes"><label><input type="radio" name="mode" value="system">system</label><label><input type="radio" name="mode" value="dark">dark</label><label><input type="radio" name="mode" value="light">light</label></div>
+  <div class="lab">Journal</div><div id="dbpath"></div>
+</form></dialog>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -212,9 +231,6 @@ async function api(verb, body = {}) {
 // Sources: vague2k/vague.nvim lua/vague/config/internal.lua; sainnhe/everforest autoload/everforest.vim (medium);
 // projekt0n/github-nvim-theme palette/github_dark_default.lua + github_light_default.lua (primitives). Add one = add an entry.
 const THEMES = {
-  jn: { acc: 'base0C',
-    dark: { base00:'#0d1214', base01:'#111a1c', base02:'#1f3533', base03:'#4a5a5d', base04:'#6f8285', base05:'#dbe4e4', base06:'#eef3f3', base07:'#ffffff', base08:'#f87171', base09:'#f59e0b', base0A:'#facc15', base0B:'#4ade80', base0C:'#2dd4bf', base0D:'#60a5fa', base0E:'#c084fc', base0F:'#fb923c' },
-    light: { base00:'#fbfdfd', base01:'#f1f6f6', base02:'#d9f0ec', base03:'#94a5a8', base04:'#5d7175', base05:'#132225', base06:'#0b1517', base07:'#000000', base08:'#dc2626', base09:'#b45309', base0A:'#a16207', base0B:'#15803d', base0C:'#0f766e', base0D:'#1d4ed8', base0E:'#7e22ce', base0F:'#c2410c' } },
   vague: { acc: 'base0D',
     dark: { base00:'#141415', base01:'#1c1c24', base02:'#333738', base03:'#606079', base04:'#878787', base05:'#cdcdcd', base06:'#c3c3d5', base07:'#c3c3d5', base08:'#d8647e', base09:'#e0a363', base0A:'#f3be7c', base0B:'#7fa563', base0C:'#b4d4cf', base0D:'#6e94b2', base0E:'#bb9dbd', base0F:'#c48282' } },
   everforest: { acc: 'base0B',
@@ -228,16 +244,29 @@ const pref = (k, d) => { try { return localStorage.getItem(k) || d; } catch { re
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const lightMq = matchMedia('(prefers-color-scheme: light)');
 function applyTheme() {  // a scheme without the wanted variant uses the one it has
-  const t = THEMES[pref('jn.theme', 'jn')] || THEMES.jn, m = pref('jn.mode', 'system');
+  const t = THEMES[pref('jn.theme', 'github')] || THEMES.github, m = pref('jn.mode', 'system');  // a stale or removed name falls back
   const want = m === 'system' ? (lightMq.matches ? 'light' : 'dark') : m, p = t[want] || t.dark || t.light, st = document.documentElement.style;
   for (const [k, v] of Object.entries(p)) st.setProperty('--' + k, v);
   st.setProperty('--acc', `var(--${t.acc})`);
   document.querySelector('meta[name=theme-color]').content = p.base00;
+  renderSettings();
 }
-$('#theme').innerHTML = Object.keys(THEMES).map(n => `<option>${n}</option>`).join('');
-$('#theme').value = pref('jn.theme', 'jn'); $('#mode').value = pref('jn.mode', 'system');
-$('#theme').onchange = e => { setPref('jn.theme', e.target.value); applyTheme(); };
-$('#mode').onchange = e => { setPref('jn.mode', e.target.value); applyTheme(); };
+function renderSettings() {  // scheme cards preview the variant the current mode would use
+  const sel = THEMES[pref('jn.theme', 'github')] ? pref('jn.theme', 'github') : 'github', m = pref('jn.mode', 'system');
+  const want = m === 'system' ? (lightMq.matches ? 'light' : 'dark') : m;
+  $('#schemes').innerHTML = Object.entries(THEMES).map(([n, t]) => {
+    const p = t[want] || t.dark || t.light, vs = ['dark', 'light'].filter(v => t[v]).join(' + ');
+    const sw = ['base00', 'base01', 'base05', t.acc, 'base08', 'base0B', 'base0D', 'base0E'].map(k => `<i style="background:${p[k]}"></i>`).join('');
+    return `<label class="scheme"><input type="radio" name="scheme" value="${n}"${n === sel ? ' checked' : ''}><span class="nm">${n}<small>${vs}</small></span><span class="sw">${sw}</span></label>`;
+  }).join('');
+  for (const r of document.querySelectorAll('#modes input')) r.checked = r.value === m;
+}
+$('#settings').addEventListener('change', e => {
+  if (e.target.name === 'scheme') setPref('jn.theme', e.target.value);
+  if (e.target.name === 'mode') setPref('jn.mode', e.target.value);
+  applyTheme();
+});
+$('#gear').onclick = () => $('#settings').showModal();
 lightMq.addEventListener('change', applyTheme);
 applyTheme();
 
@@ -566,9 +595,11 @@ document.body.addEventListener('change', async e => {  // any done checkbox: lis
 const typingIn = () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if ($('#settings').open) return;  // the dialog owns its keys; Esc closes it natively
   if (e.key === 'Escape' && cur !== null && !typingIn()) return closeEntry();
   if (typingIn()) return;
   if (e.key === '/') { e.preventDefault(); $('#filter').focus(); return; }
+  if (e.key === ',') { e.preventDefault(); $('#settings').showModal(); return; }
   if (e.key === 'c') { e.preventDefault(); $('#capture').focus(); return; }
   if (e.key === 'e' && cur !== null) { e.preventDefault(); $('#det .editor')?.edit(); return; }
   const dir = { j: 1, ArrowDown: 1, k: -1, ArrowUp: -1 }[e.key];
