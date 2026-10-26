@@ -29,8 +29,8 @@ function model() {
   const t = TABS[S.tab], q = S.q.toLowerCase();
   let rows = S.rows.filter(r => !q || (r.content + ' ' + tagStr(r).join(' ')).toLowerCase().includes(q));
   const groups = {};
-  if (t.as === 'tasks') for (const r of rows) for (const g of (r.tags[BY] ?? '(none)').split(',')) (groups[g || '(bare)'] ??= []).push(r);
-  if (t.as === 'tasks' && S.group) rows = groups[S.group] || [];
+  for (const r of rows) for (const g of (r.tags[BY] ?? '(none)').split(',')) (groups[g || '(bare)'] ??= []).push(r);  // every tab: --by fills the sub-list
+  if (S.group) rows = groups[S.group] || [];
   const days = {};
   if (t.as === 'journal') for (const r of rows) (days[day(r)] ??= []).push(r);
   return { t, rows, groups, days };
@@ -91,7 +91,7 @@ aside.det .bt{display:flex;gap:6px;margin-top:14px} aside.det .bt span{border:1p
       ? (S.group ? [[S.group, m.rows]] : Object.entries(m.groups)).map(([g, rs]) => `<div class="h">${esc(g)}<span class="c">${rs.length}</span></div>` + rs.map(r => rowA(r, `<input type="checkbox" data-done="${r.id}" ${S.done.has(r.id) ? 'checked' : ''}>`)).join('')).join('')
       : Object.entries(m.days).map(([d, rs]) => `<div class="h">${d}<span class="c">${rs.length}</span></div>` + rs.map(r => rowA(r, `<span class="tm">${time(r)}</span>`)).join('')).join('');
     return `<div class="w ${o ? 'det' : ''}"><nav><div class="brand">j<b>n</b></div>
-    ${TABS.map((t, i) => `<a data-tab="${i}" class="${i === S.tab ? 'on' : ''}">${t.name}${i === 0 ? '<span class="new">4 new</span>' : ''}</a>${i === S.tab && t.as === 'tasks' ? `<div class="sub">${Object.entries(m.groups).sort((a, b) => b[1].length - a[1].length).map(([g, rs]) => `<a data-group="${esc(g)}" class="${S.group === g ? 'on' : ''}">${esc(g)}<span class="n">${rs.length}</span></a>`).join('')}</div>` : ''}`).join('')}
+    ${TABS.map((t, i) => `<a data-tab="${i}" class="${i === S.tab ? 'on' : ''}">${t.name}${i === 0 ? '<span class="new">4 new</span>' : ''}</a>${i === S.tab ? `<div class="sub">${Object.entries(m.groups).sort((a, b) => b[1].length - a[1].length).map(([g, rs]) => `<a data-group="${esc(g)}" class="${S.group === g ? 'on' : ''}">${esc(g)}<span class="n">${rs.length}</span></a>`).join('')}</div>` : ''}`).join('')}
     <div class="lab">activity</div><div class="heat">${heat()}</div></nav>
     <main><div class="cap"><textarea placeholder="New entry…  @tags  ⌘↩"></textarea><button>Add</button></div><input data-q value="${esc(S.q)}" placeholder="Search  ( / )">${list}</main>
     ${o ? `<aside class="det"><div class="top"><span>#${o.id} · ${new Date(o.created).toLocaleString()} ${who(o)}</span><a data-open="">✕</a></div><h2>${esc(title(o))}</h2>
