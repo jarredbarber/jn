@@ -3,284 +3,203 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#F6F2E9">
+<meta name="theme-color" content="#0d1214">
 <title>jn</title>
 <link rel="manifest" href="/manifest.json">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2314261F'/%3E%3Ctext x='9' y='47' font-family='Georgia,serif' font-size='44' font-style='italic' fill='%23F2EFE6'%3Ej%3Ctspan font-style='normal' font-weight='bold' fill='%23FF7A1A'%3En%3C/tspan%3E%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Hanken+Grotesk:ital,wght@0,300..700;1,300..700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230d1214'/%3E%3Ctext x='9' y='47' font-family='Georgia,serif' font-size='44' font-style='italic' fill='%23dbe4e4'%3Ej%3Ctspan font-style='normal' font-weight='bold' fill='%232dd4bf'%3En%3C/tspan%3E%3C/text%3E%3C/svg%3E">
 <style>
+/* Colors are a base16 palette (--base00..--base0F) plus --acc, one of its slots. Every rule below reads the semantic
+   names, which derive from those 16; a theme (see THEMES) only sets the 16 + the accent slot. These defaults are the
+   jn theme, so the page paints right before the script runs. */
 :root {
-  --bg:#F6F2E9; --bg2:#ECE6D8; --field:#FFFDF8; --ink:#1C1A16; --mute:#6B6457; --rule:#DDD5C4; --accent:#B4460F; --accent-ink:#FFFDF8;
-  --serif:"Bodoni Moda", "Didot", "Bodoni 72", serif; --sans:"Hanken Grotesk", "Helvetica Neue", Arial, sans-serif;
-  --gutter:72px; --r:3px;
+  --base00:#0d1214; --base01:#111a1c; --base02:#1f3533; --base03:#4a5a5d; --base04:#6f8285; --base05:#dbe4e4; --base06:#eef3f3; --base07:#ffffff;
+  --base08:#f87171; --base09:#f59e0b; --base0A:#facc15; --base0B:#4ade80; --base0C:#2dd4bf; --base0D:#60a5fa; --base0E:#c084fc; --base0F:#fb923c;
+  --acc:var(--base0C);
+}
+@media (prefers-color-scheme: light) { :root {
+  --base00:#fbfdfd; --base01:#f1f6f6; --base02:#d9f0ec; --base03:#94a5a8; --base04:#5d7175; --base05:#132225; --base06:#0b1517; --base07:#000000;
+  --base08:#dc2626; --base09:#b45309; --base0A:#a16207; --base0B:#15803d; --base0C:#0f766e; --base0D:#1d4ed8; --base0E:#7e22ce; --base0F:#c2410c;
+} }
+:root {
+  --bg:var(--base00); --side:var(--base01); --field:var(--base01); --ink:var(--base05); --mute:var(--base04); --dim:var(--base03);
+  --line:color-mix(in srgb, var(--base05) 10%, var(--base00)); --hover:color-mix(in srgb, var(--base05) 5%, var(--base00));
+  --sel:color-mix(in srgb, var(--acc) 15%, var(--base00)); --accbg:color-mix(in srgb, var(--acc) 14%, transparent);
+  --on-acc:var(--base00); --agent:var(--base09); --err:var(--base08); --link:var(--acc);
+  --sans:-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; --mono:ui-monospace, "SF Mono", Menlo, monospace; --r:6px;
 }
 * { box-sizing:border-box }
-html { background:var(--bg) }
-body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 var(--sans); min-height:100vh; padding:0 0 calc(48px + env(safe-area-inset-bottom)) }
-::selection { background:var(--accent); color:var(--accent-ink) }
-:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+html, body { background:var(--bg) }
+body { margin:0; color:var(--ink); font:13px/1.45 var(--sans) }
+::selection { background:var(--acc); color:var(--on-acc) }
+:focus-visible { outline:2px solid var(--acc); outline-offset:1px }
 button, input, textarea, select { font:inherit; color:inherit }
+a { color:var(--link) }
+button { background:transparent; border:1px solid var(--line); border-radius:var(--r); padding:5px 11px; cursor:pointer }
+button:hover { border-color:var(--mute) }
+button.primary { background:var(--acc); border-color:var(--acc); color:var(--on-acc); font-weight:600 }
+button.primary:hover { filter:brightness(1.08) }
+select { background:var(--field); border:1px solid var(--line); border-radius:var(--r); padding:3px 6px; font-size:12px }
+.err { color:var(--err); font-size:12px }
 
-.col { position:relative; z-index:1 }
-.mast { display:flex; align-items:center; gap:16px; padding:18px 40px 14px; border-bottom:2px solid var(--ink) }
-.mast h1 { font:italic 400 44px/1 var(--serif); letter-spacing:-.02em; margin:0 }
-.mast h1 a { color:inherit; text-decoration:none }
-.mast h1 b { font-style:normal; font-weight:700; color:var(--accent) }
-.statwrap { text-align:left; line-height:1.3; min-width:0 }
-#dbpath { color:var(--mute); font-size:13px; display:block; max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl }
-#status { color:var(--mute); font-size:13px }
-#dbsel { background:var(--field); color:var(--ink); border:1px solid var(--rule); border-radius:var(--r); padding:4px 8px; font-size:14px }
-#viewseg { margin-left:auto; gap:4px }
-#viewseg .chip { padding:6px 16px; font-size:14px }
-/* write (primary) centered on top, lens under it */
-.bar { padding:22px 40px 14px; border-bottom:1px solid var(--rule) }
-.composer, .lens { max-width:820px; margin:0 auto }
-.composer .att:empty { display:none }
-#capture { font-size:17px; padding:14px 16px; min-height:84px }
-.cbox { display:flex; gap:10px; align-items:stretch }
-.cbox textarea { flex:1; min-width:0 }
-button.add { flex:none; width:84px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background:var(--ink); color:var(--bg); border:0; border-radius:var(--r); font-size:16px; font-weight:600; letter-spacing:.02em }
-button.add:hover { background:var(--accent); color:var(--accent-ink) }
-button.add kbd { font:400 11px/1 var(--sans); opacity:.6; letter-spacing:0 }
-.composer .err:not(:empty) { display:block; margin-top:6px }
-.lens { margin-top:16px }
-.composer > summary, .lenshead { cursor:pointer; list-style:none; color:var(--mute); font-size:12px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px }
-.lenshead { cursor:default; margin-bottom:0 }
-.composer > summary::-webkit-details-marker { display:none }
-.composer > summary::before { content:'▾ '; font-size:10px } .composer:not([open]) > summary::before { content:'▸ ' } .composer:not([open]) > summary { margin-bottom:0 }
-#filter::placeholder { color:var(--mute); opacity:.4 }
-#clearq { flex:none; border:0; background:none; color:var(--mute); padding:2px 6px; font-size:14px; line-height:1; border-radius:50% } #clearq:hover { color:var(--accent); background:none }
-.lensbox { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; background:var(--field); border:1px solid var(--rule); border-radius:var(--r); padding:6px 8px }
-.lensbox:focus-within { border-color:var(--ink) }
-#atoms { display:contents }
-.atom { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--ink); border-radius:var(--r); padding:2px 4px 2px 9px; font-size:14px; line-height:1.4; background:var(--bg) }
-.atom button { border:0; padding:0 4px; font-size:12px; opacity:.55; line-height:1 } .atom button:hover { opacity:1; color:var(--accent); background:none }
-#filter { flex:1; min-width:160px; border:0; background:transparent; padding:5px 4px; font-size:15px }
-#expanded { margin-top:6px; color:var(--mute); font-size:12px; line-height:1.4; word-break:break-word }
-/* composer */
-textarea, input { width:100%; background:var(--field); border:1px solid var(--rule); border-radius:var(--r); padding:12px 14px; color:var(--ink) }
-textarea::placeholder, input::placeholder { color:var(--mute) }
-textarea:focus, input:focus { border-color:var(--ink); outline:none }
-textarea { resize:none; min-height:0; line-height:1.45 }
-#capture { padding:9px 12px; font-size:15px }
-#capture:focus { min-height:120px }
-.actions { display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap }
-button { background:transparent; border:1px solid var(--ink); border-radius:var(--r); padding:8px 16px; cursor:pointer; line-height:1.2 }
-button:hover { background:var(--bg2) }
-button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:3px 3px 0 var(--ink); font-weight:600 }
-button.primary:hover { transform:translate(1px,1px); box-shadow:2px 2px 0 var(--ink) }
-button.primary kbd { font:500 11px/1 var(--sans); opacity:.65; margin-left:8px; padding:2px 5px; border:1px solid currentColor; border-radius:3px; vertical-align:1px }
-button.quiet { border-color:var(--rule); color:var(--mute); padding:6px 12px }
-.err { color:var(--accent); font-size:13px }
+/* three columns: nav, list, detail pane (only while an entry is open) */
+.w { display:grid; grid-template-columns:232px minmax(0,1fr); min-height:100vh }
+.w.det { grid-template-columns:232px minmax(0,1fr) minmax(360px, 38%) }
+nav { background:var(--side); border-right:1px solid var(--line); padding:12px 10px; position:sticky; top:0; height:100vh; overflow:auto; display:flex; flex-direction:column }
+.brand { display:flex; align-items:center; gap:8px; padding:2px 8px 14px }
+.brand a { font:italic 700 20px/1 ui-serif, Georgia, serif; letter-spacing:-.02em; color:var(--ink); text-decoration:none }
+.brand a b { color:var(--acc); font-style:normal }
+.brand select { margin-left:auto; max-width:110px }
+.tab, .grp, #pages a { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:5px 8px; border-radius:var(--r); color:var(--mute); cursor:pointer; text-decoration:none; border-left:2px solid transparent; white-space:nowrap }
+.tab:hover, .grp:hover, #pages a:hover { background:var(--hover); color:var(--ink) }
+.tab.on { background:var(--accbg); color:var(--ink); border-left-color:var(--acc) }
+.tab .new { color:var(--acc); font-weight:600; font-size:11px } .n { color:var(--dim); font-variant-numeric:tabular-nums; font-size:12px }
+.grps { margin:2px 0 6px } .grp { padding-left:20px; font-size:12px } .grp.on { color:var(--acc) } .grp span:first-child { overflow:hidden; text-overflow:ellipsis }
+.lab { color:var(--dim); font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; margin:18px 8px 6px }
+#pages a { display:block; overflow:hidden; text-overflow:ellipsis }
+#cal { display:grid; grid-template-rows:repeat(7, 1fr); grid-auto-flow:column; gap:2px; padding:0 8px; position:relative }
+#cal .cell { aspect-ratio:1; border-radius:2px; background:var(--line) }
+#cal .l1 { background:color-mix(in srgb, var(--acc) 28%, transparent) } #cal .l2 { background:color-mix(in srgb, var(--acc) 50%, transparent) }
+#cal .l3 { background:color-mix(in srgb, var(--acc) 75%, transparent) } #cal .l4 { background:var(--acc) } #cal .lx { background:transparent }
+#cal .cell:hover::after { content:attr(aria-label); position:absolute; left:8px; bottom:calc(100% + 4px); z-index:10; padding:4px 8px; border-radius:var(--r); background:var(--ink); color:var(--bg); font-size:12px; white-space:nowrap; pointer-events:none }
+.foot { margin-top:auto; padding:16px 8px 4px; display:flex; flex-wrap:wrap; gap:6px; align-items:center }
+#dbpath { flex-basis:100%; color:var(--dim); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl; text-align:left }
 
-.chips { display:flex; flex-wrap:wrap; gap:6px }
-.chip { display:inline-flex; align-items:center; gap:0; background:transparent; border:1px solid var(--rule); border-radius:var(--r); padding:3px 9px; font-size:13px; cursor:pointer; white-space:nowrap; color:var(--ink); line-height:1.4 }
-.chip:hover { border-color:var(--mute) }
-.chip.on { background:var(--ink); color:var(--bg); border-color:var(--ink) }
-.chip .x { opacity:.55; margin-left:6px }
-.chip .x:hover { opacity:1; color:var(--accent) }
-.chip .n { color:var(--mute); font-size:12px; margin-left:5px }
-.chip.on .n { color:var(--bg2) }
-.chip .ref { color:var(--accent); text-decoration:none }
-.chip .ref:hover { text-decoration:underline }
-#named { display:flex; flex-direction:column; gap:1px; margin:0 0 4px }
-#named .chip { border:0; border-radius:0; padding:4px 0; font-size:15px; justify-content:space-between; background:none; color:var(--ink) }
-#named .chip:hover, #named .chip .x:hover { color:var(--accent) }
-#named .chip.on { background:none; color:var(--accent); font-weight:600 }
-#viewname { display:none; margin-top:8px; padding:6px 10px; font-size:14px }
-.chip.tinted, .entry .tags .chip.tinted { color:var(--tc); border-color:var(--tc) }  /* ponytail: your hex, your contrast */
-.chip .fav { color:var(--tc, var(--accent)); font-size:8px; margin-right:5px; vertical-align:middle }
+main { padding:14px 22px 60px; min-width:0 }
+.cap { display:flex; gap:8px; align-items:stretch }
+.qe { flex:1; min-width:0; display:flex; flex-wrap:wrap; align-items:flex-start; gap:5px; background:var(--field); border:1px solid var(--line); border-radius:7px; padding:4px 6px }
+.qe:focus-within, #filter:focus { border-color:var(--acc); box-shadow:0 0 0 3px var(--accbg) }
+#chips:empty { display:none } #chips { display:contents }
+.ih { margin-top:5px; font-size:11.5px; color:var(--acc); background:var(--accbg); border-radius:5px; padding:2px 4px 2px 7px; white-space:nowrap }
+.ih button { border:0; padding:0 0 0 5px; font-size:11px; opacity:.6; color:inherit } .ih button:hover { opacity:1 }
+#capture { flex:1; min-width:160px; border:0; background:none; outline:none; resize:none; padding:6px 4px; min-height:30px; field-sizing:content; max-height:40vh; line-height:1.45 }
+button.add { flex:none; padding:0 16px; border-radius:7px }
+#pending:not(:empty) { margin-top:8px }
+.sbar { display:flex; gap:10px; align-items:center; margin:10px 0 4px }
+#filter { flex:1; min-width:0; background:var(--field); border:1px solid var(--line); border-radius:7px; padding:7px 10px; outline:none }
+#status { color:var(--dim); font-size:12px; white-space:nowrap }
 
-/* ledger left, tag column right; the column drops under the filter on a phone */
-.main { display:grid; grid-template-columns:230px minmax(0,1fr); align-items:stretch }
-.side { grid-column:1; grid-row:1; padding:24px 22px 24px 40px; border-right:1px solid var(--rule) }
-#list { grid-column:2; grid-row:1; padding:0 40px 0 32px }
-.side .lab { color:var(--mute); font-size:12px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px }
-.side .lab:not(:first-child) { margin-top:24px }
-.side .chips { gap:4px }
-/* activity heatmap (github-style), #7 */
-#cal { display:grid; grid-template-rows:repeat(7, 1fr); grid-auto-flow:column; gap:3px; margin-bottom:22px; position:relative }
-#cal .cell { width:100%; aspect-ratio:1; border-radius:2px; background:var(--bg2) }
-#cal .cell.l1 { background:color-mix(in srgb, var(--accent) 30%, transparent) }
-#cal .cell.l2 { background:color-mix(in srgb, var(--accent) 55%, transparent) }
-#cal .cell.l3 { background:color-mix(in srgb, var(--accent) 80%, transparent) }
-#cal .cell.l4 { background:var(--accent) }
-#cal .cell.lx { background:transparent }  /* future days in this week */
-#cal .cell:hover::after { content:attr(aria-label); position:absolute; right:0; bottom:calc(100% + 6px); z-index:10; padding:5px 8px; border:1px solid var(--rule); border-radius:var(--r); background:var(--ink); color:var(--bg); font:13px/1.4 var(--sans); white-space:nowrap; pointer-events:none }
-@media (max-width:760px) { #cal { max-width:340px } }
+/* rows: one line each, in both layouts */
+.h { display:flex; gap:8px; align-items:baseline; color:var(--mute); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; margin:18px 0 2px; padding:0 8px }
+.h .n { color:var(--acc); font-weight:500 } .h::after { content:""; flex:1; border-bottom:1px solid var(--line); transform:translateY(-3px) }
+.r { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:center; padding:4px 8px; border-radius:var(--r); cursor:pointer; white-space:nowrap; min-height:28px }
+.r:hover { background:var(--hover) } .r.sel { background:var(--sel); box-shadow:inset 2px 0 var(--acc) }
+.r .lead { display:flex; align-items:center; gap:4px; padding-left:calc(var(--d, 0) * 18px) }
+.r .x { overflow:hidden; text-overflow:ellipsis } .r.done .x { text-decoration:line-through; color:var(--dim) }
+.r .ctx { color:var(--dim); margin-right:6px; font-size:12px }
+.r .tm { color:var(--dim); font-size:11.5px; font-variant-numeric:tabular-nums; min-width:58px }
+.r code { font:.88em var(--mono); background:var(--hover); border-radius:4px; padding:0 4px }
+.meta { display:flex; gap:6px; align-items:center; overflow:hidden; max-width:50ch; justify-content:flex-end }
+.chip { font-size:11px; color:var(--mute); overflow:hidden; text-overflow:ellipsis; cursor:pointer } .chip:hover { color:var(--ink) }
+.chip.tinted { color:var(--tc) } .chip.pj { color:var(--acc) } .chip .ref { color:var(--acc); text-decoration:none }
+.ag { font-size:10.5px; color:var(--agent); border:1px solid color-mix(in srgb, var(--agent) 40%, transparent); border-radius:99px; padding:0 6px }
+.id, .eid { color:var(--dim); font:11px var(--mono); text-decoration:none } .eid:hover { color:var(--acc) }
+.prog { font:11px var(--mono); color:var(--acc) }
+.chev { border:0; padding:0; width:16px; height:16px; display:inline-grid; place-content:center; color:var(--mute) } .chev:hover { color:var(--acc) }
+.chev.none { visibility:hidden }
+.empty { color:var(--dim); padding:30px 8px; font-size:14px }
+input[type=checkbox] { appearance:none; margin:0; flex:none; width:14px; height:14px; border:1.5px solid var(--dim); border-radius:4px; background:transparent; cursor:pointer; display:inline-grid; place-content:center; vertical-align:-2px }
+input[type=checkbox]:hover { border-color:var(--acc) }
+input[type=checkbox]:checked { background:var(--acc); border-color:var(--acc) }
+input[type=checkbox]:checked::after { content:""; width:7px; height:4px; border:solid var(--on-acc); border-width:0 0 2px 2px; transform:translateY(-1px) rotate(-45deg) }
 
-#who { margin-bottom:22px; font-size:14px } #who .who { display:flex; justify-content:space-between; padding:2px 0 } #who b { font-weight:500; color:var(--mute) }
-/* ledger */
-.ledger { margin-top:8px }
-.day { display:grid; grid-template-columns:minmax(var(--gutter), max-content) minmax(0, 1fr); align-items:end; border-top:3px double var(--ink); margin:34px 0 6px }
-.ledger .day:first-child { margin-top:20px }
-.day .num { font:700 48px/0.8 var(--serif); letter-spacing:-.04em; margin-top:.14em; background:var(--bg); padding-right:8px; width:max-content; color:var(--ink) }
-.day .rest { font-size:14px; color:var(--mute); padding:12px 0 6px }
-.day .rest strong { color:var(--ink); font-weight:500; margin-right:10px }
-.entry { display:grid; grid-template-columns:var(--gutter) 1fr; padding:14px 0 12px; border-bottom:1px solid var(--rule); min-width:0 }
-.entry .gut, .entry .head { cursor:pointer }
-.entry:not(.open):hover .head { color:var(--accent) }
-.gut { display:flex; flex-direction:column; gap:2px; padding-top:3px }
-.eid { font-size:12px; color:var(--mute); text-decoration:none }
-.eid:hover { color:var(--accent) }
-.time { font-size:12px; color:var(--mute); font-variant-numeric:tabular-nums }
-.head { margin:0; white-space:pre-wrap; word-break:break-word; font-size:17px; line-height:1.4 }
-.head .more { color:var(--mute) }
-.head a:not(.ref):not(.tag) { color:var(--accent); text-decoration:underline; text-underline-offset:3px }
-.head code, .kid code { font:.82em ui-monospace, Menlo, monospace; background:var(--bg2); border-radius:var(--r); padding:1px 5px }
-.entry .tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px }
-.entry .tags .chip { font-size:11px; padding:1px 7px; color:var(--mute) }
-.entry.done .head { color:var(--mute); text-decoration:line-through; text-decoration-color:var(--accent) }
-.entry.child { margin-left:calc(var(--depth) * 22px); border-left:2px solid var(--rule); padding-left:12px }
-.tree-root { margin-top:18px }
-/* roots view (--by): a rollup line under each root, or a bare group row when the root is a tag value */
-.rollup { margin:4px 0 0; color:var(--mute); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-.entry.open .rollup, .entry.open .kids, .entry.open .act { display:none }
-.entry.root, .group.root { grid-template-columns:96px minmax(0,1fr) auto; column-gap:12px; padding:20px 0 16px }
-.entry.open.root { grid-template-columns:96px minmax(0,1fr) }
-.jnq, .jnx { margin:0 0 .9em; border:1px solid var(--rule); border-radius:var(--r); background:var(--bg) }
-.jnq-h { padding:5px 10px; color:var(--mute); font-size:12px; border-bottom:1px solid var(--rule) } .jnq-h:last-child { border-bottom:0 }
-.jnq-r { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:6px; padding:5px 10px; border-bottom:1px dotted var(--rule); align-items:baseline; font-size:15px }
-.jnq-r.done > :nth-child(2) { color:var(--mute); text-decoration:line-through }
-.jnq-g { display:flex; justify-content:space-between; gap:10px; padding:5px 10px; border-bottom:1px dotted var(--rule); font-size:15px } .jnq-g em { color:var(--accent); font-style:normal }
-.jnx { border-left:2px solid var(--accent); background:none; padding-bottom:2px } .jnx .md { padding:2px 10px }
-.crumb { margin:22px 0 -10px; font-size:14px; color:var(--mute) } .crumb a { color:var(--mute); text-decoration:none; border-bottom:1px solid var(--rule) } .crumb a:hover { color:var(--accent) } .crumb b { color:var(--ink); font-weight:500 }
-#named .chip[draggable] { cursor:grab }
-#named .cnt { color:var(--mute); font-size:13px; margin-left:auto; padding-left:10px } #named .new { color:var(--accent); font-size:13px; font-weight:600; margin-left:auto; padding-left:10px } #named .chip .x { margin-left:8px }
-#pagebox .lab { margin-top:24px }
-#pages { display:flex; flex-direction:column; gap:1px; margin:0 0 4px } #pages a { padding:4px 0; font-size:15px; color:var(--ink); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap } #pages a:hover { color:var(--accent) }
-.root.sub { padding:12px 0 10px } .root.sub .head { font-size:17px }
-.subgroups .entry.root, .subgroups .group.root { grid-template-columns:80px minmax(0,1fr) auto }
-.subgroups { margin:8px 0 0 4px; border-left:1px solid var(--rule); padding-left:10px }
-.root .gut { flex-direction:row; align-items:flex-start; gap:8px }
-.root .gut .eid { padding-top:4px }
-.rootsbar { font:500 24px/1.2 var(--serif); margin:26px 0 0; padding:0 0 12px; border-bottom:1px solid var(--ink) }
-.rootsbar span { font:400 14px var(--sans); color:var(--mute) }
-.root .head { font:500 21px/1.25 var(--serif) }
-.gut .chev { display:inline-flex; align-items:center; justify-content:center; width:24px; height:28px; padding:0; margin:0; border:0; color:var(--ink) }
-.gut .chev:hover { background:none }
-.gut .chev:hover { color:var(--accent) }
-.act { display:flex; flex-direction:column; align-items:flex-end; gap:2px; font-size:13px; color:var(--mute); white-space:nowrap; padding-top:4px }
-.act b { color:var(--ink); font-weight:500 }
-.act em { color:var(--accent); font-style:normal }
-.act a[data-drill] { color:var(--mute); text-decoration:none; border-bottom:1px solid var(--rule) }
-.act a[data-drill]:hover { color:var(--accent); border-color:var(--accent) }
-.kids { margin:10px 0 2px; border-left:1px solid var(--rule); padding-left:14px }
-.kid { display:grid; grid-template-columns:44px minmax(0,1fr) auto; gap:10px; padding:5px 0; font-size:15px; border-bottom:1px dotted var(--rule); align-items:baseline }
-.kid > :first-child { font-size:12px } .kid b { color:var(--accent); font-weight:600 }
-.kid .who { color:var(--mute); font-size:12px; white-space:nowrap }
-.kid.more { display:block; font-size:13px; border:0 } .kid.more a { color:var(--mute); text-decoration:none } .kid.more a:hover { color:var(--accent) }
-.group { display:grid; grid-template-columns:var(--gutter) 1fr; padding:14px 0 12px; border-bottom:1px solid var(--rule); min-width:0 }
-.group .head a { color:var(--ink); text-decoration:none }
-.group .head a:hover { color:var(--accent) }
-a.ref, a.tag { color:var(--accent); text-decoration:none }
-a.ref:hover, a.tag:hover { text-decoration:underline }
-.empty { color:var(--mute); font:italic 400 22px/1.3 var(--serif); padding:24px 0 0 var(--gutter) }
+/* detail pane */
+#det { border-left:1px solid var(--line); background:var(--side); padding:14px 20px 40px; position:sticky; top:0; height:100vh; overflow:auto; min-width:0 }
+#det[hidden] { display:none }
+.dtop { display:flex; gap:8px; align-items:center; color:var(--mute); font-size:12px; margin-bottom:8px }
+.dtop .x { margin-left:auto; border:0; font-size:15px; padding:0 4px }
+.anc { color:var(--dim); font-size:12px; margin-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.anc a { color:var(--mute); text-decoration:none } .anc a:hover { color:var(--acc) }
+.tagrow { display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-bottom:10px }
+.tagrow .chip { border:1px solid var(--line); border-radius:5px; padding:1px 4px 1px 7px; font-size:11.5px; color:var(--mute) }
+.tagrow .chip.pj { border-color:color-mix(in srgb, var(--acc) 40%, transparent) }
+.tagrow .chip .x { margin-left:5px; opacity:.5 } .tagrow .chip .x:hover { opacity:1; color:var(--err) }
+.tagrow input { flex:1; min-width:120px; padding:3px 6px; font-size:12px; background:transparent; border:1px solid transparent; border-radius:5px; outline:none }
+.tagrow input:focus, .tagrow input.editing { border-color:var(--line); background:var(--bg) }
+.tagrow input.editing { flex:0 0 auto; width:max-content; min-width:80px }
+#det .content { width:100%; min-height:160px; field-sizing:content; background:var(--bg); border:1px solid var(--line); border-radius:var(--r); padding:10px 12px; font:13px/1.55 var(--mono); outline:none; resize:vertical }
+#det .content:focus { border-color:var(--acc) }
+.actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:12px 0 }
+.editor:not(.editing) .when-edit, .editor.editing .when-view { display:none }
+.kids { margin-top:14px } .kids .lab { margin:0 0 4px }
+.kid { display:grid; grid-template-columns:18px minmax(0,1fr) auto; gap:8px; align-items:center; padding:3px 0; border-bottom:1px solid var(--line); white-space:nowrap }
+.kid span { overflow:hidden; text-overflow:ellipsis } .kid.done span { color:var(--dim); text-decoration:line-through }
+.back { margin-top:12px; color:var(--mute); font-size:12px; white-space:pre-wrap }
 
-/* inline editor */
-.entry.open { background:var(--bg2); margin:0 -16px; padding:16px 16px 14px; border-top:1px solid var(--ink); border-bottom:1px solid var(--ink) }
-.entry.open .head, .entry.open .tags { display:none }
-.editor { min-width:0 }
-.editor .tagrow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px }
-.editor .tagrow .chip { padding:3px 9px; font-size:13px }
-.editor .tagrow input { width:auto; flex:1; min-width:140px; padding:4px 8px; font-size:13px; background:transparent; border-color:transparent }
-.editor .tagrow input:focus { border-color:var(--rule) }
-.editor .tagrow input.editing { flex:0 0 auto; width:max-content; min-width:80px; background:var(--bg); border-color:var(--ink) }
-.editor textarea { background:var(--bg); min-height:120px; field-sizing:content }
-.editor .back { margin:8px 0 0; color:var(--mute); font-size:13px; white-space:pre-wrap }
-.entry.open .requote { display:none }
-.anc { display:flex; gap:8px; align-items:baseline; margin:6px 0; padding:0 0 0 10px; border-left:2px solid var(--rule); color:var(--mute); font-size:13px }
-.anc > a.ref { flex:none }
-.anc p { margin:0 }
-.requote { margin:0; color:var(--mute); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-.editor:not(.editing) .when-edit { display:none } .editor.editing .when-view { display:none }  /* one action bar, two modes */
-
-/* rendered markdown */
-.md { min-width:0; word-break:break-word; margin:4px 0 10px; padding:2px 0 }
+/* rendered markdown (detail pane, pages) */
+.md { min-width:0; word-break:break-word; font-size:13.5px; line-height:1.6 }
 .md > :first-child { margin-top:0 } .md > :last-child { margin-bottom:0 }
 .md p, .md ul, .md ol, .md pre, .md blockquote, .md table { margin:0 0 .7em }
-.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font:italic 400 17px/1.25 var(--serif); letter-spacing:-.01em; margin:.9em 0 .35em }
-.md h1 { font-size:22px } .md h2 { font-size:19px }
-.md code, .md pre { font:13.5px/1.45 ui-monospace, Menlo, monospace; background:var(--bg); border:1px solid var(--rule); border-radius:var(--r) }
-.md code { padding:1px 5px } .md pre { padding:10px 12px; overflow:auto } .md pre code { border:0; padding:0; background:none }
-.md blockquote { border-left:2px solid var(--accent); color:var(--mute); margin-left:0; padding-left:12px }
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-size:14px; font-weight:650; margin:1em 0 .4em } .md h1 { font-size:17px } .md h2 { font-size:15px }
+.md code, .md pre { font:12.5px/1.5 var(--mono); background:var(--bg); border:1px solid var(--line); border-radius:var(--r) }
+.md code { padding:0 4px } .md pre { padding:8px 10px; overflow:auto } .md pre code { border:0; padding:0; background:none }
+.md blockquote { border-left:2px solid var(--acc); color:var(--mute); margin-left:0; padding-left:12px }
 .md ul, .md ol { padding-left:1.4em } .md li > ul, .md li > ol, .md li > p { margin-bottom:0 }
-.md li.task { list-style:none; margin-left:-1.4em }
-.md input[type=checkbox] { width:auto; padding:0; border:0; background:none; accent-color:var(--accent); margin:0 .5em 0 0; vertical-align:-1px; cursor:pointer }  /* undo the global input rule */
-.md a { color:var(--accent) } .md del { color:var(--mute) }
-.md img { max-width:100%; height:auto; border:1px solid var(--rule); border-radius:var(--r) }
-.md hr { border:0; border-top:1px solid var(--rule); margin:1em 0 }
-.md table { border-collapse:collapse; font-size:14px; display:block; max-width:100%; overflow:auto }
-.md th, .md td { border:1px solid var(--rule); padding:4px 10px; text-align:left }
-.md th { background:var(--bg) }  /* ponytail: spec said --bg2, but the open entry already sits on --bg2 so it would vanish */
+.md li.task { list-style:none; margin-left:-1.4em } .md input[type=checkbox] { margin-right:.5em }
+.md a { color:var(--link) } .md del { color:var(--dim) }
+.md img { max-width:100%; height:auto; border:1px solid var(--line); border-radius:var(--r) }
+.md hr { border:0; border-top:1px solid var(--line); margin:1em 0 }
+.md table { border-collapse:collapse; font-size:12.5px; display:block; max-width:100%; overflow:auto }
+.md th, .md td { border:1px solid var(--line); padding:3px 8px; text-align:left } .md th { background:var(--bg) }
+a.ref, a.tag { color:var(--acc); text-decoration:none; cursor:pointer } a.ref:hover, a.tag:hover { text-decoration:underline }
+.jnq, .jnx { margin:0 0 .9em; border:1px solid var(--line); border-radius:var(--r); background:var(--bg) }
+.jnq-h { padding:4px 10px; color:var(--mute); font-size:11.5px; border-bottom:1px solid var(--line) } .jnq-h:last-child { border-bottom:0 }
+.jnq-r { display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:6px; padding:4px 10px; border-bottom:1px solid var(--line); align-items:center }
+.jnq-r.done > :nth-child(2) { color:var(--dim); text-decoration:line-through }
+.jnq-g { display:flex; justify-content:space-between; gap:10px; padding:4px 10px; border-bottom:1px solid var(--line) } .jnq-g em { color:var(--acc); font-style:normal }
+.jnx { border-left:2px solid var(--acc); background:none } .jnx .md { padding:4px 10px }
 
 /* attachments */
-.att { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; align-items:flex-start }
-.att-item { display:inline-flex; align-items:flex-start; gap:4px; font-size:13px; max-width:100% }
-.att img { display:block; max-height:160px; max-width:100%; border:1px solid var(--rule); border-radius:var(--r) }
-.att a { color:var(--accent); text-decoration:none; word-break:break-all }
-.att a:hover { text-decoration:underline }
-.att .x, .att .ins { color:var(--mute); cursor:pointer; padding:0 2px }
-.att .ins { font-size:11px; border:1px solid var(--rule); border-radius:var(--r); padding:0 5px }
-.att .x:hover, .att .ins:hover { color:var(--accent); border-color:var(--accent) }
-.entry .tags .clip { font-size:11px; color:var(--mute); align-self:center; opacity:.8 }
-#pending:not(:empty) { margin-top:12px }
+.att { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; align-items:flex-start } .att:empty { display:none }
+.att-item { display:inline-flex; align-items:flex-start; gap:4px; font-size:12px; max-width:100% }
+.att img { display:block; max-height:140px; max-width:100%; border:1px solid var(--line); border-radius:var(--r) }
+.att a { color:var(--acc); text-decoration:none; word-break:break-all }
+.att .x, .att .ins { color:var(--mute); cursor:pointer; padding:0 2px } .att .ins { font-size:11px; border:1px solid var(--line); border-radius:4px; padding:0 5px }
+.att .x:hover, .att .ins:hover { color:var(--acc) }
+.clip { font-size:11px; color:var(--dim) }
 
-/* completion */
-#ac { position:fixed; z-index:20; background:var(--ink); color:var(--bg); border:1px solid var(--ink); border-radius:var(--r); box-shadow:4px 4px 0 var(--accent); max-height:40vh; overflow:auto; overscroll-behavior:contain; min-width:180px; display:none }
-#ac div { padding:7px 12px; cursor:pointer; font-size:14px }
-#ac div.sel { background:var(--accent); color:var(--accent-ink) }
+/* @ completion */
+#ac { position:fixed; z-index:20; background:var(--side); color:var(--ink); border:1px solid var(--line); border-radius:var(--r); box-shadow:0 6px 24px #0006; max-height:40vh; overflow:auto; overscroll-behavior:contain; min-width:180px; display:none }
+#ac div { padding:5px 10px; cursor:pointer } #ac div.sel { background:var(--acc); color:var(--on-acc) }
 
+/* phone: nav collapses to a strip, the pane covers the screen */
 @media (max-width: 760px) {
-  .main { display:block }
-  .side { border-right:0; border-bottom:1px solid var(--rule); padding:16px }
-  #list { padding:0 16px }
-  .mast { padding:14px 16px; flex-wrap:wrap }
-  .bar { padding:14px 16px }
-}
-@media (max-width: 600px) {
-  :root { --gutter:56px }
-  .mast h1 { font-size:34px }
-  .head { font-size:16px }
-  .entry.child { margin-left:calc(var(--depth) * 14px); padding-left:8px }
+  .w, .w.det { grid-template-columns:minmax(0,1fr) }
+  nav { position:static; height:auto; border-right:0; border-bottom:1px solid var(--line); padding:10px 12px 6px }
+  .brand { padding:0 0 8px } #tabs { display:flex; flex-wrap:wrap; gap:4px }
+  #tabs .grps { flex-basis:100%; display:flex; overflow-x:auto; gap:2px; margin:2px 0 } .grp { padding-left:8px }
+  .tab { border-left:0; border-bottom:2px solid transparent; border-radius:0 } .tab.on { border-bottom-color:var(--acc) }
+  #calbox, #pagebox, .foot { display:none }
+  main { padding:10px 12px 60px }
+  .meta { max-width:14ch } .meta .chip, .meta .eid, .r .ctx { display:none }
+  #det { position:fixed; inset:0; height:auto; z-index:30; border-left:0 }
 }
 @media (prefers-reduced-motion: reduce) { * { transition:none !important } }
 </style>
 </head>
 <body>
-<div class="col">
-<header class="mast"><h1><a href="/" id="home">j<b>n</b></a></h1><select id="dbsel" hidden></select><span class="statwrap"><span id="dbpath" title=""></span><span id="status"></span></span><nav class="chips" id="viewseg" aria-label="View"></nav></header>
-<div class="bar">
-<details class="composer" id="compose" open>
-  <summary>New entry</summary>
-  <div class="cbox">
-    <textarea id="capture" placeholder="Write it down. @tags anywhere, @todo makes a task, @parent=#412 files it under an entry." rows="2"></textarea>
-    <button id="save" class="add">Add <kbd>⌘↩</kbd></button>
-  </div>
-  <span id="cap-err" class="err"></span>
-  <div class="att" id="pending"></div>
-</details>
-<div class="lens" id="lens">
-  <div class="lenshead">Lens</div>
-  <div class="lensbox"><span id="atoms"></span><input id="filter" placeholder="@todo -@done @k=v word --since 1w --tree"><button id="clearq" hidden aria-label="Clear the lens" title="Clear the lens">✕</button></div>
-  <div id="expanded"></div>
-</div>
-</div>
-<div class="main">
-<aside class="side" id="tags"><div class="lab">views</div><div id="named"></div><input id="viewname" placeholder="Name this view, ↩ saves it to ~/.jn"><div id="pagebox" hidden><div class="lab">pages</div><div id="pages"></div></div><div class="lab">activity</div><div id="cal"></div><div class="lab">written by</div><div id="who"></div><div class="lab">tags in view</div><div class="chips" id="taglist"></div></aside>
-<section class="ledger" id="list"></section>
-</div>
+<div class="w" id="w">
+<nav>
+  <div class="brand"><a href="/" id="home">j<b>n</b></a><select id="dbsel" hidden aria-label="Journal"></select></div>
+  <div id="tabs"></div>
+  <div id="pagebox" hidden><div class="lab">pages</div><div id="pages"></div></div>
+  <div id="calbox"><div class="lab">activity</div><div id="cal"></div></div>
+  <div class="foot"><select id="theme" aria-label="Color scheme"></select><select id="mode" aria-label="Light or dark"><option value="system">system</option><option value="dark">dark</option><option value="light">light</option></select><span id="dbpath"></span></div>
+</nav>
+<main>
+  <div class="cap"><div class="qe"><span id="chips"></span><textarea id="capture" rows="1" placeholder="Quick entry…  @tags  ⌘↩"></textarea></div><button id="save" class="primary add">Add</button></div>
+  <span id="cap-err" class="err"></span><div class="att" id="pending"></div>
+  <div class="sbar"><input id="filter" placeholder="Search  ( / )   words, @tag, -@tag, --since 1w" autocomplete="off"><span id="status"></span></div>
+  <section id="list"></section>
+</main>
+<aside id="det" hidden></aside>
 </div>
 <div id="ac"></div>
-
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const state = { cfg: { filters: [] }, vocab: {}, db: '', rows: [], exp: {}, res: null, q: [], bys: [], counts: {} };  // exp: roots-view row id -> expanded
+const state = { cfg: { filters: [] }, vocab: {}, db: '', tab: '', group: null, q: '', rows: [], counts: {}, exp: {}, extra: [], dropped: new Set() };
 try { state.db = localStorage.getItem('jn.db') || ''; } catch {}
-let cur = null;  // id of the entry open inline
+let cur = null;  // id of the entry open in the detail pane
 
 async function api(verb, body = {}) {
   const r = await fetch('/api/' + verb, { method: 'POST', body: JSON.stringify(state.db ? { db: state.db, ...body } : body) });
@@ -289,201 +208,305 @@ async function api(verb, body = {}) {
   return j.out;
 }
 
-// the query is the filter box; --name and --tree live in it as tokens, and the URL mirrors it
-// the lens: finished @tags and --options are atoms (blocks with an x); the box holds what's still being typed
-const isAtom = t => /^(-?@|--)\S/.test(t), TAKES = ['--since', '--last'];
-state.atoms = [];
-const tokens = () => [...state.atoms.flatMap(a => a.split(' ')), ...$('#filter').value.trim().split(/\s+/).filter(Boolean)];
-function commitAtoms() {  // typed words that are complete atoms move out of the box; --since keeps its value
-  const ts = $('#filter').value.trim().split(/\s+/).filter(Boolean), keep = [];
-  for (let i = 0; i < ts.length; i++) {
-    if (TAKES.includes(ts[i])) { if (i + 1 < ts.length) state.atoms.push(ts[i] + ' ' + ts[++i]); else keep.push(ts[i]); }
-    else if (isAtom(ts[i])) state.atoms.push(ts[i]); else keep.push(ts[i]);
-  }
-  $('#filter').value = keep.join(' ') + (keep.length ? ' ' : ''); renderAtoms();
-}
-function setInput(q) { state.atoms = []; $('#filter').value = q; commitAtoms(); $('#filter').value = $('#filter').value.trim(); }
-function renderAtoms() {
-  $('#atoms').innerHTML = state.atoms.map((a, i) => `<span class="atom">${esc(a)}<button data-atom="${i}" aria-label="Remove ${esc(a)}">✕</button></span>`).join('');
-  $('#clearq').hidden = !tokens().length;
-}
-const has = t => tokens().includes(t);
-const ago = t => { const s = (Date.now() - new Date(t)) / 1e3; return s < 3600 ? Math.max(1, Math.round(s / 60)) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
-const drillHref = q => '?q=' + encodeURIComponent(q) + (state.db ? '&db=' + encodeURIComponent(state.db) : '');
-// a saved view may hold --by (and any other tokens): expand views the way the server does so the page sees them
-const expandTok = (ts, d = 0) => ts.flatMap(t => { const f = d < 5 && t.startsWith('--') && state.cfg.filters.find(f => '--' + f.name === t); return f && f.tokens ? expandTok(f.tokens, d + 1) : [t]; });
-const viewBy = () => {  // empty filter box = roots home; --flat opts out; any other query is the flat feed unless it carries --by
-  const ts = expandTok(tokens()), q = ts.filter(t => !/^--by(=|$)/.test(t) && t !== '--flat'), given = ts.filter(t => /^--by(=|$)/.test(t));
-  const bys = given.length ? given : !q.length && !ts.includes('--flat') ? ['--by=parent'] : [];
-  return { q, bys, by: bys[0] || null };
+// ---- themes: base16 palettes (base00 bg ... base05 fg ... base08-0F accents); acc names the slot used as the accent.
+// Sources: vague2k/vague.nvim lua/vague/config/internal.lua; sainnhe/everforest autoload/everforest.vim (medium);
+// projekt0n/github-nvim-theme palette/github_dark_default.lua + github_light_default.lua (primitives). Add one = add an entry.
+const THEMES = {
+  jn: { acc: 'base0C',
+    dark: { base00:'#0d1214', base01:'#111a1c', base02:'#1f3533', base03:'#4a5a5d', base04:'#6f8285', base05:'#dbe4e4', base06:'#eef3f3', base07:'#ffffff', base08:'#f87171', base09:'#f59e0b', base0A:'#facc15', base0B:'#4ade80', base0C:'#2dd4bf', base0D:'#60a5fa', base0E:'#c084fc', base0F:'#fb923c' },
+    light: { base00:'#fbfdfd', base01:'#f1f6f6', base02:'#d9f0ec', base03:'#94a5a8', base04:'#5d7175', base05:'#132225', base06:'#0b1517', base07:'#000000', base08:'#dc2626', base09:'#b45309', base0A:'#a16207', base0B:'#15803d', base0C:'#0f766e', base0D:'#1d4ed8', base0E:'#7e22ce', base0F:'#c2410c' } },
+  vague: { acc: 'base0D',
+    dark: { base00:'#141415', base01:'#1c1c24', base02:'#333738', base03:'#606079', base04:'#878787', base05:'#cdcdcd', base06:'#c3c3d5', base07:'#c3c3d5', base08:'#d8647e', base09:'#e0a363', base0A:'#f3be7c', base0B:'#7fa563', base0C:'#b4d4cf', base0D:'#6e94b2', base0E:'#bb9dbd', base0F:'#c48282' } },
+  everforest: { acc: 'base0B',
+    dark: { base00:'#2d353b', base01:'#343f44', base02:'#475258', base03:'#859289', base04:'#9da9a0', base05:'#d3c6aa', base06:'#d3c6aa', base07:'#d3c6aa', base08:'#e67e80', base09:'#e69875', base0A:'#dbbc7f', base0B:'#a7c080', base0C:'#83c092', base0D:'#7fbbb3', base0E:'#d699b6', base0F:'#7a8478' },
+    light: { base00:'#fdf6e3', base01:'#f4f0d9', base02:'#e6e2cc', base03:'#939f91', base04:'#829181', base05:'#5c6a72', base06:'#5c6a72', base07:'#5c6a72', base08:'#f85552', base09:'#f57d26', base0A:'#dfa000', base0B:'#8da101', base0C:'#35a77c', base0D:'#3a94c5', base0E:'#df69ba', base0F:'#a6b0a0' } },
+  github: { acc: 'base0D',
+    dark: { base00:'#0d1117', base01:'#161b22', base02:'#30363d', base03:'#6e7681', base04:'#8b949e', base05:'#e6edf3', base06:'#f0f6fc', base07:'#f0f6fc', base08:'#ff7b72', base09:'#f0883e', base0A:'#d29922', base0B:'#3fb950', base0C:'#76e3ea', base0D:'#58a6ff', base0E:'#bc8cff', base0F:'#f778ba' },
+    light: { base00:'#ffffff', base01:'#f6f8fa', base02:'#d0d7de', base03:'#57606a', base04:'#32383f', base05:'#1f2328', base06:'#24292f', base07:'#1f2328', base08:'#cf222e', base09:'#bc4c00', base0A:'#9a6700', base0B:'#116329', base0C:'#1b7c83', base0D:'#0969da', base0E:'#8250df', base0F:'#953800' } },
 };
-const chevron = open => `<svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="${open ? 'M3 5l4 4 4-4' : 'M5 3l4 4-4 4'}"></path></svg>`;
-function renderGroups(res, q, bys) {  // A's ledger: one row per root (or tag value); the newest root starts open with its latest activity beneath
-  const total = res.groups.reduce((s, g) => s + g.n, 0);
-  return `<div class="rootsbar">${res.groups.length} ${res.pointer ? 'roots' : 'groups'} <span>· ${total} ${res.pointer ? 'entries beneath' : 'entries'} · newest activity first</span></div>` + renderLevel(res, q, bys, '', 0);
+const pref = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
+const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const lightMq = matchMedia('(prefers-color-scheme: light)');
+function applyTheme() {  // a scheme without the wanted variant uses the one it has
+  const t = THEMES[pref('jn.theme', 'jn')] || THEMES.jn, m = pref('jn.mode', 'system');
+  const want = m === 'system' ? (lightMq.matches ? 'light' : 'dark') : m, p = t[want] || t.dark || t.light, st = document.documentElement.style;
+  for (const [k, v] of Object.entries(p)) st.setProperty('--' + k, v);
+  st.setProperty('--acc', `var(--${t.acc})`);
+  document.querySelector('meta[name=theme-color]').content = p.base00;
 }
-function renderLevel(res, ctx, bys, path, depth) {  // repeated --by nest: a group's sub-level groups by the next one
-  const rest = bys.slice(depth + 1);
-  return res.groups.map((g, i) => {
-    const gk = path + (g.row ? String(g.row.id) : 'v:' + (g.absent ? '-' : '') + g.key), open = state.exp[gk] ?? (depth === 0 && i === 0);
-    const tag = g.absent ? `-@${res.by}` : g.key ? `@${res.by}=${g.key}` : `@${res.by}`;
-    const drill = res.pointer ? (g.row ? [`@${res.by}=#${g.row.id}`, `--by=${res.by}`, ...rest].join(' ') : '') : [...ctx, tag, ...rest].join(' ');
-    const dl = txt => `<a data-drill="${esc(drill)}" href="${esc(drillHref(drill))}">${txt}</a>`;
-    const kids = g.preview.map(k => `<div class="kid"><a class="ref" href="${entryHref(k.id)}" data-id="${k.id}">#${k.id}</a><span>${k.open ? '<b>todo</b> ' : ''}${titleHtml(mdHead(k.text))}</span><span class="who">${k.agent ? esc(k.agent.split(':').map((p, j) => j ? p.slice(0, 4) : p).join(':')) : 'you'} · ${ago(k.updated)}</span></div>`).join('')
-      + (g.n > g.preview.length ? `<div class="kid more">${dl(`+ ${g.n - g.preview.length} more ${res.pointer ? 'beneath' : 'entries'}`)}</div>` : '');
-    const latest = g.latest ? `<p class="rollup">${titleHtml('↳ #' + g.latest.id + '  ' + mdHead(g.latest.text))}</p>` : '';
-    const chev = `<button class="chev" data-chev="${esc(gk)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'}">${chevron(open)}</button>`;
-    const act = `<div class="act"><b title="${esc(new Date(g.updated).toLocaleString())}">${ago(g.updated)}</b><span>${g.n ? dl(`${g.n} ${res.pointer ? 'beneath' : g.n === 1 ? 'entry' : 'entries'}`) : 'nothing beneath'}${g.open ? ` · <em>${g.open} open</em>` : ''}</span></div>`;
-    const inside = g.sub ? `<div class="subgroups">${renderLevel(g.sub, res.pointer ? ctx : [...ctx, tag], bys, gk + '/', depth + 1)}</div>` : `<div class="kids">${kids}</div>`;
-    const list = open && g.n ? inside : open ? '' : latest;
-    const cls = depth ? ' sub' : '';
-    if (!g.row) return `<article class="group root${cls}"><div class="gut">${chev}</div><div class="body"><p class="head">${dl(g.absent ? 'no @' + esc(res.by) : '@' + esc(res.by) + (g.key ? '=' + esc(g.key) : ''))}</p>${list}</div>${act}</article>`;
-    const r = g.row, lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
-    return `<article class="entry root${cls} ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}"><div class="gut">${chev}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></div>
-      <div class="body"><p class="head">${titleHtml(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
-      <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div>${list}</div>${act}</article>`;
-  }).join('');
-}
-function toggleTok(t) { const ts = tokens(); setInput((ts.includes(t) ? ts.filter(x => x !== t) : [...ts, t]).join(' ')); }
-function setQuery(q, push = true, keep = false) {  // keep: the box is being typed in, don't rewrite it
-  if (!keep) setInput(q);
-  const qs = tokens().join(' '), u = new URL(location);
-  qs ? u.searchParams.set('q', qs) : u.searchParams.delete('q'); state.db ? u.searchParams.set('db', state.db) : u.searchParams.delete('db');
-  history[push ? 'pushState' : 'replaceState'](null, '', u);
-  renderAtoms(); renderNamed(); refresh(); if (push) refreshCounts();
-}
-function fromUrl() { const u = new URL(location); if (u.searchParams.has('db')) state.db = u.searchParams.get('db'); setInput(u.searchParams.get('q') || ''); }
-const entryHref = id => '?q=' + id + (state.db ? '&db=' + encodeURIComponent(state.db) : '');  // #11: shareable link; ⌘-click opens the entry in its own window
+$('#theme').innerHTML = Object.keys(THEMES).map(n => `<option>${n}</option>`).join('');
+$('#theme').value = pref('jn.theme', 'jn'); $('#mode').value = pref('jn.mode', 'system');
+$('#theme').onchange = e => { setPref('jn.theme', e.target.value); applyTheme(); };
+$('#mode').onchange = e => { setPref('jn.mode', e.target.value); applyTheme(); };
+lightMq.addEventListener('change', applyTheme);
+applyTheme();
 
-// #N and @tag in prose become links
+// ---- tabs are views: built-in journal + tasks, then every view defined in ~/.jn. A view's tokens carry its layout
+// (--as=journal|tasks), the tag that fills the sidebar list (--by=tag) and the tree pointer (--tree[=tag]).
+const expandTok = (ts, d = 0) => ts.flatMap(t => { const f = d < 5 && t.startsWith('--') && state.cfg.filters.find(f => '--' + f.name === t); return f && f.tokens ? expandTok(f.tokens, d + 1) : [t]; });
+function tabList() {
+  const fs = state.cfg.filters, base = ['journal', 'tasks'].map(n => fs.find(f => f.name === n)).filter(Boolean);
+  return [...base, ...fs.filter(f => f.own && !base.includes(f) && !['default', 'mine', 'pages'].includes(f.name))];
+}
+function view() {
+  const name = state.tab || tabList()[0]?.name || 'journal', ts = expandTok(['--' + name]);
+  const opt = k => { const t = ts.filter(t => t === '--' + k || t.startsWith('--' + k + '=')).pop(); return t === undefined ? null : t.split('=')[1] || true; };
+  const as = opt('as') === 'tasks' ? 'tasks' : 'journal', by = opt('by'), tree = opt('tree');
+  return { name, ts, as, by: by === true ? 'parent' : by, tree: as === 'tasks' ? (tree === true || tree === null ? 'parent' : tree) : null };
+}
+// Quick entry inherits the view's positive, exact tags (no -@x, no wildcard) and the selected group
+const groupTok = (by, k) => k === null || k === NONE ? null : k === '' ? '@' + by : `@${by}=${k}`;
+function inherited() {
+  const v = view(), own = v.ts.filter(t => /^@[\w-]+(=[^\s*]+)?$/.test(t)), g = v.by && groupTok(v.by, state.group);
+  return [...new Set([...own, ...(g ? [g] : []), ...state.extra])].filter(t => !state.dropped.has(t));
+}
+function renderChips() {
+  $('#chips').innerHTML = inherited().map(t => `<span class="ih">${esc(t)}<button data-unchip="${esc(t)}" aria-label="Don't add ${esc(t)}">✕</button></span>`).join('');
+}
+
+// ---- URL mirrors tab, group, search and the open entry
+function toUrl(push = true) {
+  const u = new URL(location), set = (k, v) => v === null || v === '' || v === undefined ? u.searchParams.delete(k) : u.searchParams.set(k, v);
+  set('tab', state.tab); set('g', state.group); set('q', state.q); set('open', cur); set('db', state.db);
+  history[push ? 'pushState' : 'replaceState'](null, '', u);
+}
+function fromUrl() {
+  const u = new URL(location), p = k => u.searchParams.get(k);
+  if (p('db')) state.db = p('db');
+  state.tab = p('tab') || ''; state.group = p('g'); state.q = p('q') || ''; cur = p('open') ? +p('open') : null;
+  if (/^#?\d+$/.test(state.q)) { cur = +state.q.replace('#', ''); state.q = ''; }  // old ?q=42 links open the entry
+  $('#filter').value = state.q;
+}
+const entryHref = id => { const u = new URL(location); u.searchParams.set('open', id); return u.search; };  // shareable; ⌘-click opens a new window
+
+// ---- small helpers
+const ago = t => { const s = (Date.now() - new Date(t)) / 1e3; return s < 3600 ? Math.max(1, Math.round(s / 60)) + 'm' : s < 86400 ? Math.round(s / 3600) + 'h' : Math.round(s / 86400) + 'd'; };
 const refs = s => s.replace(/(^|[\s(=,])#(\d+)\b/g, (_, p, id) => `${p}<a class="ref" href="${entryHref(id)}" data-id="${id}">#${id}</a>`)  // s is already escaped
                    .replace(/(^|\s)@([A-Za-z_][\w-]*)(=\S+)?/g, '$1<a class="tag" data-tag="$2">@$2$3</a>');
 const linkify = s => refs(esc(s));
-const titleHtml = s => mdInline(esc(s).replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1'));  // inline markdown in a one-line title; images dropped, html was escaped
+const titleHtml = s => mdInline(esc(s).replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1'));
 const plain = s => s.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '');
 const refify = v => esc(v).replace(/#(\d+)\b/g, (_, id) => `<a class="ref" href="${entryHref(id)}" data-id="${id}">#${id}</a>`);
-const tcol = t => { const c = (state.cfg.colors || {})[t] || ''; return /^#[0-9a-f]{3,8}$/i.test(c) ? c : ''; };  // only a #hex gets into a style attr: keep css out of config
-const chipAttrs = k => { const c = tcol(k); return `class="chip${c ? ' tinted' : ''}"${c ? ` style="--tc:${c}"` : ''} data-tag="${esc(k)}"`; };
-const tagChip = (k, v, extra = '') => `<span ${chipAttrs(k)} ${extra}>@${esc(k)}${v ? '=' + refify(v) : ''}</span>`;
-const atify = t => t.replace(/^(-?)(?!@)/, '$1@');  // tag fields take bare words: foo -> @foo, -foo -> -@foo
+const tcol = t => { const c = (state.cfg.colors || {})[t] || ''; return /^#[0-9a-f]{3,8}$/i.test(c) ? c : ''; };  // only a #hex reaches a style attr
+const tagChip = (k, v, extra = '') => { const c = tcol(k); return `<span class="chip${c ? ' tinted' : ''}${k === view().by ? ' pj' : ''}"${c ? ` style="--tc:${c}"` : ''} data-tag="${esc(k)}" ${extra}>@${esc(k)}${v ? '=' + refify(v) : ''}</span>`; };
+const atify = t => t.replace(/^(-?)(?!@)/, '$1@');
+const head = r => r.content.split('\n').map(mdHead).find(l => l.trim()) || '';
+const title = r => plain(head(r)).slice(0, 60);
+const agentPill = r => { const a = r.tags.agent; if (a === undefined) return ''; const [k, id = ''] = (a || 'agent').split(':'); return `<span class="ag" title="${esc(a || 'agent')}">${esc(k)}${id ? '·' + esc(id.slice(0, 4)) : ''}</span>`; };
+const HIDE = ['todo', 'done', 'files', 'agent', 'parent'];  // shown by other means: checkbox, strike, clip, pill, ↳
+const chipsOf = (r, skip = []) => Object.entries(r.tags).filter(([k]) => !HIDE.includes(k) && !skip.includes(k)).map(([k, v]) => tagChip(k, v)).join('');
 const dayLabel = d => {
-  const t = new Date(), y = new Date(Date.now() - 864e5);
-  const same = (a, b) => a.toDateString() === b.toDateString();
-  return same(d, t) ? 'Today' : same(d, y) ? 'Yesterday' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() === t.getFullYear() ? undefined : 'numeric' });
+  const t = new Date(), y = new Date(Date.now() - 864e5), same = (a, b) => a.toDateString() === b.toDateString();
+  const w = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: d.getFullYear() === t.getFullYear() ? undefined : 'numeric' });
+  return same(d, t) ? 'Today · ' + w : same(d, y) ? 'Yesterday · ' + w : w;
 };
+
+// ---- the list. One ls call per refresh; groups, counts and the sidebar list are computed here from those rows.
+const NONE = '\u0000none';  // group key: the row lacks the --by tag ('' = bare tag, e.g. @home)
+const valsOf = (r, by) => { const v = r.tags[by]; return v === undefined ? [NONE] : v === null ? [''] : v.split(',').filter(Boolean); };
+const grpLabel = (by, k) => k === NONE ? 'no @' + by : k === '' ? '@' + by : k;
+const searchToks = () => state.q.trim().split(/\s+/).filter(Boolean);
 
 async function refresh() {
   $('#status').textContent = '…';
   try {
-    const { by, bys, q } = viewBy();
-    const pin = q.map(t => t.match(/^@parent=#(\d+)$/)).find(Boolean)?.[1], hasPages = state.cfg.filters.some(f => f.name === 'pages');
-    const [rows, tg, vocab, res, expl, sh, pg] = await Promise.all([api('ls', { args: q }), api('tags', { args: q }), api('vocab'), by ? api('roots', { args: [...q, ...bys] }) : null, api('explain', { args: q }), pin ? api('show', { id: pin }) : null, hasPages ? api('ls', { args: ['--pages'] }) : null]);
-    $('#expanded').textContent = 'runs as: ' + expl + (by ? '  ·  rolled up by ' + bys.map(b => '@' + (b.split('=')[1] || 'parent')).join(' › ') : '');
+    const v = view(), args = ['--' + v.name, ...searchToks()];
+    if (v.tree && !args.some(a => a.startsWith('--tree'))) args.push(v.tree === 'parent' ? '--tree' : '--tree=' + v.tree);
+    const hasPages = state.cfg.filters.some(f => f.name === 'pages');
+    const [rows, vocab, pg] = await Promise.all([api('ls', { args }), api('vocab'), hasPages ? api('ls', { args: ['--pages'] }) : null]);
     state.vocab = vocab;
-    const tree = !by && rows.some(r => 'depth' in r);
-    if (!tree) rows.reverse();
-    state.rows = rows;
-    const title = r => plain(mdHead((r.content.split('\n').find(l => l.trim()) || ''))).slice(0, 50), goto = q => `data-drill="${esc(q)}" href="${esc(drillHref(q))}"`;
-    let html = sh && sh.row ? `<div class="crumb"><a ${goto('')}>all</a> › ${sh.ancestors.map(a => `<a ${goto(`@parent=#${a.id} --by=parent`)}>${esc(title(a))}</a> › `).join('')}<b>${esc(title(sh.row))}</b></div>` : '', day = '';
+    state.rows = v.tree ? rows : rows.reverse();  // a tree arrives newest root first; a flat list oldest first
     $('#pagebox').hidden = !(pg && pg.length);
     $('#pages').innerHTML = (pg || []).slice().reverse().map(r => `<a href="${entryHref(r.id)}" data-id="${r.id}">${esc(title(r))}</a>`).join('');
-    state.res = res; state.q = q; state.bys = bys;
-    if (by) html += renderGroups(res, q, bys); else for (const r of rows) {
-      const d = new Date(r.created), lbl = dayLabel(d);
-      if (!tree && lbl !== day) {
-        const full = d.toLocaleDateString(undefined, { weekday: 'long' }) + ', ' + d.toLocaleDateString(undefined, { month: 'long', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
-        html += `<header class="day"><span class="num">${d.getDate()}</span><span class="rest"><strong>${lbl}</strong>${full}</span></header>`; day = lbl;
-      }
-      const lines = r.content.split('\n'), head = lines.map(mdHead).find(l => l.trim()) || '';
-      html += `<article class="entry ${'done' in r.tags ? 'done' : ''} ${r.depth ? 'child' : tree ? 'tree-root' : ''}" style="--depth:${r.depth || 0}" data-id="${r.id}">
-        <div class="gut"><span class="time">${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><a class="eid" href="${entryHref(r.id)}" data-id="${r.id}" title="Open this entry (⌘-click for a new window)">#${r.id}</a></div>
-        <div class="body">${r.parent_ctx ? `<p class="requote">${linkify(r.parent_ctx)}</p>` : ''}<p class="head">${titleHtml(head)}${lines.length > 1 ? ' <span class="more">…</span>' : ''}</p>
-        <div class="tags">${Object.entries(r.tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v)).join('')}${clip(r.tags)}</div></div></article>`;
-    }
-    $('#list').innerHTML = html || '<p class="empty">Nothing matches. Write something, or loosen the filter.</p>';
-    const fav = state.cfg.favorites || [], cnt = Object.fromEntries(tg);
-    $('#taglist').innerHTML = [...fav, ...tg.map(([t]) => t).filter(t => !fav.includes(t))]
-      .map(t => `<span ${chipAttrs(t)}>${fav.includes(t) ? '<span class="fav">●</span>' : ''}@${esc(t)} <span class="n">${cnt[t] || 0}</span></span>`).join('');
-    renderCal();
-    const ag = rows.filter(r => 'agent' in r.tags).length;
-    $('#who').innerHTML = rows.length ? `<div class="who"><span>you</span><b>${rows.length - ag}</b></div><div class="who"><span>agents</span><b>${ag}</b></div>` : '';
-    $('#status').textContent = (by ? res.groups.length + ' roots · ' : '') + rows.length + ' entries';
-    const ts = tokens();
+    render(); renderCal();
     if (cur !== null) await openEntry(cur, false);
-    else if (ts.length === 1 && /^#?\d+$/.test(ts[0]) && rows.length === 1) await openEntry(rows[0].id, false);  // #11: a single-entry view opens expanded
   } catch (e) { $('#status').textContent = e.message; }
 }
-function renderCal() {  // #7: per-day entry counts for the current view, last 17 weeks, github-style
-  const day = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return +d; };
-  const cnt = {};
+
+function units(rows) {  // tree rows -> [root + its descendants]; a flat list -> one row per unit
+  const out = [];
+  for (const r of rows) if (!r.depth || !out.length) out.push([r]); else out[out.length - 1].push(r);
+  return out;
+}
+function render() {
+  const v = view(), us = units(state.rows), groups = new Map();
+  // ponytail: a root with several --by values lists under its first one only in the tasks tree; flat rows count under each
+  for (const u of us) for (const k of (v.by ? valsOf(u[0], v.by) : []).slice(0, v.tree ? 1 : 99)) groups.set(k, (groups.get(k) || 0) + u.length);
+  const inGroup = u => state.group === null || !v.by || valsOf(u[0], v.by).includes(state.group);
+  const shown = us.filter(inGroup);
+  renderTabs(v, groups);
+  renderChips();
+  let html = '';
+  if (v.as === 'tasks') {
+    const sections = v.by && state.group === null ? [...groups.keys()].sort(byCount(groups)).map(k => [k, shown.filter(u => valsOf(u[0], v.by)[0] === k)]) : [[null, shown]];
+    for (const [k, list] of sections) {
+      if (!list.length) continue;
+      if (k !== null) html += `<div class="h">${esc(grpLabel(v.by, k))}<span class="n">${list.reduce((s, u) => s + u.length, 0)}</span></div>`;
+      html += list.map(u => taskRows(u, v)).join('');
+    }
+  } else {
+    let day = '';
+    const flat = shown.flat();
+    for (let i = 0; i < flat.length; i++) {
+      const r = flat[i], lbl = dayLabel(new Date(r.created));
+      if (lbl !== day) { let n = 0; for (let j = i; j < flat.length && dayLabel(new Date(flat[j].created)) === lbl; j++) n++; html += `<div class="h">${esc(lbl)}<span class="n">${n}</span></div>`; day = lbl; }
+      html += journalRow(r, v);
+    }
+  }
+  $('#list').innerHTML = html || '<p class="empty">Nothing here yet. Write something above, or clear the search.</p>';
+  const n = shown.reduce((s, u) => s + u.length, 0);
+  $('#status').textContent = n + (n === 1 ? ' entry' : ' entries');
+  markSel();
+}
+const byCount = groups => (a, b) => (a === NONE) - (b === NONE) || groups.get(b) - groups.get(a) || String(a).localeCompare(String(b));
+const rowHead = r => `${r.parent_ctx && !r.depth ? `<span class="ctx">${esc(r.parent_ctx.replace(/^↳ (#\d+)\s+/, '↳ $1 ').slice(0, 48))}</span>` : ''}${titleHtml(head(r))}`;
+const meta = (r, v, extra = '') => `<span class="meta">${extra}${chipsOf(r, v.as === 'tasks' || state.group !== null ? [v.by] : [])}${clip(r.tags)}${agentPill(r)}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></span>`;
+function journalRow(r, v) {
+  const t = new Date(r.created).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return `<div class="r ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}"><span class="tm">${t}</span><span class="x">${rowHead(r)}</span>${meta(r, v)}</div>`;
+}
+function taskRows(u, v) {  // children start collapsed; a row with children in view gets a chevron and its done/total beneath
+  let out = '', hideBelow = Infinity;
+  u.forEach((r, i) => {
+    const d = r.depth || 0;
+    if (d > hideBelow) return;
+    hideBelow = Infinity;
+    const kids = (u[i + 1]?.depth || 0) > d, open = !!state.exp[r.id];
+    if (kids && !open) hideBelow = d;
+    const chev = `<button class="chev${kids ? '' : ' none'}" data-chev="${r.id}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'}">${chevron(open)}</button>`;
+    const prog = r.progress ? `<span class="prog" title="done / all tasks beneath">${r.progress[0]}/${r.progress[1]}</span>` : '';
+    out += `<div class="r ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}" style="--d:${d}"><span class="lead">${chev}<input type="checkbox" data-done="${r.id}" aria-label="Done"${'done' in r.tags ? ' checked' : ''}></span><span class="x">${rowHead(r)}</span>${meta(r, v, prog)}</div>`;
+  });
+  return out;
+}
+const chevron = open => `<svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="${open ? 'M3 5l4 4 4-4' : 'M5 3l4 4-4 4'}"></path></svg>`;
+const markSel = () => document.querySelectorAll('#list .r').forEach(e => e.classList.toggle('sel', +e.dataset.id === cur));
+
+function renderTabs(v, groups) {
+  $('#tabs').innerHTML = tabList().map(f => {
+    const c = state.counts[f.name] || [0, 0], on = f.name === v.name;
+    const badge = c[1] && !on ? `<span class="new">${c[1]} new</span>` : `<span class="n">${on ? '' : c[0] || ''}</span>`;
+    const sub = on && v.by && groups.size ? `<div class="grps">${[...groups.keys()].sort(byCount(groups)).map(k => `<a class="grp${state.group === k ? ' on' : ''}" data-group="${esc(k)}"><span>${esc(grpLabel(v.by, k))}</span><span class="n">${groups.get(k)}</span></a>`).join('')}</div>` : '';
+    return `<a class="tab${on ? ' on' : ''}" data-tab="${esc(f.name)}">${esc(f.name[0].toUpperCase() + f.name.slice(1))}${badge}</a>${sub}`;
+  }).join('');
+}
+function renderCal() {  // per-day entries in the current tab, 17 weeks, github-style
+  const day = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return +d; }, cnt = {};
   for (const r of state.rows) cnt[day(r.created)] = (cnt[day(r.created)] || 0) + 1;
-  const today = day(Date.now()), weeks = 17;
-  const cell = new Date(today);
-  cell.setDate(cell.getDate() + (6 - cell.getDay()) - (weeks * 7 - 1));  // Sunday, 17 weeks back (step by setDate so DST can't drift the key off local midnight)
-  const max = Math.max(1, ...Object.values(cnt));
+  const today = day(Date.now()), weeks = 17, cell = new Date(today), max = Math.max(1, ...Object.values(cnt));
+  cell.setDate(cell.getDate() + (6 - cell.getDay()) - (weeks * 7 - 1));  // step by setDate so DST can't drift the key off midnight
   let cells = '';
   for (let i = 0; i < weeks * 7; i++, cell.setDate(cell.getDate() + 1)) {
-    const t = +cell, c = cnt[t] || 0;
-    const lvl = t > today ? 'x' : c === 0 ? 0 : Math.min(4, Math.ceil(c / max * 4));
-    const label = cell.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) + `: ${c} ${c === 1 ? 'entry' : 'entries'}`;
-    cells += `<i class="cell l${lvl}" role="img" aria-label="${esc(label)}"></i>`;
+    const t = +cell, c = cnt[t] || 0, lvl = t > today ? 'x' : c === 0 ? 0 : Math.min(4, Math.ceil(c / max * 4));
+    cells += `<i class="cell l${lvl}" role="img" aria-label="${esc(cell.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + `: ${c} ${c === 1 ? 'entry' : 'entries'}`)}"></i>`;
   }
   $('#cal').innerHTML = cells;
 }
-// sidebar views: drag to reorder; the order lives in this browser (config stays untouched)
-function viewList() {  // ponytail: mine is for agents (skills use --mine); pages feeds the Pages list
-  let o = [];
-  try { o = JSON.parse(localStorage.getItem('jn.vieworder') || '[]'); } catch {}
-  const rank = f => o.indexOf(f.name) + 1 || 1e9;
-  return state.cfg.filters.filter(f => f.name !== 'mine' && f.name !== 'pages').sort((a, b) => rank(a) - rank(b));
-}
-let dragName = null;
-$('#named').addEventListener('dragstart', e => { const c = e.target.closest('[data-view-name]'); if (c) { dragName = c.dataset.viewName; e.dataTransfer.effectAllowed = 'move'; } });
-$('#named').addEventListener('dragover', e => { if (dragName && e.target.closest('[data-view-name]')) e.preventDefault(); });
-$('#named').addEventListener('drop', e => {
-  const t = e.target.closest('[data-view-name]');
-  if (!dragName || !t) return;
-  e.preventDefault();
-  const names = [...document.querySelectorAll('#named [data-view-name]')].map(c => c.dataset.viewName).filter(n => n !== dragName);
-  names.splice(names.indexOf(t.dataset.viewName), 0, dragName);
-  try { localStorage.setItem('jn.vieworder', JSON.stringify(names)); } catch {}
-  dragName = null; renderNamed();
-});
-function renderNamed() {
-  $('#named').innerHTML = viewList().map(f => {  // ponytail: mine is for agents (skills use --mine); pages feeds the Pages list
-      const c = state.counts[f.name] || [0, 0];
-      return `<span class="chip ${has('--' + f.name) ? 'on' : ''}" data-tok="--${f.name}" data-view-name="${esc(f.name)}" draggable="true">${f.name}${c[1] ? `<span class="new">${c[1]} new</span>` : c[0] ? `<span class="cnt">${c[0]}</span>` : ''}${f.own ? '<span class="x" data-del="' + f.name + '">✕</span>' : ''}</span>`;
-    }).join('')
-    + `<span class="chip ${has('--tree') ? 'on' : ''}" data-tok="--tree" title="Nest entries under their @parent">tree</span>`
-    + `<span class="chip" id="saveview" title="Save the filter box as a named view in ~/.jn">+ save view</span>`;
-  const by = viewBy().by;
-  $('#viewseg').innerHTML = `<span class="chip ${by ? 'on' : ''}" data-view="roots" title="One row per top-level entry with what's beneath it. Type --by=agent (any tag) to roll up by that tag's values instead">Roots</span>`
-    + `<span class="chip ${by ? '' : 'on'}" data-view="flat" title="Every matching entry, newest first">Flat</span>`;
-  $('#saveview').onclick = () => { const v = $('#viewname'); v.style.display = v.style.display === 'block' ? 'none' : 'block'; if (v.style.display === 'block') v.focus(); };
-}
-// unread badges: a view's "new" is entries updated since you last had it open (per-browser, per-db high-water mark)
+// unread badges: a tab's "new" is entries updated since you last had it open (per browser, per db)
 const seenKey = () => 'jn.seen:' + state.db, stamp = () => new Date().toISOString().slice(0, 19) + '+00:00';
 async function refreshCounts() {
   let seen = {};
   try { seen = JSON.parse(localStorage.getItem(seenKey()) || '{}'); } catch {}
-  for (const f of state.cfg.filters) if (!seen[f.name] || has('--' + f.name)) seen[f.name] = stamp();  // first sight and the open view are seen
-  try { localStorage.setItem(seenKey(), JSON.stringify(seen)); } catch {}
-  try { state.counts = await api('counts', { seen }); renderNamed(); } catch {}
+  const name = view().name;
+  for (const f of state.cfg.filters) if (!seen[f.name] || f.name === name) seen[f.name] = stamp();
+  setPref(seenKey(), JSON.stringify(seen));
+  try { state.counts = await api('counts', { seen }); render(); } catch {}
 }
-async function saveFilter(name, expr) {
-  try {
-    const c = await api('filter', expr === null ? { name } : { name, expr });
-    state.cfg.filters = c.filters;
-    $('#viewname').value = ''; $('#viewname').style.display = 'none';
-    setQuery(expr === null ? tokens().filter(t => t !== '--' + name).join(' ') : '--' + name);
-  } catch (e) { $('#status').textContent = e.message; }
-}
-$('#viewname').onkeydown = e => {
-  if (e.key === 'Enter' && e.target.value.trim()) saveFilter(e.target.value.trim(), tokens().join(' '));
-  if (e.key === 'Escape') e.target.style.display = 'none';
-};
 
-// capture. Pasted/dropped files buffer here and attach to the entry once it's added (#8: attach before add).
+// ---- detail pane: breadcrumb, tags (the chips are the tag editor), rendered body or editor, files, children, backlinks
+async function openEntry(id, push = true) {
+  const prev = cur; cur = id;
+  try {
+    const { backlinks, row, ancestors = [], children = [] } = await api('show', { id });
+    if (!row) throw new Error('#' + id + ' not found');
+    const det = $('#det'), tags = row.tags, done = 'done' in tags;
+    const keepDraft = prev === id && det.querySelector('.editor.editing') ? det.querySelector('.content').value : null;
+    det.hidden = false; $('#w').classList.add('det');
+    const kids = children.slice().reverse().map(k => `<div class="kid${'done' in k.tags ? ' done' : ''}">${'todo' in k.tags ? `<input type="checkbox" data-done="${k.id}"${'done' in k.tags ? ' checked' : ''} aria-label="Done">` : '<i></i>'}<span>${titleHtml(head(k))}</span><a class="eid" href="${entryHref(k.id)}" data-id="${k.id}">#${k.id}</a></div>`).join('');
+    const back = backlinks.split('\n').filter(Boolean).filter((l, i, a) => !/^<- #\d+ @parent /.test(l.trimStart()) && !(l.startsWith(' ') && a.slice(0, i).reverse().find(x => !x.startsWith(' '))?.includes(' @parent ')));  // children are listed above
+    det.innerHTML = `<div class="dtop"><a class="eid" href="${entryHref(id)}" data-id="${id}">#${id}</a><span>${esc(new Date(row.created).toLocaleString())}</span>${agentPill(row)}<button class="x act-close" aria-label="Close">✕</button></div>
+      ${ancestors.length ? `<div class="anc">${ancestors.map(a => `<a data-id="${a.id}" href="${entryHref(a.id)}">${esc(title(a))}</a>`).join(' › ')} ›</div>` : ''}
+      <div class="editor"><div class="tagrow">${Object.entries(tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v, `data-k="${esc(k)}"`).replace(/<\/span>$/, `<span class="x" data-rm="${esc(k)}">✕</span></span>`)).join('')}<input class="tagin" placeholder="add a tag: @k=v ↩"></div>
+      <div class="md">${md(row.content)}</div><textarea class="content" hidden>${esc(keepDraft ?? row.content)}</textarea>
+      <div class="att">${attHtml(tags)}</div>
+      <div class="actions"><button class="primary act-sub when-view">Reply</button><button class="act-edit when-view">Edit</button>${'todo' in tags ? `<button class="act-done when-view">${done ? 'Reopen' : 'Mark done'}</button>` : ''}<button class="primary act-save when-edit">Save</button><button class="act-cancel when-edit">Cancel</button><button class="act-att">Attach</button><input class="att-in" type="file" multiple hidden><span class="err"></span></div></div>
+      ${kids ? `<div class="kids"><div class="lab">beneath · ${children.length}</div>${kids}</div>` : ''}
+      ${back.length ? `<div class="back">${back.map(linkify).join('\n')}</div>` : ''}`;
+    const ed = det.querySelector('.editor'), ta = ed.querySelector('.content'), mdEl = ed.querySelector('.md');
+    const fail = e => ed.querySelector('.err').textContent = e.message;
+    const patch = async p => { try { await api('tag', { id, patch: p }); await refresh(); } catch (e) { fail(e); } };
+    const tagsLine = () => Object.entries(tags).map(([k, v]) => '@' + k + (v ? '=' + v : '')).join(' ');
+    const save = async text => { try { await api('edit', { id, text: tagsLine() + '\n\n' + text }); ed.classList.remove('editing'); await refresh(); } catch (e) { fail(e); } };
+    hydrate(mdEl, new Set([id]));
+    ed.edit = () => { ed.classList.add('editing'); mdEl.hidden = true; ta.hidden = false; ta.focus(); };
+    const cancel = () => { ed.classList.remove('editing'); ta.hidden = true; mdEl.hidden = false; ta.value = row.content; };
+    if (keepDraft !== null) ed.edit();
+    ed.querySelector('.act-edit').onclick = ed.edit;
+    ed.querySelector('.act-cancel').onclick = cancel;
+    ed.querySelector('.act-save').onclick = () => save(ta.value);
+    mdEl.onclick = e => { const t = e.target.closest('input[data-task]'); if (t) save(mdToggle(row.content, +t.dataset.task)); };
+    const doneBtn = ed.querySelector('.act-done');
+    if (doneBtn) doneBtn.onclick = () => patch([done ? '-@done' : '@done']);
+    ed.querySelector('.act-sub').onclick = () => {  // reply: the new entry goes beneath this one
+      state.extra = ['@parent=#' + id]; renderChips();
+      if (matchMedia('(max-width: 760px)').matches) closeEntry();
+      const c = $('#capture'); c.focus(); scrollTo({ top: 0 });
+    };
+    attWire(ed, id);
+    ta.onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') save(ta.value); if (e.key === 'Escape') { e.stopPropagation(); cancel(); } };
+    const addin = ed.querySelector('.tagin'); acAttach(addin, true);
+    addin.addEventListener('keydown', e => { if (e.key === 'Enter' && addin.value.trim()) { patch(addin.value.trim().split(/\s+/).map(atify)); addin.value = ''; } });
+    ed.querySelector('.tagrow').onclick = e => {
+      if (e.target.closest('a.ref')) return;
+      e.stopPropagation();
+      const rm = e.target.closest('[data-rm]'), chip = e.target.closest('[data-k]');
+      if (rm) return void patch(['-@' + rm.dataset.rm]);
+      if (!chip) return;
+      const k = chip.dataset.k, v = tags[k], was = '@' + k + (v ? '=' + v : ''), inp = document.createElement('input');  // click a chip: edit it in place
+      inp.className = 'tagin editing'; inp.value = was; inp.size = was.length + 2;
+      chip.replaceWith(inp); acAttach(inp, true); inp.focus(); inp.select();
+      const commit = () => { const nv = atify(inp.value.trim()); if (nv === '@' || nv === was) return openEntry(id, false); const nk = (nv.match(/^-?@([\w-]+)/) || [])[1]; patch(nk && nk !== k ? [nv, '-@' + k] : [nv]); };
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); } if (ev.key === 'Escape') { ev.stopPropagation(); openEntry(id, false); } });
+      inp.addEventListener('blur', () => setTimeout(() => { if (inp.isConnected && ac.field !== inp) commit(); }, 200));
+    };
+    markSel();
+    if (push && prev !== id) toUrl();
+    document.querySelector('#list .r.sel')?.scrollIntoView({ block: 'nearest' });
+  } catch (e) { $('#status').textContent = e.message; cur = null; }
+}
+function closeEntry() {
+  cur = null; $('#det').hidden = true; $('#det').innerHTML = ''; $('#w').classList.remove('det'); markSel(); toUrl();
+}
+
+// attachments: @files=<name,...> on the entry, bytes at /files/<name>. Removing only edits the tag; the file stays (ponytail: no GC)
+const fileUrl = n => '/files/' + n + (state.db ? '?db=' + encodeURIComponent(state.db) : '');
+const isImg = n => /\.(png|jpe?g|gif|webp|svg|avif)$/.test(n);
+const fileList = tags => (tags.files || '').split(',').filter(Boolean);
+const clip = tags => 'files' in tags ? `<span class="clip" title="${esc(fileList(tags).join(', '))}">📎${fileList(tags).length}</span>` : '';
+const attHtml = tags => fileList(tags).map(n => `<span class="att-item"><a href="${fileUrl(n)}" target="_blank" rel="noopener">${isImg(n) ? `<img src="${fileUrl(n)}" alt="${n}" loading="lazy">` : n}</a><span class="ins" data-embed="${n}" title="Insert an embed into the text">embed</span><span class="x" data-unatt="${n}" title="Remove from entry">✕</span></span>`).join('');
+const b64 = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1]); r.onerror = no; r.readAsDataURL(f); });
+async function upload(id, files) { for (const f of files) await api('attach', { id, name: f.name, data: await b64(f) }); }
+function attWire(ed, id) {
+  const fail = e => ed.querySelector('.err').textContent = e.message, ta = ed.querySelector('.content'), inp = ed.querySelector('.att-in');
+  const send = async files => { if (files.length) try { await upload(id, files); await refresh(); } catch (e) { fail(e); } };  // refresh keeps an open draft
+  ed.querySelector('.act-att').onclick = () => inp.click();
+  inp.onchange = () => send([...inp.files]);
+  ta.addEventListener('paste', e => { const fs = [...e.clipboardData.files]; if (fs.length) { e.preventDefault(); send(fs); } });
+  ta.addEventListener('dragover', e => e.preventDefault());
+  ta.addEventListener('drop', e => { const fs = [...e.dataTransfer.files]; if (fs.length) { e.preventDefault(); send(fs); } });
+  ed.querySelector('.att').onclick = e => {
+    const x = e.target.closest('[data-unatt]'), em = e.target.closest('[data-embed]');
+    if (x) return void api('tag', { id, patch: ['@files-=' + x.dataset.unatt] }).then(refresh, fail);
+    if (em) {  // drop a markdown embed at the cursor
+      const n = em.dataset.embed, snip = isImg(n) ? `![](jn:${n})` : `[${n}](jn:${n})`;
+      ed.edit(); const p = ta.selectionStart ?? ta.value.length;
+      ta.value = ta.value.slice(0, p) + snip + ta.value.slice(ta.selectionEnd ?? p);
+      ta.selectionStart = ta.selectionEnd = p + snip.length; ta.focus();
+    }
+  };
+}
+
+// ---- quick entry. Pasted/dropped files buffer and attach once the entry exists.
 let pending = [];
 function renderPending() {
   $('#pending').innerHTML = pending.map((f, i) => `<span class="att-item">${/^image\//.test(f.type) ? `<img src="${URL.createObjectURL(f)}" alt="${esc(f.name)}">` : esc(f.name)}<span class="x" data-pend="${i}" title="Remove">✕</span></span>`).join('');
@@ -496,175 +519,63 @@ $('#capture').addEventListener('drop', e => { const fs = [...e.dataTransfer.file
 async function capture() {
   const text = $('#capture').value.trim();
   if (!text && !pending.length) return;
-  if (!text) return void ($('#cap-err').textContent = 'add a note to save with the attachment');  // an entry needs a body
+  if (!text) return void ($('#cap-err').textContent = 'add a note to save with the attachment');
   $('#cap-err').textContent = '';
   try {
-    const id = await api('log', { text });
+    const id = await api('log', { text: [...inherited(), text].join(' ') });
     if (pending.length) { await upload(id, pending); pending = []; renderPending(); }
-    $('#capture').value = ''; refresh();
+    $('#capture').value = ''; state.extra = []; state.dropped.clear(); refresh(); refreshCounts();
   } catch (e) { $('#cap-err').textContent = e.message; }
 }
 $('#save').onclick = capture;
-document.body.addEventListener('change', async e => {  // a checkbox in a ```jn block closes or reopens that task
-  const b = e.target.closest('[data-done]');
-  if (!b) return;
-  try { await api('tag', { id: +b.dataset.done, patch: [b.checked ? '@done' : '-@done'] }); b.closest('.jnq-r').classList.toggle('done', b.checked); } catch (err) { b.checked = !b.checked; $('#status').textContent = err.message; }
-});
 $('#capture').onkeydown = e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') capture(); };
 
-// filter box + URL
-let t;
-$('#filter').oninput = () => { if (/\s$/.test($('#filter').value)) commitAtoms(); clearTimeout(t); t = setTimeout(() => setQuery('', false, true), 300); };
-$('#filter').onkeydown = e => {
-  if (e.key === 'Enter') { commitAtoms(); clearTimeout(t); setQuery('', false, true); }
-  else if (e.key === 'Backspace' && !e.target.value && state.atoms.length) { e.preventDefault(); e.target.value = state.atoms.pop(); renderAtoms(); clearTimeout(t); setQuery('', false, true); }
-};
-try { $('#compose').open = localStorage.getItem('jn.compose') !== '0'; } catch {}
-$('#compose').ontoggle = () => { try { localStorage.setItem('jn.compose', $('#compose').open ? '1' : '0'); } catch {} };
-$('#clearq').onclick = () => { cur = null; setQuery(''); $('#filter').focus(); };
-$('#home').onclick = e => { e.preventDefault(); cur = null; setQuery(''); };
-addEventListener('popstate', () => { fromUrl(); renderNamed(); refresh(); });
+// ---- navigation and clicks
+function go(changes, push = true) { Object.assign(state, changes); toUrl(push); refresh(); }
+let typing;
+$('#filter').oninput = () => { clearTimeout(typing); typing = setTimeout(() => go({ q: $('#filter').value }, false), 300); };
+$('#filter').onkeydown = e => { if (e.key === 'Enter') { clearTimeout(typing); go({ q: $('#filter').value }); } if (e.key === 'Escape') { $('#filter').value = ''; go({ q: '' }); $('#filter').blur(); } };
+$('#home').onclick = e => { e.preventDefault(); cur = null; $('#det').hidden = true; $('#w').classList.remove('det'); $('#filter').value = ''; go({ tab: '', group: null, q: '' }); };
+addEventListener('popstate', () => { fromUrl(); if (cur === null) { $('#det').hidden = true; $('#w').classList.remove('det'); } refresh(); });
 
-// clicks: view chips, tag chips, refs, entries
 document.body.addEventListener('click', e => {
-  if (e.target.closest('.editor') && !e.target.closest('a.ref[data-id],a.tag[data-tag]')) return;  // editor controls stay local; references share navigation everywhere
-  const del = e.target.closest('[data-del]');
-  if (del) { e.stopPropagation(); saveFilter(del.dataset.del, null); return; }
-  const at = e.target.closest('[data-atom]');
-  if (at) { state.atoms.splice(+at.dataset.atom, 1); setQuery('', true, true); return; }
-  const dr = e.target.closest('[data-drill]');
-  if (dr) { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); e.stopPropagation(); cur = null; setQuery(dr.dataset.drill); return; }
-  const ch = e.target.closest('[data-chev]');
-  if (ch) { e.stopPropagation(); const k = ch.dataset.chev; state.exp[k] = ch.getAttribute('aria-expanded') !== 'true'; $('#list').innerHTML = renderGroups(state.res, state.q, state.bys); if (cur !== null) openEntry(cur, false); return; }
-  const vw = e.target.closest('[data-view]');
-  if (vw) { const q = viewBy().q; setQuery(vw.dataset.view === 'roots' ? (q.length ? [...q, '--by=parent'] : []).join(' ') : (q.length ? q : ['--flat']).join(' ')); return; }
-  const a = e.target.closest('[data-tok],[data-id],[data-tag]');
-  if (!a) return;
-  if (a.dataset.tok) { toggleTok(a.dataset.tok); setQuery(tokens().join(' ')); }
-  else if (a.dataset.id) { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); e.stopPropagation(); openEntry(+a.dataset.id); }
-  else if (a.dataset.tag !== undefined) { e.stopPropagation(); const tok = '@' + a.dataset.tag; if (!has(tok)) setQuery([...tokens(), tok].join(' ')); }
+  if (e.target.closest('#det .editor') && !e.target.closest('a.ref[data-id],a.tag[data-tag]')) return;  // editor controls stay local
+  const t = e.target.closest('[data-unchip],[data-tab],[data-group],[data-chev],[data-done],a[data-id],a.tag[data-tag],.chip[data-tag],.r[data-id],.act-close');
+  if (!t) return;
+  if (t.dataset.done) return;  // the change event handles checkboxes
+  if (t.matches('.act-close')) return closeEntry();
+  if (t.dataset.unchip) { const x = t.dataset.unchip; state.extra.includes(x) ? state.extra.splice(state.extra.indexOf(x), 1) : state.dropped.add(x); return renderChips(); }
+  if (t.dataset.tab) { e.preventDefault(); state.exp = {}; state.extra = []; state.dropped.clear(); $('#filter').value = ''; go({ tab: t.dataset.tab, group: null, q: '' }); return refreshCounts(); }
+  if (t.dataset.group !== undefined) { state.dropped.clear(); return go({ group: state.group === t.dataset.group ? null : t.dataset.group }); }
+  if (t.dataset.chev) { e.stopPropagation(); state.exp[t.dataset.chev] = !state.exp[t.dataset.chev]; return render(); }
+  if (t.dataset.tag !== undefined) {  // a tag anywhere narrows the search
+    e.stopPropagation(); const tok = '@' + t.dataset.tag;
+    if (!searchToks().includes(tok)) { $('#filter').value = [...searchToks(), tok].join(' '); go({ q: $('#filter').value }); }
+    return;
+  }
+  if (e.metaKey || e.ctrlKey || e.shiftKey) return;  // modified clicks on links open new windows
+  e.preventDefault();
+  openEntry(+t.dataset.id);
 });
-document.addEventListener('click', e => {  // outside the open entry (and not into another one, the editor, or the popup) closes it
-  const art = cur !== null && $(`.entry[data-id="${cur}"]`);
-  if (art && !e.target.closest('.editor, #ac, [data-id], .composer') && e.target.closest('.entry') !== art) closeEntry();
+document.body.addEventListener('change', async e => {  // any done checkbox: list rows, children in the pane, ```jn blocks
+  const b = e.target.closest('[data-done]');
+  if (!b) return;
+  try { await api('tag', { id: +b.dataset.done, patch: [b.checked ? '@done' : '-@done'] }); b.closest('.jnq-r')?.classList.toggle('done', b.checked); refresh(); refreshCounts(); }
+  catch (err) { b.checked = !b.checked; $('#status').textContent = err.message; }
 });
-document.addEventListener('keydown', e => {  // j/k or arrows on an open entry: collapse it and open the next/previous one
+const typingIn = () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Escape' && cur !== null && !typingIn()) return closeEntry();
+  if (typingIn()) return;
+  if (e.key === '/') { e.preventDefault(); $('#filter').focus(); return; }
+  if (e.key === 'c') { e.preventDefault(); $('#capture').focus(); return; }
+  if (e.key === 'e' && cur !== null) { e.preventDefault(); $('#det .editor')?.edit(); return; }
   const dir = { j: 1, ArrowDown: 1, k: -1, ArrowUp: -1 }[e.key];
-  if (!dir || cur === null || e.metaKey || e.ctrlKey || e.altKey || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
-  const all = [...document.querySelectorAll('#list .entry[data-id]')], i = all.findIndex(a => +a.dataset.id === cur), n = all[i + dir];
-  if (i >= 0 && n) { e.preventDefault(); openEntry(+n.dataset.id); }
+  if (!dir) return;
+  const all = [...document.querySelectorAll('#list .r[data-id]')], i = all.findIndex(a => +a.dataset.id === cur), n = all[i < 0 ? 0 : i + dir];
+  if (n) { e.preventDefault(); openEntry(+n.dataset.id); }
 });
-document.addEventListener('keydown', e => {  // bare e on an open entry: edit it
-  if (e.key === 'e' && cur !== null && !e.metaKey && !e.ctrlKey && !e.altKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { e.preventDefault(); $('.entry.open .editor')?.edit(); }
-});
-$('#list').addEventListener('click', e => {
-  if (e.target.closest('.editor') || e.target.closest('a,button,[data-tag]')) return;
-  const art = e.target.closest('.entry');
-  if (art) openEntry(+art.dataset.id);
-});
-
-// inline editor. Tag chips are the tag editor: click edits, ✕ drops, the trailing input adds
-async function openEntry(id, scroll = true) {
-  let art = $(`.entry[data-id="${id}"]`);
-  if (!art) { cur = id; setQuery(String(id)); return; }  // not in this view: show just that entry
-  if (cur !== null && cur !== id) closeEntry();
-  cur = id;
-  try {
-    const { backlinks, row, ancestors = [] } = await api('show', { id });
-    const tags = row.tags;
-    art.classList.add('open');
-    let ed = art.querySelector('.editor');
-    if (!ed) { ed = document.createElement('div'); ed.className = 'editor'; art.querySelector('.body').appendChild(ed); }
-    const done = 'done' in tags;
-    ed.innerHTML = `<div class="tagrow">${Object.entries(tags).filter(([k]) => k !== 'files').map(([k, v]) => tagChip(k, v, `data-k="${esc(k)}"`).replace('</span>', '<span class="x" data-rm="' + esc(k) + '">✕</span></span>')).join('')}<input class="tagin" placeholder="add a tag: @k=v, ↩"></div>
-      ${ancestors.map(a => `<div class="anc"><a class="ref" href="${entryHref(a.id)}" data-id="${a.id}">#${a.id}</a>${md(a.content)}</div>`).join('')}
-      <div class="md">${md(row.content)}</div>
-      <textarea class="content" hidden>${esc(row.content)}</textarea>
-      <div class="att">${attHtml(tags)}</div>
-      <div class="back">${backlinks.split('\n').filter(Boolean).map(linkify).join('\n')}</div>
-      <div class="actions"><button class="primary act-sub when-view">Reply</button><button class="act-edit when-view">Edit</button>${'todo' in tags ? `<button class="act-done when-view">${done ? 'Reopen' : 'Mark done'}</button>` : ''}<button class="primary act-save when-edit">Save changes</button><button class="act-cancel when-edit">Cancel</button><button class="act-att">Attach</button><input class="att-in" type="file" multiple hidden><button class="quiet act-close">Close</button><span class="err"></span></div>`;
-    ed.tags = tags;
-    const fail = e => ed.querySelector('.err').textContent = e.message;
-    const patch = async p => { try { await api('tag', { id, patch: p }); await refresh(); } catch (e) { fail(e); } };
-    const tagsLine = () => Object.entries(ed.tags).map(([k, v]) => '@' + k + (v ? '=' + v : '')).join(' ');
-    const ta = ed.querySelector('.content'), mdEl = ed.querySelector('.md');
-    hydrate(mdEl, new Set([id]));
-    const save = async text => { try { await api('edit', { id, text: tagsLine() + '\n\n' + text }); await refresh(); } catch (e) { fail(e); } };
-    ed.querySelector('.act-save').onclick = () => save(ta.value);
-    ed.edit = () => { ed.classList.add('editing'); mdEl.hidden = true; ta.hidden = false; ta.oninput?.(); ta.focus(); };  // rendered -> textarea
-    const cancel = () => { ed.classList.remove('editing'); ta.hidden = true; mdEl.hidden = false; ta.value = row.content; };  // drop the draft, back to rendered
-    ed.querySelector('.act-edit').onclick = ed.edit;
-    ed.querySelector('.act-cancel').onclick = cancel;
-    mdEl.onclick = e => {  // click-to-edit is off; reference navigation is delegated with the rest of the page
-      const t = e.target.closest('input[data-task]');
-      if (t) save(mdToggle(row.content, +t.dataset.task));  // flips the saved text, not an unsaved draft
-    };
-    const doneBtn = ed.querySelector('.act-done');
-    if (doneBtn) doneBtn.onclick = () => patch([done ? '-@done' : '@done']);
-    ed.querySelector('.act-sub').onclick = () => { $('#compose').open = true; const c = $('#capture'); c.value = `@parent=#${id} `; c.focus(); c.selectionStart = c.selectionEnd = c.value.length; scrollTo({ top: 0 }); };  // #4: keep the entry open so it can be referenced while replying
-    ed.querySelector('.act-close').onclick = closeEntry;
-    attWire(ed, id);
-    ta.onkeydown = e => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') save(ta.value);
-      if (e.key === 'Escape') cancel();
-    };
-    if (!CSS.supports('field-sizing', 'content')) ta.oninput = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px'; };
-    const addin = ed.querySelector('.tagin'); acAttach(addin, true);
-    addin.addEventListener('keydown', e => { if (e.key === 'Enter' && addin.value.trim()) { patch(addin.value.trim().split(/\s+/).map(atify)); addin.value = ''; } });
-    ed.querySelector('.tagrow').onclick = e => {
-      if (e.target.closest('a.ref')) return;  // references use the shared handler, including modified clicks
-      e.stopPropagation();  // a chip may be swapped for an input below; a detached target must not reach the body handler
-      const rm = e.target.closest('[data-rm]'), chip = e.target.closest('[data-k]');
-      if (rm) { patch(['-@' + rm.dataset.rm]); return; }
-      if (!chip) return;
-      const k = chip.dataset.k, v = ed.tags[k], was = '@' + k + (v ? '=' + v : ''), inp = document.createElement('input');  // click a chip: edit it in place
-      inp.className = 'tagin editing'; inp.value = was; inp.size = was.length + 2;
-      chip.replaceWith(inp); acAttach(inp, true); inp.focus(); inp.select();
-      const commit = () => { const nv = atify(inp.value.trim()); if (nv === '@' || nv === was) return openEntry(id, false); const nk = (nv.match(/^-?@([\w-]+)/) || [])[1]; patch(nk && nk !== k ? [nv, '-@' + k] : [nv]); };
-      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); } if (ev.key === 'Escape') openEntry(id, false); });
-      inp.addEventListener('blur', () => setTimeout(() => { if (inp.isConnected && ac.field !== inp) commit(); }, 200));
-    };
-    if (scroll) art.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  } catch (e) { $('#status').textContent = e.message; }
-}
-function closeEntry() {
-  const art = cur !== null && $(`.entry[data-id="${cur}"]`);
-  if (art) { art.classList.remove('open'); art.querySelector('.editor')?.remove(); }
-  cur = null;
-}
-
-// attachments: @files=<name,...> on the entry, bytes at /files/<name>. Removing only edits the tag; the file stays on disk (ponytail: no GC)
-const fileUrl = n => '/files/' + n + (state.db ? '?db=' + encodeURIComponent(state.db) : '');
-const isImg = n => /\.(png|jpe?g|gif|webp|svg|avif)$/.test(n);
-const fileList = tags => (tags.files || '').split(',').filter(Boolean);
-const clip = tags => 'files' in tags ? `<span class="clip" title="${esc(fileList(tags).join(', '))}">📎 ${fileList(tags).length}</span>` : '';
-const attHtml = tags => fileList(tags).map(n => `<span class="att-item"><a href="${fileUrl(n)}" target="_blank" rel="noopener">${isImg(n) ? `<img src="${fileUrl(n)}" alt="${n}" loading="lazy">` : n}</a><span class="ins" data-embed="${n}" title="Insert an embed into the entry text">embed</span><span class="x" data-unatt="${n}" title="Remove from entry">✕</span></span>`).join('');
-const b64 = f => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1]); r.onerror = no; r.readAsDataURL(f); });
-async function upload(id, files) { for (const f of files) await api('attach', { id, name: f.name, data: await b64(f) }); }
-function attWire(ed, id) {
-  const fail = e => ed.querySelector('.err').textContent = e.message;
-  const ta = ed.querySelector('.content'), inp = ed.querySelector('.att-in');
-  const send = async files => {  // re-open the entry after upload but keep unsaved text
-    if (!files.length) return;
-    const draft = ta.value;
-    try { await upload(id, files); await refresh(); const nt = $('.entry.open .content'); if (nt) { nt.value = draft; if (!ta.hidden) $('.entry.open .editor').edit(); } } catch (e) { fail(e); }
-  };
-  ed.querySelector('.act-att').onclick = () => inp.click();
-  inp.onchange = () => send([...inp.files]);
-  ta.addEventListener('paste', e => { const fs = [...e.clipboardData.files]; if (fs.length) { e.preventDefault(); send(fs); } });
-  ta.addEventListener('dragover', e => e.preventDefault());
-  ta.addEventListener('drop', e => { const fs = [...e.dataTransfer.files]; if (fs.length) { e.preventDefault(); send(fs); } });
-  ed.querySelector('.att').onclick = e => {
-    const x = e.target.closest('[data-unatt]'), em = e.target.closest('[data-embed]');
-    if (x) return void api('tag', { id, patch: ['@files-=' + x.dataset.unatt] }).then(refresh, fail);
-    if (em) {  // #12: drop a markdown embed at the cursor
-      const n = em.dataset.embed, snip = (isImg(n) ? `![](jn:${n})` : `[${n}](jn:${n})`);
-      ed.edit(); const p = ta.selectionStart ?? ta.value.length;
-      ta.value = ta.value.slice(0, p) + snip + ta.value.slice(ta.selectionEnd ?? p);
-      ta.selectionStart = ta.selectionEnd = p + snip.length; ta.oninput?.(); ta.focus();
-    }
-  };
-}
 
 // markdown: a hand-written GFM subset so the page renders offline; the source is escaped before parsing, so raw HTML shows literally.
 // ponytail: no setext headings, backslash escapes, lazy continuation, reference links, column alignment; nesting is "indented deeper than the parent".
@@ -816,24 +727,25 @@ function acAttach(f, bare = false) {
   }, true);
   f.addEventListener('blur', () => setTimeout(() => { if (ac.field === f) acHide(); }, 150));
 }
-acAttach($('#capture')); acAttach($('#filter'));
 ac.el.onmousedown = e => { e.preventDefault(); const d = e.target.closest('[data-i]'); if (d) acPick(+d.dataset.i); };  // keep the field focused, scrollbar included
 addEventListener('scroll', () => ac.field && acPlace(), true); addEventListener('resize', () => ac.field && acPlace());
 
-// boot + poll
+// ---- boot + poll
 fromUrl();
+acAttach($('#capture')); acAttach($('#filter'));
 api('dbs').then(dbs => {
   if (!dbs.length) return;
   if (state.db && !dbs.includes(state.db)) state.db = '';
   const sel = $('#dbsel');
   sel.innerHTML = ['', ...dbs].map(n => `<option value="${esc(n)}" ${n === state.db ? 'selected' : ''}>${n ? esc(n) : 'default'}</option>`).join('');
   sel.hidden = false;
-  sel.onchange = () => { state.db = sel.value; try { localStorage.setItem('jn.db', state.db); } catch {} cur = null; setQuery(tokens().join(' '), false); api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); }); };
+  sel.onchange = () => { state.db = sel.value; setPref('jn.db', state.db); closeEntry(); boot(); };
 });
-function setDbPath(p) { const el = $('#dbpath'); el.textContent = p ? '‎' + p : ''; el.title = p || ''; }  // ‎ (LRM) keeps the ellipsis at the left under direction:rtl
-api('config').then(c => { state.cfg = c; setDbPath(c.db); renderNamed(); refresh(); refreshCounts(); });
+function setDbPath(p) { const el = $('#dbpath'); el.textContent = p ? '‎' + p : ''; el.title = p || ''; }  // LRM keeps the ellipsis on the left under rtl
+function boot() { return api('config').then(c => { state.cfg = c; setDbPath(c.db); if (state.tab && !tabList().some(f => f.name === state.tab)) state.tab = ''; refresh(); refreshCounts(); }); }
+boot();
 setInterval(() => { if (document.visibilityState === 'visible') refreshCounts(); }, 30000);
-setInterval(() => { if (document.visibilityState === 'visible' && cur === null) refresh(); }, 5000);
+setInterval(() => { if (document.visibilityState === 'visible' && cur === null && !typingIn()) refresh(); }, 5000);
 </script>
 </body>
 </html>

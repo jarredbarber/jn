@@ -41,7 +41,8 @@ FILTERS = {  # ponytail: eval'd python per row (or @token strings). override/ext
     "mine": "tag('agent') == default('agent')",
     "blocked": "any(not (i[0] == '#' and i[1:].isdigit() and tag('done', int(i[1:])) is not None) for i in tag('blocked_by') or [])",
     "unblocked": "not F('blocked')",
-    "tasks": "@todo -@done",
+    "journal": "-@todo -@archived --all --as=journal --by=project",  # web tabs: --as picks the layout, --by the sidebar list
+    "tasks": "@todo -@done -@archived --all --as=tasks --by=project",  # --all keeps @parent subtasks for the tree
 }
 
 
@@ -528,7 +529,7 @@ def parse_opts(args):
     return opts, pos
 
 
-LS_OPTS = ("since", "last", "json", "md", "all", "tree", "by", "flat")  # by/flat are web view options: the CLI accepts and ignores them, so a saved view may hold them
+LS_OPTS = ("since", "last", "json", "md", "all", "tree", "by", "flat", "as")  # by/flat/as are web view options: the CLI accepts and ignores them, so a saved view may hold them
 
 
 def expand(pos, opts):

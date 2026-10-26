@@ -17,9 +17,9 @@ The main goal is to be **maximally generic** and avoid prescribing behavior as m
 The current special tags are:
 
 **DB**: None
-**Default Config**: `@archived`, `@todo`, `@done`, `@parent`, `@blocked_by`, `@agent` (auto-stamped via `builtin_tags()`, used by `--mine`)
+**Default Config**: `@archived`, `@todo`, `@done`, `@parent`, `@blocked_by`, `@agent` (auto-stamped via `builtin_tags()`, used by `--mine`), `@project` (`--by` of the built-in `journal`/`tasks` views: the web sidebar list)
 **CLI** (hardcoded in `jn.py`): `@files` (`attach`), `@parent` (`show` nests children, `ls` prints a `↳ #N` context line on rows whose parent isn't shown; `--tree` defaults to it, but any pointer tag works).
-**Web UI** (`jn_web.html`/`jn_web.py`): `@todo` (shows the Mark done button), `@done` (struck-through, done toggle), `@files` (attachment embeds, hidden from tag chips), `@parent` (Reply button, ancestor thread above an expanded entry)
+**Web UI** (`jn_web.html`/`jn_web.py`): `@todo` (shows the Mark done button), `@done` (struck-through, done toggle), `@files` (attachment embeds, hidden from tag chips), `@parent` (Reply button, breadcrumb and children in the detail pane, nesting in `--as=tasks` tabs)
 
 Adding a tag to these lists needs a reason. Prefer a config filter or action.
 
@@ -31,6 +31,7 @@ python3 jn.py <args>       # run without installing
 uv tool install .          # or: pipx install .  — installs `jn` + skills/ (for `jn --skill`)
 
 JN_DB=/tmp/jn-demo.db jn import < fixture.jsonl   # canonical demo db: 32 entries covering the feature surface
+python3 demo_big.py > /tmp/big.jsonl && JN_DB=/tmp/big.jsonl jn serve   # ~940 entries, 5 projects, agent task trees: for UI work
 ```
 
 There is no build step, linter, or CI. `test_jn.py` is a single script of asserts against a subprocess in a temp dir; add cases there.

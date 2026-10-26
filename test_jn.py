@@ -239,8 +239,14 @@ def on_write(e):
     post("log", text="just a note")
     g = post("roots", args=["-@done", "--by=todo"])[1]["groups"]                 # a bare tag splits into present / absent
     assert sorted((x["absent"], x["n"]) for x in g) == [(False, 4), (True, 1)], g
-    assert post("explain", args=["--tasks", "--default", "--tasks"])[1] == "@todo -@done -@archived -@parent", post("explain", args=["--tasks", "--default"])
-    assert post("explain", args=["--tasks", "--since", "2w"])[1] == "@todo -@done -@archived -@parent --since 2w", post("explain", args=["--tasks", "--since", "2w"])
+    x = jn.expand(*reversed(jn.parse_opts(["--tasks", "--default", "--tasks"])))   # filters repeat tokens; every filter ANDs, so repeats drop
+    assert x[0] == ["@todo", "-@done", "-@archived", "-@parent"] and x[1]["all"] is True and x[1]["as"] == "tasks", x
+    x = jn.expand(*reversed(jn.parse_opts(["--tasks", "--since", "2w"]))); assert x[1]["since"] == "2w" and "-@parent" not in x[0], x   # --all in tasks keeps subtasks
+    t = post("ls", args=["--tasks", "--tree"])[1]; p = {r["id"]: r.get("progress") for r in t}
+    assert p[2] == [0, 2] and p[3] == [0, 1] and p.get(4) is None, t                                     # tree rows carry done/total of the @todos beneath
+    post("tag", id=3, patch=["@done"]); t = post("ls", args=["--tasks", "--tree"])[1]; assert {r["id"]: r.get("progress") for r in t}[2] == [1, 2], t
+    assert [k["id"] for k in post("show", id=2)[1]["children"]] == [3], post("show", id=2)   # the detail pane's children
+    post("tag", id=3, patch=["-@done"])
     wid = post("log", text="hook: from the web")[1]; assert post("ls", args=[str(wid), "--all"])[1][0]["content"] == "hooked: from the web"   # web writes hit the same hook
     assert post("ls", db="/nope/x.db")[0] == 400 and post("ls", db="nope")[0] == 400   # names only from the web
     assert post("log", db="jl", text="@todo from the web into jsonl") == (200, 10) and post("tag", db="jl", id=10, patch=["@done"])[0] == 200

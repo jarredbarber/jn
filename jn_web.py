@@ -20,9 +20,30 @@ def verbs(jn):
         opts, pos = jn.parse_opts(list(args))
         rs = jn.select(pos, opts)
         if t := opts.get("tree"):
-            rs = [r | {"depth": d} for r, d in jn.as_tree(rs[::-1], "parent" if t is True else t)]
+            by = "parent" if t is True else t
+            prog = progress(by, [r["id"] for r in rs])
+            rs = [r | {"depth": d} | ({"progress": prog[r["id"]]} if r["id"] in prog else {}) for r, d in jn.as_tree(rs[::-1], by)]
         q = jn.parent_quotes([r for r in rs if not r.get("depth")])  # @parent=#N context line, batched; nested rows already sit under theirs
         return [r | {"parent_ctx": q[r["id"]]} if r["id"] in q else r for r in rs]
+
+    def progress(by, ids):
+        """id -> [done, total] over the @todo entries beneath it (any depth, cycle-safe), for the tasks tree"""
+        kids, todo, done = {}, set(), set()
+        for e, n, v in jn.db().execute("SELECT entry, name, value FROM tagged WHERE name IN (?, 'todo', 'done')", (by,)):
+            if n == "todo": todo.add(e)
+            elif n == "done": done.add(e)
+            if n == by:
+                for i in (v or "").split(","):
+                    if i[:1] == "#" and i[1:].isdigit(): kids.setdefault(int(i[1:]), []).append(e)
+        out = {}
+        for root in ids:
+            seen, stack = {root}, [root]
+            while stack:
+                for k in kids.get(stack.pop(), []):
+                    if k not in seen: seen.add(k); stack.append(k)
+            t = (seen - {root}) & todo
+            if t: out[root] = [len(t & done), len(t)]
+        return out
 
     def roots(args):
         """--by[=tag] rolls the view up: one group per root entry (pointer tag, default parent) or per value of a
@@ -84,20 +105,14 @@ def verbs(jn):
             out[n] = [len(rs), sum(r["updated"] > (seen or {})[n] for r in rs) if n in (seen or {}) else 0]
         return out
 
-    def explain(args):
-        """the query as ls will run it: --names expanded, default filter applied. Python filters stay named"""
-        opts, pos = jn.parse_opts(list(args))
-        pos, opts, py = jn.expand(pos, opts)
-        flags = [f"--{k}" + ("" if opts[k] is True else f" {opts[k]}") for k in ("since", "last", "all") if k in opts]
-        return " ".join([*pos, *flags, *(f"(python --{n})" for n in py)])
-
     def show(id):
         row = jn.select([str(int(id))], {"all": True})
         anc, seen, r = [], {int(id)}, row[0] if row else None  # @parent chain walked up: root first, cycle-safe, capped
         while r and (p := jn.parent_of(r)) and p not in seen and len(anc) < 10:
             seen.add(p); pr = jn.select([str(p)], {"all": True}); r = pr[0] if pr else None
             if r: anc.append(r)
-        return {"text": jn.entry_text(int(id)), "backlinks": jn.backlinks(int(id)), "row": row[0] if row else None, "ancestors": anc[::-1]}
+        kids = jn.select([f"@parent=#{int(id)}"], {"all": True})
+        return {"text": jn.entry_text(int(id)), "backlinks": jn.backlinks(int(id)), "row": row[0] if row else None, "ancestors": anc[::-1], "children": kids}
 
     def vocab():
         """tag name -> its known items, for @ completion"""
@@ -144,7 +159,6 @@ def verbs(jn):
         "filter": filt,
         "ls": lambda args=(): rows(args),
         "roots": roots,
-        "explain": explain,
         "counts": counts,
         "tags": lambda args=(): jn.tag_counts(rows(args)),
         "show": show,
