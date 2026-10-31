@@ -5,7 +5,7 @@ description: Shared microjournal and task log for humans and agents.
 
 # jn
 
-`jn` stores text entries with tags. Write tags as `@name` or `@name=value`; values are comma-separated lists. Put tags at the beginning or end of an entry so jn stores them as metadata instead of prose.
+`jn` stores text entries with tags. Write tags as `@name` or `@name=value`; values are comma-separated lists. Put tags at the beginning or end of an entry; jn stores those as metadata. A tag-shaped word mid-sentence stays prose.
 
 ```bash
 jn log "@parent=#42 parser handles nested lists"

@@ -296,3 +296,7 @@ def on_write(e):
     assert post("attach", id=1, name="big.bin", data=base64.b64encode(b"\0" * (21 << 20)).decode())[0] == 400   # 20 MB cap
     assert post("tag", id=1, patch=["@files-=" + name])[0] == 200 and post("show", id=1)[1]["row"]["tags"]["files"] is None
     srv.shutdown()
+    m = run("log", "@todo", "a note about @agent and @project=x, mid-sentence", **env)
+    mt = js(run("ls", "--json", m, **env))[0]["tags"]
+    assert mt["agent"] == "claude:s0" and mt["project"] == "demo", mt   # mid-prose @words are not tags
+    run("close", m, **env)

@@ -37,7 +37,7 @@ ln -s ~/code/jn/jn.py ~/bin/jn
 
 An entry has an integer `id`, UTC `created` and `updated` timestamps, text content, and tags. Tags have the form `@name` or `@name=value`; values are comma-separated lists. A bare tag has an empty value. `#` is never a tag sigil, so `#42` is ordinary text unless a convention assigns it meaning.
 
-Put tags at the beginning or end of the input. jn stores those tags separately and removes them from the saved body. Tags in the middle of a sentence remain prose.
+Put tags at the beginning or end of the input. jn stores those tags separately and removes them from the saved body. A tag-shaped word in the middle of a sentence is prose, not a tag.
 
 ```bash
 jn log "@meeting @client=acme agreed on scope"

@@ -150,9 +150,20 @@ def parse_tags(text, current=None):
     return add, rm
 
 
+def split_doc(text):
+    """-> (tag runs, body). Only the leading and trailing tag runs are metadata; a tag-shaped word mid-sentence is prose,
+    so a note *about* @agent cannot clobber the real tag. Backlink lines from show are dropped."""
+    t = BACKLINK.sub("", text).strip()
+    runs = " ".join(m[0] for m in (LEAD.match(t), TRAIL.search(t)) if m)
+    return runs, TRAIL.sub("", LEAD.sub("", t)).strip()
+
+
 def strip_tags(text):
-    """drop leading/trailing tag runs and show's backlink lines; tags mid-sentence stay as prose"""
-    return TRAIL.sub("", LEAD.sub("", BACKLINK.sub("", text).strip())).strip()
+    return split_doc(text)[1]
+
+
+def doc_tags(text):
+    return parse_tags(split_doc(text)[0])[0]
 
 
 def read_body(seed=""):
@@ -261,7 +272,7 @@ def add_entry(args):
     text = " ".join(args)
     if not strip_tags(text):  # tags only: body from stdin or $EDITOR
         text = (text + "\n" + read_body()).strip()
-    tags = default_tags() | parse_tags(text)[0]
+    tags = default_tags() | doc_tags(text)
     return save("create", None, strip_tags(text) or sys.exit("empty entry"), tags)
 
 
@@ -363,7 +374,7 @@ def attach(eid, paths):
 def edit(eid, text=None, op="edit"):
     """document: the buffer (stdin or $EDITOR) is the whole entry, tags line included. show output round-trips"""
     text = read_body(entry_text(eid)) if text is None else text
-    tags, content = parse_tags(text)[0], strip_tags(text) or sys.exit("empty entry")
+    tags, content = doc_tags(text), strip_tags(text) or sys.exit("empty entry")
     save(op, eid, content, tags)
 
 
