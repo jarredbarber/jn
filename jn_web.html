@@ -52,7 +52,7 @@ nav { background:var(--side); border-right:1px solid var(--line); padding:12px 1
 .tab, .grp, #pages a { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:5px 8px; border-radius:var(--r); color:var(--mute); cursor:pointer; text-decoration:none; border-left:2px solid transparent; white-space:nowrap }
 .tab:hover, .grp:hover, #pages a:hover { background:var(--hover); color:var(--ink) }
 .tab.on { background:var(--accbg); color:var(--ink); border-left-color:var(--acc) }
-.tab .new { color:var(--acc); font-weight:600; font-size:11px } .n { color:var(--dim); font-variant-numeric:tabular-nums; font-size:12px }
+.tab .tr { display:flex; align-items:center; gap:4px } .tab .new { color:var(--acc); font-weight:600; font-size:11px } .n { color:var(--dim); font-variant-numeric:tabular-nums; font-size:12px }
 .grps { margin:2px 0 6px } .grp { padding-left:20px; font-size:12px } .grp.on { color:var(--acc) } .grp span:first-child { overflow:hidden; text-overflow:ellipsis }
 .lab { color:var(--dim); font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; margin:18px 8px 6px }
 #pages a { display:block; overflow:hidden; text-overflow:ellipsis }
@@ -77,6 +77,7 @@ nav { background:var(--side); border-right:1px solid var(--line); padding:12px 1
 .seg label { padding:5px 14px; cursor:pointer; color:var(--mute) } .seg label + label { border-left:1px solid var(--line) }
 .seg label:has(input:checked) { background:var(--accbg); color:var(--ink) } .seg label:has(input:focus-visible) { outline:2px solid var(--acc); outline-offset:-2px }
 #dbpath { color:var(--mute); font:12px var(--mono); word-break:break-all }
+#hide { width:100%; background:var(--field); border:1px solid var(--line); border-radius:var(--r); padding:5px 8px; font:13px var(--mono); color:var(--ink) }
 
 main { padding:14px 22px 60px; min-width:0 }
 .cap { display:flex; gap:8px; align-items:stretch }
@@ -179,9 +180,9 @@ a.ref, a.tag { color:var(--acc); text-decoration:none; cursor:pointer } a.ref:ho
 @media (max-width: 760px) {
   .w, .w.det { grid-template-columns:minmax(0,1fr) }
   nav { position:static; height:auto; border-right:0; border-bottom:1px solid var(--line); padding:10px 12px 6px }
-  .brand { padding:0 0 8px } #tabs { display:flex; flex-wrap:wrap; gap:4px }
-  #tabs .grps { flex-basis:100%; display:flex; overflow-x:auto; gap:2px; margin:2px 0 } .grp { padding-left:8px }
-  .tab { border-left:0; border-bottom:2px solid transparent; border-radius:0 } .tab.on { border-bottom-color:var(--acc) }
+  .brand { padding:0 0 8px } #tabs { display:flex; flex-wrap:wrap; gap:2px 6px }
+  #tabs .grps { order:99; flex-basis:100%; display:flex; overflow-x:auto; gap:2px; margin:4px 0 0; scrollbar-width:none } .grp { flex:0 0 auto; padding:6px 8px; min-height:32px }
+  .tab { flex:0 0 auto; min-height:36px; padding:6px 10px; border-left:0; border-bottom:2px solid transparent; border-radius:0 } .tab.on { border-bottom-color:var(--acc) }
   #calbox, #pagebox { display:none }
   main { padding:10px 12px 60px }
   .meta { max-width:14ch } .meta .chip, .meta .eid, .r .ctx { display:none }
@@ -201,7 +202,7 @@ a.ref, a.tag { color:var(--acc); text-decoration:none; cursor:pointer } a.ref:ho
 <main>
   <div class="cap"><div class="qe"><span id="chips"></span><textarea id="capture" rows="1" placeholder="Quick entry…  @tags  ⌘↩"></textarea></div><button id="save" class="primary add">Add</button></div>
   <span id="cap-err" class="err"></span><div class="att" id="pending"></div>
-  <div class="sbar"><input id="filter" placeholder="Search  ( / )   words, @tag, -@tag, --since 1w" autocomplete="off"><span id="status"></span></div>
+  <div class="sbar"><input id="filter" placeholder="Search  ( / )   words, @tag, -@tag, --since 1w" autocomplete="off"><select id="by" aria-label="Group by" title="Group by"></select><span id="status"></span></div>
   <section id="list"></section>
 </main>
 <aside id="det" hidden></aside>
@@ -211,12 +212,13 @@ a.ref, a.tag { color:var(--acc); text-decoration:none; cursor:pointer } a.ref:ho
   <div class="sh">Settings<button class="x" value="close" aria-label="Close">✕</button></div>
   <div class="lab">Color scheme</div><div class="schemes" id="schemes"></div>
   <div class="lab">Appearance</div><div class="seg" id="modes"><label><input type="radio" name="mode" value="system">system</label><label><input type="radio" name="mode" value="dark">dark</label><label><input type="radio" name="mode" value="light">light</label></div>
+  <div class="lab">Hidden tags in lists</div><input id="hide" placeholder="agent, project" autocomplete="off" spellcheck="false">
   <div class="lab">Journal</div><div id="dbpath"></div>
 </form></dialog>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const state = { cfg: { filters: [] }, vocab: {}, db: '', tab: '', group: null, q: '', rows: [], counts: {}, exp: {}, extra: [], dropped: new Set() };
+const state = { cfg: { filters: [] }, vocab: {}, db: '', tab: '', group: null, by: null, q: '', rows: [], counts: {}, exp: {}, extra: [], dropped: new Set() };
 try { state.db = localStorage.getItem('jn.db') || ''; } catch {}
 let cur = null;  // id of the entry open in the detail pane
 
@@ -266,7 +268,8 @@ $('#settings').addEventListener('change', e => {
   if (e.target.name === 'mode') setPref('jn.mode', e.target.value);
   applyTheme();
 });
-$('#gear').onclick = () => $('#settings').showModal();
+$('#gear').onclick = () => { $('#hide').value = [...hiddenTags()].join(', '); $('#settings').showModal(); };
+$('#hide').oninput = () => { setPref(hideKey(), $('#hide').value); render(); };
 lightMq.addEventListener('change', applyTheme);
 applyTheme();
 
@@ -280,11 +283,12 @@ function tabList() {
 function view() {
   const name = state.tab || tabList()[0]?.name || 'journal', ts = expandTok(['--' + name]);
   const opt = k => { const t = ts.filter(t => t === '--' + k || t.startsWith('--' + k + '=')).pop(); return t === undefined ? null : t.split('=')[1] || true; };
-  const as = opt('as') === 'tasks' ? 'tasks' : 'journal', by = opt('by'), tree = opt('tree');
-  return { name, ts, as, by: by === true ? 'parent' : by, tree: as === 'tasks' ? (tree === true || tree === null ? 'parent' : tree) : null };
+  const as = opt('as') === 'tasks' ? 'tasks' : 'journal', cfgBy = opt('by'), tree = opt('tree');
+  const by = state.by === null ? (cfgBy === true ? 'parent' : cfgBy) : state.by === 'none' ? null : state.by;  // the sbar picker overrides the view's --by
+  return { name, ts, as, by, tree: as === 'tasks' ? (tree === true || tree === null ? 'parent' : tree) : null };
 }
 // Quick entry inherits the view's positive, exact tags (no -@x, no wildcard) and the selected group
-const groupTok = (by, k) => k === null || k === NONE ? null : k === '' ? '@' + by : `@${by}=${k}`;
+const groupTok = (by, k) => k === null || k === NONE || by === 'date' ? null : k === '' ? '@' + by : `@${by}=${k}`;
 function inherited() {
   const v = view(), own = v.ts.filter(t => /^@[\w-]+(=[^\s*]+)?$/.test(t)), g = v.by && groupTok(v.by, state.group);
   return [...new Set([...own, ...(g ? [g] : []), ...state.extra])].filter(t => !state.dropped.has(t));
@@ -296,13 +300,14 @@ function renderChips() {
 // ---- URL mirrors tab, group, search and the open entry
 function toUrl(push = true) {
   const u = new URL(location), set = (k, v) => v === null || v === '' || v === undefined ? u.searchParams.delete(k) : u.searchParams.set(k, v);
-  set('tab', state.tab); state.group === null ? u.searchParams.delete('g') : u.searchParams.set('g', state.group);  // g='' is a bare-tag group set('q', state.q); set('open', cur); set('db', state.db);
+  set('tab', state.tab); state.group === null ? u.searchParams.delete('g') : u.searchParams.set('g', state.group);  // g='' is a bare-tag group
+  set('by', state.by); set('q', state.q); set('open', cur); set('db', state.db);
   history[push ? 'pushState' : 'replaceState'](null, '', u);
 }
 function fromUrl() {
   const u = new URL(location), p = k => u.searchParams.get(k);
   if (p('db')) state.db = p('db');
-  state.tab = p('tab') || ''; state.group = p('g'); state.q = p('q') || ''; cur = p('open') ? +p('open') : null;
+  state.tab = p('tab') || ''; state.group = p('g'); state.by = p('by'); state.q = p('q') || ''; cur = p('open') ? +p('open') : null;
   if (/^#?\d+$/.test(state.q)) { cur = +state.q.replace('#', ''); state.q = ''; }  // old ?q=42 links open the entry
   $('#filter').value = state.q;
 }
@@ -321,9 +326,10 @@ const tagChip = (k, v, extra = '') => { const c = tcol(k); return `<span class="
 const atify = t => t.replace(/^(-?)(?!@)/, '$1@');
 const head = r => r.content.split('\n').map(mdHead).find(l => l.trim()) || '';
 const title = r => plain(head(r)).slice(0, 60);
-const agentPill = r => { const a = r.tags.agent; if (a === undefined) return ''; const [k, id = ''] = (a || 'agent').split(':'); return `<span class="ag" title="${esc(a || 'agent')}">${esc(k)}${id ? '·' + esc(id.slice(0, 4)) : ''}</span>`; };
+const agentPill = (r, inList = false) => { const a = r.tags.agent; if (a === undefined || (inList && hiddenTags().has('agent'))) return ''; const [k, id = ''] = (a || 'agent').split(':'); return `<span class="ag" title="${esc(a || 'agent')}">${esc(k)}${id ? '·' + esc(id.slice(0, 4)) : ''}</span>`; };
 const HIDE = ['todo', 'done', 'files', 'agent', 'parent'];  // shown by other means: checkbox, strike, clip, pill, ↳
-const chipsOf = (r, skip = []) => Object.entries(r.tags).filter(([k]) => !HIDE.includes(k) && !skip.includes(k)).map(([k, v]) => tagChip(k, v)).join('');
+const hideKey = () => 'jn.hide:' + state.db, hiddenTags = () => new Set(pref(hideKey(), 'agent').split(/[\s,]+/).filter(Boolean));  // settings: tags left off list rows
+const chipsOf = (r, skip = []) => { const h = hiddenTags(); return Object.entries(r.tags).filter(([k]) => !HIDE.includes(k) && !skip.includes(k) && !h.has(k)).map(([k, v]) => tagChip(k, v)).join(''); };
 const dayLabel = d => {
   const t = new Date(), y = new Date(Date.now() - 864e5), same = (a, b) => a.toDateString() === b.toDateString();
   const w = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: d.getFullYear() === t.getFullYear() ? undefined : 'numeric' });
@@ -332,8 +338,9 @@ const dayLabel = d => {
 
 // ---- the list. One ls call per refresh; groups, counts and the sidebar list are computed here from those rows.
 const NONE = ' none';  // group key: the row lacks the --by tag ('' = bare tag, e.g. @home). Tag values never hold a space; NUL would turn into U+FFFD in an attribute
-const valsOf = (r, by) => { const v = r.tags[by]; return v === undefined ? [NONE] : v === null ? [''] : v.split(',').filter(Boolean); };
-const grpLabel = (by, k) => k === NONE ? 'no @' + by : k === '' ? '@' + by : k;
+const isoDay = t => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const valsOf = (r, by) => { if (by === 'date') return [isoDay(r.created)]; const v = r.tags[by]; return v === undefined ? [NONE] : v === null ? [''] : v.split(',').filter(Boolean); };
+const grpLabel = (by, k) => by === 'date' ? dayLabel(new Date(k + 'T00:00')) : k === NONE ? 'no @' + by : k === '' ? '@' + by : k;
 const searchToks = () => state.q.trim().split(/\s+/).filter(Boolean);
 
 async function refresh() {
@@ -364,14 +371,15 @@ function render() {
   const inGroup = u => state.group === null || !v.by || valsOf(u[0], v.by).includes(state.group);
   const shown = us.filter(inGroup);
   renderTabs(v, groups);
+  renderBy(v);
   renderChips();
   let html = '';
-  if (v.as === 'tasks') {
-    const sections = v.by && state.group === null ? [...groups.keys()].sort(byCount(groups)).map(k => [k, shown.filter(u => valsOf(u[0], v.by)[0] === k)]) : [[null, shown]];
+  if (v.as === 'tasks' || (v.by && state.by !== null && state.group === null)) {
+    const sections = v.by && state.group === null ? [...groups.keys()].sort(byCount(groups, v.by)).map(k => [k, shown.filter(u => valsOf(u[0], v.by)[0] === k)]) : [[null, shown]];
     for (const [k, list] of sections) {
       if (!list.length) continue;
       if (k !== null) html += `<div class="h">${esc(grpLabel(v.by, k))}<span class="n">${list.reduce((s, u) => s + u.length, 0)}</span></div>`;
-      html += list.map(u => taskRows(u, v)).join('');
+      html += list.map(u => v.as === 'tasks' ? taskRows(u, v) : u.map(r => journalRow(r, v)).join('')).join('');
     }
   } else {
     let day = '';
@@ -387,9 +395,9 @@ function render() {
   $('#status').textContent = n + (n === 1 ? ' entry' : ' entries');
   markSel();
 }
-const byCount = groups => (a, b) => (a === NONE) - (b === NONE) || groups.get(b) - groups.get(a) || String(a).localeCompare(String(b));
+const byCount = (groups, by) => by === 'date' ? (a, b) => String(b).localeCompare(a) : (a, b) => (a === NONE) - (b === NONE) || groups.get(b) - groups.get(a) || String(a).localeCompare(String(b));  // dates newest first
 const rowHead = r => `${r.parent_ctx && !r.depth ? `<span class="ctx">${esc(r.parent_ctx.replace(/^↳ (#\d+)\s+/, '↳ $1 ').slice(0, 48))}</span>` : ''}${titleHtml(head(r))}`;
-const meta = (r, v, extra = '') => `<span class="meta">${extra}${chipsOf(r, v.as === 'tasks' || state.group !== null ? [v.by] : [])}${clip(r.tags)}${agentPill(r)}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></span>`;
+const meta = (r, v, extra = '') => `<span class="meta">${extra}${chipsOf(r, v.as === 'tasks' || state.group !== null ? [v.by] : [])}${clip(r.tags)}${agentPill(r, true)}<a class="eid" href="${entryHref(r.id)}" data-id="${r.id}">#${r.id}</a></span>`;
 function journalRow(r, v) {
   const t = new Date(r.created).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   return `<div class="r ${'done' in r.tags ? 'done' : ''}" data-id="${r.id}"><span class="tm">${t}</span><span class="x">${rowHead(r)}</span>${meta(r, v)}</div>`;
@@ -411,12 +419,19 @@ function taskRows(u, v) {  // children start collapsed; a row with children in v
 const chevron = open => `<svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="${open ? 'M3 5l4 4 4-4' : 'M5 3l4 4-4 4'}"></path></svg>`;
 const markSel = () => document.querySelectorAll('#list .r').forEach(e => e.classList.toggle('sel', +e.dataset.id === cur));
 
+function renderBy(v) {  // ponytail: single level; nested (project then date) when someone needs it
+  const names = ['date', ...Object.keys(state.vocab).filter(n => !hiddenTags().has(n))];
+  const o = (val, lbl) => `<option value="${esc(val)}"${(state.by ?? '') === val ? ' selected' : ''}>${esc(lbl)}</option>`;
+  $('#by').innerHTML = o('', 'group: default') + o('none', 'none') + names.map(n => o(n, n === 'date' ? 'date' : '@' + n)).join('');
+}
 function renderTabs(v, groups) {
   $('#tabs').innerHTML = tabList().map(f => {
     const c = state.counts[f.name] || [0, 0], on = f.name === v.name;
     const badge = c[1] && !on ? `<span class="new">${c[1]} new</span>` : `<span class="n">${on ? '' : c[0] || ''}</span>`;
-    const sub = on && v.by && groups.size ? `<div class="grps">${[...groups.keys()].sort(byCount(groups)).map(k => `<a class="grp${state.group === k ? ' on' : ''}" data-group="${esc(k)}"><span>${esc(grpLabel(v.by, k))}</span><span class="n">${groups.get(k)}</span></a>`).join('')}</div>` : '';
-    return `<a class="tab${on ? ' on' : ''}" data-tab="${esc(f.name)}">${esc(f.name[0].toUpperCase() + f.name.slice(1))}${badge}</a>${sub}`;
+    const fold = on && v.by && groups.size, open = fold && !folded(f.name);
+    const chev = fold ? `<button class="chev" data-fold="${esc(f.name)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'} groups">${chevron(open)}</button>` : '';
+    const sub = open ? `<div class="grps">${[...groups.keys()].sort(byCount(groups, v.by)).map(k => `<a class="grp${state.group === k ? ' on' : ''}" data-group="${esc(k)}"><span>${esc(grpLabel(v.by, k))}</span><span class="n">${groups.get(k)}</span></a>`).join('')}</div>` : '';
+    return `<a class="tab${on ? ' on' : ''}" data-tab="${esc(f.name)}">${esc(f.name[0].toUpperCase() + f.name.slice(1))}<span class="tr">${badge}${chev}</span></a>${sub}`;
   }).join('');
 }
 function renderCal() {  // per-day entries in the current tab, 17 weeks, github-style
@@ -431,6 +446,11 @@ function renderCal() {  // per-day entries in the current tab, 17 weeks, github-
   }
   $('#cal').innerHTML = cells;
 }
+// a tab's group list folds; remembered per tab per db, phones start folded
+const foldKey = () => 'jn.fold:' + state.db, phone = matchMedia('(max-width: 760px)');
+const folds = () => { try { return JSON.parse(pref(foldKey(), '{}')); } catch { return {}; } };
+const folded = tab => folds()[tab] ?? phone.matches;
+const setFold = (tab, v) => setPref(foldKey(), JSON.stringify({ ...folds(), [tab]: v }));
 // unread badges: a tab's "new" is entries updated since you last had it open (per browser, per db)
 const seenKey = () => 'jn.seen:' + state.db, stamp = () => new Date().toISOString().slice(0, 19) + '+00:00';
 async function refreshCounts() {
@@ -564,17 +584,19 @@ function go(changes, push = true) { Object.assign(state, changes); toUrl(push); 
 let typing;
 $('#filter').oninput = () => { clearTimeout(typing); typing = setTimeout(() => go({ q: $('#filter').value }, false), 300); };
 $('#filter').onkeydown = e => { if (e.key === 'Enter') { clearTimeout(typing); go({ q: $('#filter').value }); } if (e.key === 'Escape') { $('#filter').value = ''; go({ q: '' }); $('#filter').blur(); } };
-$('#home').onclick = e => { e.preventDefault(); cur = null; $('#det').hidden = true; $('#w').classList.remove('det'); $('#filter').value = ''; go({ tab: '', group: null, q: '' }); };
+$('#home').onclick = e => { e.preventDefault(); cur = null; $('#det').hidden = true; $('#w').classList.remove('det'); $('#filter').value = ''; go({ tab: '', group: null, by: null, q: '' }); };
+$('#by').onchange = () => go({ by: $('#by').value || null, group: null });
 addEventListener('popstate', () => { fromUrl(); if (cur === null) { $('#det').hidden = true; $('#w').classList.remove('det'); } refresh(); });
 
 document.body.addEventListener('click', e => {
   if (e.target.closest('#det .editor') && !e.target.closest('a.ref[data-id],a.tag[data-tag]')) return;  // editor controls stay local
-  const t = e.target.closest('[data-unchip],[data-tab],[data-group],[data-chev],[data-done],a[data-id],a.tag[data-tag],.chip[data-tag],.r[data-id],.act-close');
+  const t = e.target.closest('[data-unchip],[data-tab],[data-fold],[data-group],[data-chev],[data-done],a[data-id],a.tag[data-tag],.chip[data-tag],.r[data-id],.act-close');
   if (!t) return;
   if (t.dataset.done) return;  // the change event handles checkboxes
   if (t.matches('.act-close')) return closeEntry();
   if (t.dataset.unchip) { const x = t.dataset.unchip; state.extra.includes(x) ? state.extra.splice(state.extra.indexOf(x), 1) : state.dropped.add(x); return renderChips(); }
-  if (t.dataset.tab) { e.preventDefault(); state.exp = {}; state.extra = []; state.dropped.clear(); $('#filter').value = ''; go({ tab: t.dataset.tab, group: null, q: '' }); return refreshCounts(); }
+  if (t.dataset.tab) { e.preventDefault(); state.exp = {}; state.extra = []; state.dropped.clear(); $('#filter').value = ''; go({ tab: t.dataset.tab, group: null, by: null, q: '' }); return refreshCounts(); }
+  if (t.dataset.fold !== undefined) { e.preventDefault(); setFold(t.dataset.fold, !folded(t.dataset.fold)); return render(); }
   if (t.dataset.group !== undefined) { state.dropped.clear(); return go({ group: state.group === t.dataset.group ? null : t.dataset.group }); }
   if (t.dataset.chev) { e.stopPropagation(); state.exp[t.dataset.chev] = !state.exp[t.dataset.chev]; return render(); }
   if (t.dataset.tag !== undefined) {  // a tag anywhere narrows the search
