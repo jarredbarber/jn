@@ -243,9 +243,20 @@ tasks   = "@todo -@done -@archived --all --as=tasks --by=project"
 agents  = "@agent --all --by=agent"
 ```
 
-Quick entry adds the open tab's positive, exact tags and the selected group, shown as chips you can remove: in Tasks › infra a new entry gets `@todo @project=infra`. Reply in the detail pane adds `@parent=#N`. The search box takes `ls` tokens and words and narrows the tab. Keys: `/` search, `c` quick entry, `,` settings, `j`/`k` next and previous entry, `e` edit, `Esc` close.
+Quick entry adds the open tab's positive, exact tags and the selected group, shown as chips you can remove: in Tasks › infra a new entry gets `@todo @project=infra`. Reply in the detail pane adds `@parent=#N`. The search box takes `ls` tokens and words and narrows the tab; an id (`42` or `#42`) always shows that entry, whatever the tab hides. Keys: `/` search, `c` quick entry, `,` settings, `j`/`k` next and previous entry, `e` edit, `Esc` close.
 
 Colors come from a base16 palette, so a scheme is sixteen colors plus the slot used as the accent. Settings (the gear beside the logo, or `,`) picks the scheme (`github`, the default, `vague`, `everforest`) and light, dark, or the system setting; the choice is per browser. Add a scheme by adding an entry to `THEMES` in `jn_web.html`.
+
+### Project view (`/pm`)
+
+`jn serve` also serves `http://127.0.0.1:8787/pm`, a page for tracking projects worked by agent swarms. It reads the same journal and uses the same API.
+
+- **Home**: what waits on a human (`@needs-triage`, `@needs-info`, `@ready-for-human`, and `@in-progress` tickets quiet for 6 hours), with one-click retags, then one row per `@project` with counts by state, 14 days of activity and the latest entry.
+- **Project or ticket** (`#/p/<project>`, `#/t/<id>`): its tickets grouped by state, each with the newest note that points at it; a Journal tab (filters for `@decision`, `@experiment`, humans); a Dependencies tab drawing open `@blocked_by` chains.
+- **Entry** (`#/e/<id>`): the entry, a thread of everything pointing at it (`@parent` replies and subtasks, `@blocked_by`, any other pointer tag, `#N` in text), and a reply box that adds `@parent=#N`.
+- **Search** covers every entry, done included. A bare `42` or `#42` opens that entry.
+
+A project is an entry's `@project`, or its nearest `@parent`'s. "Blocked" is computed from open `@blocked_by` targets. The state tags are the triage roles in `docs/agents/triage-labels.md` plus `@in-progress`; they are listed at the top of `jn_pm.html`.
 
 ### Pages and unread badges (web)
 
