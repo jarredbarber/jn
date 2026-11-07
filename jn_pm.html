@@ -112,6 +112,14 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 .node:hover{text-decoration:none;border-color:var(--acc)}
 .node .t{font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .node.ext{border-style:dashed}
+#menu{position:relative}
+#menu summary{list-style:none;cursor:pointer;width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--bd);border-radius:6px;background:var(--bg)}
+#menu summary::-webkit-details-marker{display:none}
+#menu nav{position:absolute;top:38px;left:0;width:300px;max-height:70vh;overflow-y:auto;background:var(--bg);border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);padding:6px;z-index:10}
+#menu nav a{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:6px;color:var(--fg);font-size:13px}
+#menu nav a:hover,#menu nav a.on{background:var(--acc-bg);text-decoration:none}
+#menu nav a span{color:var(--mut);font-size:12px;white-space:nowrap}
+#menu nav .h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);padding:8px 10px 4px}
 #flash{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;display:none;z-index:9}
 #flash a{color:var(--bg);text-decoration:underline}
 .empty{color:var(--mut);padding:16px 0}
@@ -122,6 +130,7 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 </head>
 <body>
 <header>
+<details id="menu"><summary aria-label="Switch project" title="Projects (p)"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary><nav id="menunav" aria-label="Projects"></nav></details>
 <a class="logo" href="#/">jn</a>
 <select id="dbsel" hidden aria-label="Journal"></select>
 <nav id="crumbs" aria-label="Breadcrumb"></nav>
@@ -278,11 +287,22 @@ function render() {
     html = kind === 'p' ? subtree({ kind, name: a }, mode) : kind === 't' ? subtree({ kind, id: +a }, mode) : kind === 'e' ? entryPage(+a) : kind === 's' ? searchPage(a) : home();
   } catch (e) { html = `<p class="empty">${esc(e.message)}</p>`; }
   $('#app').innerHTML = html;
+  renderMenu(kind === 'p' ? a : kind === 't' || kind === 'e' ? (E.get(+a) ? project(E.get(+a)) : '') : '');
   $('#ctx').textContent = ctx.length ? '+ ' + ctx.join(' ') : '';
   window.scrollTo(0, y);
 }
 const crumbs = parts => { $('#crumbs').innerHTML = parts.map((p, i) => i === parts.length - 1 ? `<b>${p}</b>` : p).join('<span>/</span>'); };
 const homeLink = '<a href="#/">Home</a>';
+
+// ---- the project switcher: every project, most recently active first; inactive ones under a heading
+function renderMenu(cur) {
+  const P = new Map();
+  for (const r of E.values()) { const p = project(r); if (!p) continue; const v = P.get(p) || { open: 0, latest: '' }; if (isTodo(r) && !has(r, 'done')) v.open++; if (r.updated > v.latest) v.latest = r.updated; P.set(p, v); }
+  const ps = [...P].sort((x, y) => y[1].latest.localeCompare(x[1].latest));
+  const a = ([n, v]) => `<a href="${pHref(n)}" class="${n === cur ? 'on' : ''}">${esc(n)}<span>${v.open} open · ${ago(v.latest)}</span></a>`;
+  const act = ps.filter(([, v]) => hours(v.latest) < INACTIVE_D * 24), old = ps.filter(([, v]) => hours(v.latest) >= INACTIVE_D * 24);
+  $('#menunav').innerHTML = `<a href="#/">Home</a><div class="h">Projects</div>${act.map(a).join('')}${old.length ? '<div class="h">Inactive</div>' + old.map(a).join('') : ''}`;
+}
 
 // ---- Home: what waits on a human, then one row per project
 let seenAt = '';
@@ -528,6 +548,7 @@ $('#q').addEventListener('keydown', e => {
   location.hash = /^#?\d+$/.test(q) ? eHref(q.replace('#', '')) : '#/s/' + encodeURIComponent(q);
 });
 document.addEventListener('click', async e => {
+  if (!e.target.closest('#menu')) $('#menu').open = false;
   const b = e.target.closest('button'); if (!b) return;
   const { kind, a } = parse(), id = +a;
   if (b.dataset.tag) return act(() => api('tag', { id: +b.dataset.tag, patch: JSON.parse(b.dataset.patch) }), () => `#${b.dataset.tag} updated`);
@@ -549,13 +570,15 @@ document.addEventListener('submit', async e => {
   if (f.id === 'editform') { const t = $('#edtext').value; ui.editing = null; await act(() => api('edit', { id, text: t }), () => `#${id} saved`); }
 });
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#menu').open) { $('#menu').open = false; return; }
   if (e.target.id === 'replytext' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('#replyform').requestSubmit(); return; }
   if (e.target.closest('input,textarea,select') || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === '/') { e.preventDefault(); $('#q').focus(); }
   else if (e.key === 'c') { e.preventDefault(); $('#cap').focus(); }
   else if (e.key === 'g') location.hash = '#/';
+  else if (e.key === 'p') { e.preventDefault(); $('#menu').open = true; $('#menunav a')?.focus(); }
 });
-addEventListener('hashchange', () => { ui.editing = null; ui.tfilter = 'all'; render(); scrollTo(0, 0); });
+addEventListener('hashchange', () => { $('#menu').open = false; ui.editing = null; ui.tfilter = 'all'; render(); scrollTo(0, 0); });
 // live: re-read the journal every 30s while visible, unless you are typing. ponytail: polling; the server has no push
 setInterval(async () => {
   const a = document.activeElement;
