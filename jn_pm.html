@@ -4,20 +4,38 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>jn · projects</title>
+<meta name="theme-color" content="#0d1117">
+<script src="/theme.js"></script>
 <style>
-:root{--bg:#fff;--bg2:#f6f8fa;--bd:#d0d7de;--bd2:#eaeef2;--fg:#1f2328;--mut:#59636e;--acc:#0969da;--acc-bg:#ddf4ff;
---prog:#116329;--prog-bg:#dafbe1;--triage:#953800;--triage-bg:#fff1e5;--human:#6639ba;--human-bg:#fbefff;--agent:#0550ae;--agent-bg:#ddf4ff;
---blocked:#a40e26;--blocked-bg:#ffebe9;--done:#59636e;--done-bg:#eaeef2;--edge:#8c959f;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg2:#151b23;--bd:#3d444d;--bd2:#262c36;--fg:#e6edf3;--mut:#9198a1;--acc:#4493f8;--acc-bg:#121d2f;
---prog:#3fb950;--prog-bg:#12261e;--triage:#f0883e;--triage-bg:#2a1a0e;--human:#ab7df8;--human-bg:#221a33;--agent:#4493f8;--agent-bg:#121d2f;
---blocked:#f85149;--blocked-bg:#2d1214;--done:#9198a1;--done-bg:#262c36;--edge:#656c76;color-scheme:dark}}
+:root{  /* base16, like jn_web.html: /theme.js sets the 16 + --acc; these github defaults paint before it runs */
+--base00:#0d1117;--base01:#161b22;--base02:#30363d;--base03:#6e7681;--base04:#8b949e;--base05:#e6edf3;--base08:#ff7b72;--base09:#f0883e;--base0B:#3fb950;--base0D:#58a6ff;--base0E:#bc8cff;--acc:var(--base0D)}
+@media (prefers-color-scheme:light){:root{--base00:#fff;--base01:#f6f8fa;--base02:#d0d7de;--base03:#57606a;--base04:#32383f;--base05:#1f2328;--base08:#cf222e;--base09:#bc4c00;--base0B:#116329;--base0D:#0969da;--base0E:#8250df}}
+:root{--bg:var(--base00);--bg2:var(--base01);--bd:var(--base02);--bd2:color-mix(in srgb,var(--base05) 10%,var(--base00));--fg:var(--base05);
+--mut:color-mix(in srgb,var(--base05) 64%,var(--base00));--acc-bg:color-mix(in srgb,var(--acc) 15%,var(--base00));--edge:var(--base03);
+--prog:var(--base0B);--triage:var(--base09);--human:var(--base0E);--agent:var(--base0D);--blocked:var(--base08);--done:var(--mut);
+--prog-bg:color-mix(in srgb,var(--prog) 15%,var(--base00));--triage-bg:color-mix(in srgb,var(--triage) 15%,var(--base00));--human-bg:color-mix(in srgb,var(--human) 14%,var(--base00));
+--agent-bg:color-mix(in srgb,var(--agent) 15%,var(--base00));--blocked-bg:color-mix(in srgb,var(--blocked) 14%,var(--base00));--done-bg:color-mix(in srgb,var(--base05) 9%,var(--base00))}
+#gear{border:0;background:none;padding:2px 4px;color:var(--mut);font-size:15px;line-height:1}#classic{font-size:12px;color:var(--mut);white-space:nowrap}#gear:hover,#classic:hover{color:var(--acc);text-decoration:none}
+#settings{background:var(--bg2);color:var(--fg);border:1px solid var(--bd);border-radius:10px;padding:16px 18px 18px;width:min(460px,calc(100vw - 32px));box-shadow:0 12px 40px #0008}
+#settings::backdrop{background:color-mix(in srgb,var(--base00) 55%,transparent)}
+#settings .sh{display:flex;align-items:center;font-size:14px;font-weight:600}#settings .sh button{margin-left:auto;border:0;background:none;font-size:15px}
+#settings .lab{margin:16px 0 6px;font-size:12px;color:var(--mut)}
+.schemes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.scheme{display:flex;flex-direction:column;gap:7px;padding:9px 10px;border:1px solid var(--bd);border-radius:8px;cursor:pointer}
+.scheme:hover{border-color:var(--mut)}.scheme:has(input:checked){border-color:var(--acc);box-shadow:0 0 0 2px var(--acc-bg)}
+.scheme input,.seg input{position:absolute;opacity:0;pointer-events:none}
+.scheme .nm{display:flex;justify-content:space-between;font-weight:500}.scheme .nm small{color:var(--mut);font-weight:400}
+.sw{display:flex;border-radius:4px;overflow:hidden;height:16px}.sw i{flex:1}
+.seg{display:inline-flex;border:1px solid var(--bd);border-radius:7px;overflow:hidden}
+.seg label{padding:5px 14px;cursor:pointer;color:var(--mut)}.seg label+label{border-left:1px solid var(--bd)}
+.seg label:has(input:checked){background:var(--acc-bg);color:var(--fg)}.seg label:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:-2px}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;font-size:12px}
 button:hover{border-color:var(--mut)}
-button.pri{background:#1f883d;border-color:#1a7f37;color:#fff;font-weight:600}
+button.pri{background:var(--prog);border-color:var(--prog);color:var(--base00);font-weight:600}
 input[type=text],input[type=search],textarea,select{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:6px 10px;font-size:13px}
 .mono,.id{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
 .id{font-size:12px;color:var(--mut)}
@@ -64,7 +82,7 @@ td.z{color:var(--mut)}
 .bar i{display:block;height:8px}
 .tabs{display:flex;border:1px solid var(--bd);border-radius:8px;overflow:hidden}
 .tabs a{padding:6px 14px;font-size:13px;color:var(--fg)}
-.tabs a.on{background:var(--acc);color:#fff;font-weight:600}
+.tabs a.on{background:var(--acc);color:var(--base00);font-weight:600}
 .tabs a:hover{text-decoration:none}
 .top{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 4px}
@@ -133,6 +151,8 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 <details id="menu"><summary aria-label="Switch project" title="Projects (p)"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary><nav id="menunav" aria-label="Projects"></nav></details>
 <a class="logo" href="#/">jn</a>
 <select id="dbsel" hidden aria-label="Journal"></select>
+<a id="classic" href="/" title="Switch to the journal view">journal view</a>
+<button id="gear" type="button" aria-label="Settings" title="Settings  ( , )">⚙</button>
 <nav id="crumbs" aria-label="Breadcrumb"></nav>
 <form id="capbox" autocomplete="off">
 <label for="cap" hidden>New entry</label>
@@ -145,6 +165,11 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 </header>
 <main id="app"><p class="empty">Loading…</p></main>
 <div id="flash" role="status"></div>
+<dialog id="settings" aria-label="Settings"><form method="dialog">
+<div class="sh">Settings<button value="close" aria-label="Close">✕</button></div>
+<div class="lab">Color scheme · shared with the journal view</div><div class="schemes" id="schemes"></div>
+<div class="lab">Appearance</div><div class="seg" id="modes"><label><input type="radio" name="mode" value="system">system</label><label><input type="radio" name="mode" value="dark">dark</label><label><input type="radio" name="mode" value="light">light</label></div>
+</form></dialog>
 <script>
 // The triage vocabulary (mattpocock/skills roles + @in-progress). ponytail: lives here; a [pm] section in ~/.jn when someone uses other names
 const STATES = [
@@ -160,7 +185,29 @@ const STATE_TAGS = STATES.map(s => '-@' + s.tag);
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const DB = new URLSearchParams(location.search).get('db') || '';
+let DB = new URLSearchParams(location.search).get('db') || '';
+try { DB = DB || localStorage.getItem('jn.db') || ''; } catch { }  // the journal view keeps its db choice here; follow it
+
+// ---- color scheme: THEMES and jnPalette() come from /theme.js
+const pref = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
+const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch { } };
+const lightMq = matchMedia('(prefers-color-scheme: light)');
+function applyTheme() {
+  const { p, acc } = jnPalette(), st = document.documentElement.style;
+  for (const [k, v] of Object.entries(p)) st.setProperty('--' + k, v);
+  st.setProperty('--acc', `var(--${acc})`); document.querySelector('meta[name=theme-color]').content = p.base00;
+  const sel = THEMES[pref('jn.theme', 'github')] ? pref('jn.theme', 'github') : 'github', m = pref('jn.mode', 'system'), want = m === 'system' ? (lightMq.matches ? 'light' : 'dark') : m;
+  $('#schemes').innerHTML = Object.entries(THEMES).map(([n, t]) => {
+    const q = t[want] || t.dark || t.light, sw = ['base00', 'base01', 'base05', t.acc, 'base08', 'base0B', 'base0D', 'base0E'].map(k => `<i style="background:${q[k]}"></i>`).join('');
+    return `<label class="scheme"><input type="radio" name="scheme" value="${n}"${n === sel ? ' checked' : ''}><span class="nm">${n}<small>${['dark', 'light'].filter(v => t[v]).join(' + ')}</small></span><span class="sw">${sw}</span></label>`;
+  }).join('');
+  for (const r of document.querySelectorAll('#modes input')) r.checked = r.value === m;
+}
+$('#settings').addEventListener('change', e => { if (e.target.name === 'scheme') setPref('jn.theme', e.target.value); if (e.target.name === 'mode') setPref('jn.mode', e.target.value); applyTheme(); });
+$('#gear').onclick = () => $('#settings').showModal();
+lightMq.addEventListener('change', applyTheme);
+addEventListener('storage', e => { if (e.key === 'jn.theme' || e.key === 'jn.mode') applyTheme(); });  // changed in the other view's tab
+applyTheme();
 async function api(verb, body = {}) {
   const r = await fetch('/api/' + verb, { method: 'POST', body: JSON.stringify(DB ? { ...body, db: DB } : body) });
   const j = await r.json(); if (!r.ok) throw new Error(j.error); return j.out;
@@ -572,7 +619,8 @@ document.addEventListener('submit', async e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('#menu').open) { $('#menu').open = false; return; }
   if (e.target.id === 'replytext' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('#replyform').requestSubmit(); return; }
-  if (e.target.closest('input,textarea,select') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if ($('#settings').open || e.target.closest('input,textarea,select') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === ',') { e.preventDefault(); return $('#settings').showModal(); }
   if (e.key === '/') { e.preventDefault(); $('#q').focus(); }
   else if (e.key === 'c') { e.preventDefault(); $('#cap').focus(); }
   else if (e.key === 'g') location.hash = '#/';
@@ -592,7 +640,7 @@ setInterval(async () => {
   try {
     const dbs = await api('dbs');
     if (dbs.length) { const s = $('#dbsel'); s.hidden = false; s.innerHTML = `<option value="">default</option>` + dbs.map(n => `<option${n === DB ? ' selected' : ''}>${esc(n)}</option>`).join('');
-      s.onchange = () => { const u = new URL(location); s.value ? u.searchParams.set('db', s.value) : u.searchParams.delete('db'); location = u; }; }
+      s.onchange = () => { setPref('jn.db', s.value); const u = new URL(location); s.value ? u.searchParams.set('db', s.value) : u.searchParams.delete('db'); location = u; }; }
     await load(); render();
   } catch (e) { $('#app').innerHTML = `<p class="empty">${esc(e.message)}</p>`; }
 })();

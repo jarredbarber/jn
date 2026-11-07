@@ -208,6 +208,8 @@ def server(jn, host, port):
             path, _, qs = self.path.partition("?")  # the page keeps its query in the URL
             if path in ("/", "/pm"):  # /pm: the project-management page (jn_pm.html); same API
                 self.send(200, (HERE / ("jn_pm.html" if path == "/pm" else "jn_web.html")).read_text(), "text/html; charset=utf-8")
+            elif path == "/theme.js":  # base16 palettes, shared by both pages
+                self.send(200, (HERE / "jn_theme.js").read_text(), "text/javascript; charset=utf-8")
             elif path == "/manifest.json":
                 self.send(200, json.dumps({"name": "jn", "short_name": "jn", "start_url": "/", "display": "standalone",
                                            "background_color": "#111", "theme_color": "#111", "icons": []}), "application/manifest+json")
