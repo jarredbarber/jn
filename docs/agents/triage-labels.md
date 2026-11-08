@@ -8,6 +8,7 @@ The skills speak in terms of five canonical triage roles. In this repo a "label"
 | `needs-info`               | `@needs-info`       | Waiting on reporter for more information |
 | `ready-for-agent`          | `@ready-for-agent`  | Fully specified, ready for an AFK agent  |
 | `ready-for-human`          | `@ready-for-human`  | Requires human implementation            |
+| `backlog` (jn addition)    | `@backlog`          | Tracked, not approved to work on yet     |
 | `wontfix`                  | `@wontfix`          | Will not be actioned; also add `@done`   |
 
 When a skill mentions a role, apply the corresponding tag and remove the previous triage tag. Query the queue with `jn ls @todo @needs-triage`.

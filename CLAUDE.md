@@ -19,7 +19,7 @@ The current special tags are:
 **DB**: None
 **Default Config**: `@archived`, `@todo`, `@done`, `@parent`, `@blocked_by`, `@agent` (auto-stamped via `builtin_tags()`, used by `--mine`), `@project` (`--by` of the built-in `journal`/`tasks` views: the web sidebar list)
 **CLI** (hardcoded in `jn.py`): `@files` (`attach`), `@parent` (`show` nests children, `ls` prints a `↳ #N` context line on rows whose parent isn't shown; `--tree` defaults to it, but any pointer tag works).
-**PM page** (`jn_pm.html`, served at `/pm`): `STATES` at the top of the script (`@in-progress`, `@needs-triage`, `@needs-info`, `@ready-for-human`, `@ready-for-agent`), plus `@todo`, `@done`, `@wontfix`, `@project`, `@parent`, `@blocked_by`, `@decision`, `@experiment`, `@agent`, `@files`.
+**PM page** (`jn_pm.html`, served at `/pm`): `ROLES` at the top of the script are defaults the Settings dialog renames per browser (`@in-progress`, `@needs-triage`, `@needs-info`, `@ready-for-human`, `@ready-for-agent`, `@backlog`, `@wontfix`, `@project`, `@blocked_by`, `@decision`, `@experiment`); fixed: `@todo`, `@done`, `@parent`, `@agent`, `@files`. Code reads a role's tag as `T[role]` / `at(role)`, never a literal.
 **Web UI** (`jn_web.html`/`jn_web.py`): `@todo` (shows the Mark done button), `@done` (struck-through, done toggle), `@files` (attachment embeds, hidden from tag chips), `@parent` (Reply button, breadcrumb and children in the detail pane, nesting in `--as=tasks` tabs)
 
 Adding a tag to these lists needs a reason. Prefer a config filter or action.
