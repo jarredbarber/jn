@@ -256,7 +256,7 @@ Colors come from a base16 palette, so a scheme is sixteen colors plus the slot u
 - **Entry** (`#/e/<id>`): the entry, a thread of everything pointing at it (`@parent` replies and subtasks, `@blocked_by`, any other pointer tag, `#N` in text), and a reply box that adds `@parent=#N`.
 - **Search** covers every entry, done included. A bare `42` or `#42` opens that entry.
 
-A project is an entry's `@project`, or its nearest `@parent`'s. "Blocked" is computed from open `@blocked_by` targets. The state tags are the triage roles in `docs/agents/triage-labels.md` plus `@in-progress`; they are listed at the top of `jn_pm.html`.
+A project is an entry's `@project`, or its nearest `@parent`'s. "Blocked" is computed from open `@blocked_by` targets. The state tags are the triage roles in `docs/agents/triage-labels.md` plus `@in-progress`. Settings (⚙ or `,`) renames any of these tags, along with `@wontfix`, `@project`, `@blocked_by`, `@decision` and `@experiment`, if your journal uses other names. The names are kept per browser in `localStorage`. `@todo`, `@done` and `@parent` are jn's own and don't change.
 
 ### Pages and unread badges (web)
 

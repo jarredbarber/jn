@@ -19,6 +19,7 @@
 #settings::backdrop{background:color-mix(in srgb,var(--base00) 55%,transparent)}
 #settings .sh{display:flex;align-items:center;font-size:14px;font-weight:600}#settings .sh button{margin-left:auto;border:0;background:none;font-size:15px}
 #settings .lab{margin:16px 0 6px;font-size:12px;color:var(--mut)}
+#roles{display:grid;gap:5px}.role{display:grid;grid-template-columns:130px auto 1fr;align-items:center;gap:3px;font-size:12px;color:var(--mut)}.role input{min-width:0;padding:3px 6px;font-size:12px;color:var(--fg)}
 .schemes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .scheme{display:flex;flex-direction:column;gap:7px;padding:9px 10px;border:1px solid var(--bd);border-radius:8px;cursor:pointer}
 .scheme:hover{border-color:var(--mut)}.scheme:has(input:checked){border-color:var(--acc);box-shadow:0 0 0 2px var(--acc-bg)}
@@ -167,7 +168,7 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 <label for="cap" hidden>New entry</label>
 <input id="cap" type="text" placeholder="New entry …   Enter logs, ⇧Enter files a ticket">
 <span class="ctx" id="ctx"></span>
-<button type="button" id="ticket" title="Log with @todo @needs-triage (⇧Enter)">Ticket</button>
+<button type="button" id="ticket" title="Log as a triage ticket (⇧Enter)">Ticket</button>
 </form>
 <label for="q" hidden>Search</label>
 <input id="q" type="search" placeholder="Search or #id   /">
@@ -180,19 +181,25 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 <div class="sh">Settings<button value="close" aria-label="Close">✕</button></div>
 <div class="lab">Color scheme · shared with the journal view</div><div class="schemes" id="schemes"></div>
 <div class="lab">Appearance</div><div class="seg" id="modes"><label><input type="radio" name="mode" value="system">system</label><label><input type="radio" name="mode" value="dark">dark</label><label><input type="radio" name="mode" value="light">light</label></div>
+<div class="lab">Tags this page reads · role → tag</div><div id="roles"></div><div class="sm mut" style="margin-top:6px">Blank restores the default. @todo @done @parent are jn's own.</div>
 </form></dialog>
 <script>
-// The triage vocabulary (mattpocock/skills roles + @in-progress). ponytail: lives here; a [pm] section in ~/.jn when someone uses other names
-const STATES = [
-  { tag: 'in-progress', label: 'in progress', cls: 'prog' },
-  { tag: 'needs-triage', label: 'needs triage', cls: 'triage', you: true },
-  { tag: 'needs-info', label: 'needs info', cls: 'triage', you: true },
-  { tag: 'ready-for-human', label: 'ready for human', cls: 'human', you: true },
-  { tag: 'ready-for-agent', label: 'ready for agent', cls: 'agent' },
+// The tags this page reads, by role. Defaults: mattpocock/skills triage roles + @in-progress; Settings renames them (localStorage jn.pmtags, per browser).
+// @todo @done @parent @agent @files are jn's own and stay fixed.
+const ROLES = { 'in-progress': 'in-progress', 'needs-triage': 'needs-triage', 'needs-info': 'needs-info', 'ready-for-human': 'ready-for-human', 'ready-for-agent': 'ready-for-agent',
+  wontfix: 'wontfix', project: 'project', blocked_by: 'blocked_by', decision: 'decision', experiment: 'experiment' };
+let T = { ...ROLES };
+try { const o = JSON.parse(localStorage.getItem('jn.pmtags') || '{}'); for (const k in ROLES) if (typeof o[k] === 'string' && /^[\w.:-]+$/.test(o[k])) T[k] = o[k]; } catch { }
+const at = k => '@' + T[k], un = k => '-@' + T[k];
+const STATES = [  // key is the role; the tag it reads is T[key]
+  { key: 'in-progress', label: 'in progress', cls: 'prog' },
+  { key: 'needs-triage', label: 'needs triage', cls: 'triage', you: true },
+  { key: 'needs-info', label: 'needs info', cls: 'triage', you: true },
+  { key: 'ready-for-human', label: 'ready for human', cls: 'human', you: true },
+  { key: 'ready-for-agent', label: 'ready for agent', cls: 'agent' },
 ];
 const STUCK_H = 6, QUIET_D = 2, INACTIVE_D = 30;
-const SINFO = { ...Object.fromEntries(STATES.map(s => [s.tag, s])), blocked: { label: 'blocked', cls: 'blocked' }, open: { label: 'open', cls: 'done' }, done: { label: 'done', cls: 'done' } };
-const STATE_TAGS = STATES.map(s => '-@' + s.tag);
+const SINFO = { ...Object.fromEntries(STATES.map(s => [s.key, s])), blocked: { label: 'blocked', cls: 'blocked' }, open: { label: 'open', cls: 'done' }, done: { label: 'done', cls: 'done' } };
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -216,6 +223,13 @@ function applyTheme() {
 }
 $('#settings').addEventListener('change', e => { if (e.target.name === 'scheme') setPref('jn.theme', e.target.value); if (e.target.name === 'mode') setPref('jn.mode', e.target.value); applyTheme(); });
 $('#gear').onclick = () => $('#settings').showModal();
+$('#roles').innerHTML = Object.keys(ROLES).map(k => `<label class="role"><span>${k.replace(/_/g, ' ')}</span>@<input name="role" data-k="${k}" value="${esc(T[k])}" placeholder="${k}" spellcheck="false"></label>`).join('');
+$('#roles').addEventListener('change', e => {  // applies on change, not on close: every view re-reads T
+  const i = e.target, v = i.value.trim().replace(/^@/, '');
+  if (v && !/^[\w.:-]+$/.test(v)) { i.value = T[i.dataset.k]; return; }  // not a tag name: put it back
+  T[i.dataset.k] = v || ROLES[i.dataset.k]; i.value = T[i.dataset.k];
+  setPref('jn.pmtags', JSON.stringify(Object.fromEntries(Object.entries(T).filter(([k, t]) => t !== ROLES[k])))); render();
+});
 lightMq.addEventListener('change', applyTheme);
 addEventListener('storage', e => { if (e.key === 'jn.theme' || e.key === 'jn.mode') applyTheme(); });  // changed in the other view's tab
 applyTheme();
@@ -245,18 +259,18 @@ const parentOf = r => ptr(r, 'parent')[0];
 function project(r) {  // own @project, else the nearest @parent's
   if (PROJ.has(r.id)) return PROJ.get(r.id);
   let x = r, seen = new Set(), p = '';
-  while (x && !seen.has(x.id)) { if (x.tags.project) { p = x.tags.project.split(',')[0]; break; } seen.add(x.id); x = E.get(parentOf(x)); }
+  while (x && !seen.has(x.id)) { if (x.tags[T.project]) { p = x.tags[T.project].split(',')[0]; break; } seen.add(x.id); x = E.get(parentOf(x)); }
   PROJ.set(r.id, p); return p;
 }
 const ancestors = r => { const out = [], seen = new Set([r.id]); let p; while ((p = E.get(parentOf(r))) && !seen.has(p.id) && out.length < 10) { seen.add(p.id); out.unshift(p); r = p; } return out; };
 function descendants(id) { const out = [], seen = new Set([id]), st = [id]; while (st.length) for (const k of KIDS.get(st.pop()) || []) if (!seen.has(k)) { seen.add(k); out.push(E.get(k)); st.push(k); } return out; }
 const isTodo = r => has(r, 'todo');
-const openBlockers = r => ptr(r, 'blocked_by').filter(i => E.has(i) && !has(E.get(i), 'done'));
+const openBlockers = r => ptr(r, T.blocked_by).filter(i => E.has(i) && !has(E.get(i), 'done'));
 function state(r) {
   if (has(r, 'done')) return 'done';
-  if (has(r, 'in-progress')) return 'in-progress';
+  if (has(r, T['in-progress'])) return 'in-progress';
   if (openBlockers(r).length) return 'blocked';
-  return (STATES.find(s => has(r, s.tag)) || { tag: 'open' }).tag;
+  return (STATES.find(s => has(r, T[s.key])) || { key: 'open' }).key;
 }
 function activity(r) { let t = r.updated; for (const l of IN.get(r.id) || []) { const u = E.get(l.from).updated; if (u > t) t = u; } return t; }
 function lastNote(r) { let b = null; for (const l of IN.get(r.id) || []) { const e = E.get(l.from); if (!isTodo(e) && (!b || e.created > b.created)) b = e; } return b; }  // newest non-ticket pointing here: what is happening on it
@@ -369,22 +383,22 @@ function home() {
   const todos = [...E.values()].filter(r => isTodo(r) && !has(r, 'done'));
   const byAct = (x, y) => activity(y).localeCompare(activity(x));
   const sub = r => [project(r), who(r), ago(activity(r))].filter(Boolean).map(esc).join(' · ');
-  const untriage = ['-@needs-triage', '-@needs-info'];
+  const untriage = [un('needs-triage'), un('needs-info')];
   const groups = [
     ...STATES.filter(s => s.you).map(s => ({
-      title: s.label, cls: s.cls, items: todos.filter(r => has(r, s.tag)).sort(byAct),
-      acts: s.tag === 'ready-for-human'
-        ? [['done', ['@done', '-@ready-for-human']], ['→ agent', ['-@ready-for-human', '@ready-for-agent']]]
-        : [['→ agent', [...untriage, '@ready-for-agent']], ['→ human', [...untriage, '@ready-for-human']], ['won’t do', [...untriage, '@wontfix', '@done']]],
-      q: '@' + s.tag + ' -@done'
+      title: s.label, cls: s.cls, items: todos.filter(r => has(r, T[s.key])).sort(byAct),
+      acts: s.key === 'ready-for-human'
+        ? [['done', ['@done', un('ready-for-human')]], ['→ agent', [un('ready-for-human'), at('ready-for-agent')]]]
+        : [['→ agent', [...untriage, at('ready-for-agent')]], ['→ human', [...untriage, at('ready-for-human')]], ['won’t do', [...untriage, at('wontfix'), '@done']]],
+      q: at(s.key) + ' -@done'
     })),
-    { title: `stuck · in progress, quiet over ${STUCK_H}h`, cls: 'blocked', items: todos.filter(r => has(r, 'in-progress') && hours(activity(r)) > STUCK_H).sort(byAct), acts: [['→ triage', ['-@in-progress', '@needs-triage']]], q: '@in-progress -@done' }
+    { title: `stuck · in progress, quiet over ${STUCK_H}h`, cls: 'blocked', items: todos.filter(r => has(r, T['in-progress']) && hours(activity(r)) > STUCK_H).sort(byAct), acts: [['→ triage', [un('in-progress'), at('needs-triage')]]], q: at('in-progress') + ' -@done' }
   ].filter(g => g.items.length);
   const total = groups.reduce((n, g) => n + g.items.length, 0);
   let since = '';
   if (seenAt) {
     const fresh = [...E.values()].filter(r => r.updated > seenAt);
-    since = `since ${esc(hm(seenAt))}: ${fresh.length} changed · ${fresh.filter(r => has(r, 'decision')).length} decisions · ${fresh.filter(r => has(r, 'done') && isTodo(r)).length} closed`;
+    since = `since ${esc(hm(seenAt))}: ${fresh.length} changed · ${fresh.filter(r => has(r, T.decision)).length} decisions · ${fresh.filter(r => has(r, 'done') && isTodo(r)).length} closed`;
   }
   let h = `<section><div class="top" style="align-items:baseline;justify-content:flex-start"><h2>Waiting on you <span class="mut">${total}</span></h2><span class="sm mut">${since}</span></div>`;
   if (!groups.length) h += '<p class="empty">Nothing is waiting on a human.</p>';
@@ -418,7 +432,7 @@ function home() {
   }
   h += '</tbody></table></div>';
   if (rows.length > active.length) h += `<button class="more" data-ui="inactive">${ui.inactive ? 'hide' : 'show'} ${rows.length - active.length} inactive</button>`;
-  if (!rows.length) h += '<p class="empty">No entries carry @project yet.</p>';
+  if (!rows.length) h += `<p class="empty">No entries carry ${esc(at('project'))} yet.</p>`;
   return h + '</section>';
 }
 
@@ -428,7 +442,7 @@ function subtree(root, mode) {
   let members, name, base, crumbParts;
   if (root.kind === 'p') {
     members = [...E.values()].filter(r => project(r) === root.name); name = root.name; base = pHref(root.name);
-    ctx = ['@project=' + root.name]; crumbParts = [homeLink, esc(root.name)];
+    ctx = [at('project') + '=' + root.name]; crumbParts = [homeLink, esc(root.name)];
   } else {
     const r = E.get(root.id); if (!r) throw new Error(`no entry #${root.id}`);
     members = descendants(root.id); name = title(r); base = tHref(root.id); ctx = ['@parent=#' + root.id];
@@ -451,7 +465,7 @@ function subtree(root, mode) {
 }
 
 function status(todos, st, root) {
-  const SECTIONS = [['In progress', ['in-progress'], 'prog'], ['Needs you', STATES.filter(s => s.you).map(s => s.tag), 'human'], ['Ready for agents', ['ready-for-agent'], 'agent'], ['Blocked', ['blocked'], 'blocked'], ['Open, no triage tag', ['open'], 'done'], ['Done', ['done'], 'done']];
+  const SECTIONS = [['In progress', ['in-progress'], 'prog'], ['Needs you', STATES.filter(s => s.you).map(s => s.key), 'human'], ['Ready for agents', ['ready-for-agent'], 'agent'], ['Blocked', ['blocked'], 'blocked'], ['Open, no triage tag', ['open'], 'done'], ['Done', ['done'], 'done']];
   const inView = new Set(todos.map(r => r.id));
   let h = '';
   for (const [label, keys, cls] of SECTIONS) {
@@ -468,7 +482,7 @@ function status(todos, st, root) {
       const p = parentOf(r), under = p && inView.has(p) && (root.kind !== 't' || p !== root.id) ? `<span class="id">↳ #${p}</span> ` : '';
       const sub = kids.length ? ` <span class="sm mut">· ${kids.filter(k => has(k, 'done')).length}/${kids.length} subtasks</span>` : '';
       h += `<li class="trow">${idLink(r.id)}<span>${under}<a class="t${done ? ' done-t' : ''}" href="${eHref(r.id)}">${esc(title(r))}</a>${sub}</span><span class="who${quiet ? ' warn' : ''}" title="${esc(w)}">${esc(w)}</span><span class="age">${ago(act)}</span>`
-        + (note ? `<a class="note${has(note, 'decision') ? ' isdec' : ''}" href="${eHref(note.id)}" title="${esc(note.content)}">${has(note, 'decision') ? '@decision ' : ''}${esc(title(note))}</a>` : '') + '</li>';
+        + (note ? `<a class="note${has(note, T.decision) ? ' isdec' : ''}" href="${eHref(note.id)}" title="${esc(note.content)}">${has(note, T.decision) ? esc(at('decision')) + ' ' : ''}${esc(title(note))}</a>` : '') + '</li>';
     }
     h += '</ul>' + (done && items.length > 5 ? `<button class="more" data-ui="doneAll">${ui.doneAll ? 'show fewer' : `show all ${items.length}`}</button>` : '') + '</section>';
   }
@@ -476,14 +490,14 @@ function status(todos, st, root) {
 }
 
 function journal(members) {
-  const F = { all: () => true, decision: r => has(r, 'decision'), experiment: r => has(r, 'experiment'), humans: r => !('agent' in r.tags), notes: r => !isTodo(r) };
+  const F = { all: () => true, decision: r => has(r, T.decision), experiment: r => has(r, T.experiment), humans: r => !('agent' in r.tags), notes: r => !isTodo(r) };
   const f = F[ui.jfilter] || F.all, rs = members.filter(f).sort((x, y) => y.created.localeCompare(x.created) || y.id - x.id);
-  let h = `<div class="chips" role="group" aria-label="Show">${[['all', 'everything'], ['notes', 'notes only'], ['decision', '@decision'], ['experiment', '@experiment'], ['humans', 'humans']].map(([k, l]) => `<button data-jf="${k}" class="${ui.jfilter === k ? 'on' : ''}">${l}</button>`).join('')}</div><div style="max-width:780px">`;
+  let h = `<div class="chips" role="group" aria-label="Show">${[['all', 'everything'], ['notes', 'notes only'], ['decision', esc(at('decision'))], ['experiment', esc(at('experiment'))], ['humans', 'humans']].map(([k, l]) => `<button data-jf="${k}" class="${ui.jfilter === k ? 'on' : ''}">${l}</button>`).join('')}</div><div style="max-width:780px">`;
   let last = '';
   for (const r of rs.slice(0, 300)) {
     const d = dayKey(r.created); if (d !== last) { h += `<div class="day">${esc(d)}</div>`; last = d; }
-    const p = E.get(parentOf(r)), dec = has(r, 'decision'), exp = has(r, 'experiment');
-    const head = isTodo(r) ? `${pill(state(r))} ` : dec ? '<span class="pill s-human">@decision</span> ' : exp ? '<span class="pill s-agent">@experiment</span> ' : '';
+    const p = E.get(parentOf(r)), dec = has(r, T.decision), exp = has(r, T.experiment);
+    const head = isTodo(r) ? `${pill(state(r))} ` : dec ? '<span class="pill s-human">' + esc(at('decision')) + '</span> ' : exp ? '<span class="pill s-agent">' + esc(at('experiment')) + '</span> ' : '';
     h += `<article class="jitem"><span class="at">${hm(r.created)}</span><div class="b${dec ? ' dec' : exp ? ' exp' : ''}">${head}${isTodo(r) ? `<a href="${eHref(r.id)}" style="color:var(--fg);font-weight:500">${esc(title(r))}</a>` : `<div class="clamp">${md(r.content)}</div>`}
       <div class="meta">${esc(who(r))} · ${idLink(r.id)}${p ? ` · on <a href="${eHref(p.id)}">#${p.id} ${esc(title(p).slice(0, 60))}</a>` : ''}</div></div></article>`;
   }
@@ -544,28 +558,28 @@ function entryPage(id) {
 
   const links = new Map();  // entry -> its relations to this one
   for (const l of IN.get(id) || []) (links.get(l.from) || links.set(l.from, []).get(l.from)).push(l.rel);
-  const relLabel = (e, rel) => rel === 'parent' ? (isTodo(e) ? 'subtask' : 'reply') : rel === 'blocked_by' ? 'waits on this' : rel === 'mention' ? 'mentions #' + id : '@' + rel + ' → #' + id;
-  const kind = (e, rels) => rels.includes('mention') && rels.length === 1 ? 'mentions' : rels.includes('parent') && isTodo(e) ? 'subtasks' : rels.includes('blocked_by') ? 'blockers' : 'replies';
+  const relLabel = (e, rel) => rel === 'parent' ? (isTodo(e) ? 'subtask' : 'reply') : rel === T.blocked_by ? 'waits on this' : rel === 'mention' ? 'mentions #' + id : '@' + rel + ' → #' + id;
+  const kind = (e, rels) => rels.includes('mention') && rels.length === 1 ? 'mentions' : rels.includes('parent') && isTodo(e) ? 'subtasks' : rels.includes(T.blocked_by) ? 'blockers' : 'replies';
   const thread = [...links].map(([f, rels]) => [E.get(f), rels]).sort(([a], [b]) => a.created.localeCompare(b.created));
   const counts = { all: thread.length }; for (const [e, rels] of thread) counts[kind(e, rels)] = (counts[kind(e, rels)] || 0) + 1;
   const shown = thread.filter(([e, rels]) => ui.tfilter === 'all' || kind(e, rels) === ui.tfilter);
   h += `<div class="top" style="margin:28px 0 6px;border-top:1px solid var(--bd);padding-top:14px;align-items:baseline"><h2>Thread <span class="mut" style="font-weight:400">${thread.length} · oldest first</span></h2>
     <div class="chips" style="margin:0" role="group" aria-label="Thread filter">${['all', 'replies', 'subtasks', 'blockers', 'mentions'].filter(k => counts[k] || k === 'all').map(k => `<button data-tf="${k}" class="${ui.tfilter === k ? 'on' : ''}">${k} ${counts[k] || 0}</button>`).join('')}</div></div><ol class="thread">`;
   for (const [e, rels] of shown) {
-    const dec = has(e, 'decision');
-    h += `<li><div class="w"><b>${esc(who(e))}</b>${esc(dayKey(e.created))} ${hm(e.created)}</div><div class="c${dec ? ' dec' : ''}"><div class="rel">${rels.map(x => `<span>${esc(relLabel(e, x))}</span>`).join('')}${isTodo(e) ? pill(state(e)) : ''}${dec ? '<span class="pill s-human">@decision</span>' : ''}${idLink(e.id)}</div>${isTodo(e) ? `<a href="${eHref(e.id)}" style="color:var(--fg);font-weight:500">${esc(title(e))}</a>` : md(e.content)}</div></li>`;
+    const dec = has(e, T.decision);
+    h += `<li><div class="w"><b>${esc(who(e))}</b>${esc(dayKey(e.created))} ${hm(e.created)}</div><div class="c${dec ? ' dec' : ''}"><div class="rel">${rels.map(x => `<span>${esc(relLabel(e, x))}</span>`).join('')}${isTodo(e) ? pill(state(e)) : ''}${dec ? '<span class="pill s-human">' + esc(at('decision')) + '</span>' : ''}${idLink(e.id)}</div>${isTodo(e) ? `<a href="${eHref(e.id)}" style="color:var(--fg);font-weight:500">${esc(title(e))}</a>` : md(e.content)}</div></li>`;
   }
   if (!thread.length) h += '<li class="empty" style="border:0">Nothing points at this entry yet.</li>';
-  h += `</ol><form class="reply" id="replyform"><label for="replytext" hidden>Reply</label><textarea id="replytext" rows="3" placeholder="Reply to #${id} … add @decision to record a call; ⌘Enter sends"></textarea>
+  h += `</ol><form class="reply" id="replyform"><label for="replytext" hidden>Reply</label><textarea id="replytext" rows="3" placeholder="Reply to #${id} … add ${esc(at('decision'))} to record a call; ⌘Enter sends"></textarea>
     <div class="bar2"><span class="sm mut">Reply adds @parent=#${id}</span><span style="display:flex;gap:6px"><button type="button" data-act="subtask">As subtask</button><button class="pri">Reply</button></span></div></form></div>`;
 
   const li = (e, k, kc = '') => `<li><span class="k ${kc}">${esc(k)}</span><a href="${eHref(e.id)}" style="color:var(--fg);min-width:0">#${e.id} ${esc(title(e))}</a></li>`;
   const stLi = e => { const s = state(e); return li(e, SINFO[s].label, 'c-' + SINFO[s].cls); };
   const grp = (t, items) => items.length ? `<section><h4>${t}</h4><ul>${items.join('')}</ul></section>` : '';
   const par = E.get(parentOf(r)), kids = (KIDS.get(id) || []).map(k => E.get(k)), sk = kids.filter(isTodo);
-  const waitsOn = ptr(r, 'blocked_by').filter(i => E.has(i)).map(i => E.get(i));
-  const waitedBy = thread.filter(([, rels]) => rels.includes('blocked_by')).map(([e]) => e);
-  const other = r.out.filter(o => o.rel !== 'parent' && o.rel !== 'blocked_by' && E.has(o.to));
+  const waitsOn = ptr(r, T.blocked_by).filter(i => E.has(i)).map(i => E.get(i));
+  const waitedBy = thread.filter(([, rels]) => rels.includes(T.blocked_by)).map(([e]) => e);
+  const other = r.out.filter(o => o.rel !== 'parent' && o.rel !== T.blocked_by && E.has(o.to));
   h += `<aside>${grp('Part of', par ? [li(par, '@parent')] : [])}${grp(`Subtasks · ${sk.filter(k => has(k, 'done')).length}/${sk.length}`, sk.map(stLi))}
     ${grp('Waits on', waitsOn.map(stLi))}${grp('Waiting on this', waitedBy.map(stLi))}${grp('Points to', other.map(o => li(E.get(o.to), o.rel === 'mention' ? 'mentions' : '@' + o.rel)))}
     <section class="mut" style="border-top:1px solid var(--bd);padding-top:12px;line-height:1.7">by ${esc(who(r))}<br>created ${esc(dayKey(r.created))} ${hm(r.created)}<br>updated ${ago(r.updated)} ago${p ? `<br>project <a href="${pHref(p)}">${esc(p)}</a>` : ''}</section></aside></div>`;
@@ -594,7 +608,7 @@ async function act(fn, done) { try { const out = await fn(); await load(); rende
 const withCtx = text => text + ctx.filter(t => !new RegExp('(^|\\s)' + t.split('=')[0] + '=').test(text)).map(t => ' ' + t).join('');
 async function capture(ticket) {
   const el = $('#cap'), text = el.value.trim(); if (!text) return;
-  await act(() => api('log', { text: withCtx((ticket ? '@todo @needs-triage ' : '') + text) }), id => `logged <a href="${eHref(id)}">#${id}</a>`);
+  await act(() => api('log', { text: withCtx((ticket ? '@todo ' + at('needs-triage') + ' ' : '') + text) }), id => `logged <a href="${eHref(id)}">#${id}</a>`);
   el.value = '';
 }
 $('#capbox').addEventListener('submit', e => { e.preventDefault(); capture(false); });
@@ -613,11 +627,11 @@ document.addEventListener('click', async e => {
   if (b.dataset.jf) { ui.jfilter = b.dataset.jf; return render(); }
   if (b.dataset.tf) { ui.tfilter = b.dataset.tf; return render(); }
   if (kind !== 'e') return;
-  if (b.dataset.act === 'done') return act(() => api('tag', { id, patch: ['@done', '-@in-progress'] }), () => `#${id} done`);
-  if (b.dataset.act === 'reopen') return act(() => api('tag', { id, patch: ['-@done', '-@wontfix'] }), () => `#${id} reopened`);
+  if (b.dataset.act === 'done') return act(() => api('tag', { id, patch: ['@done', un('in-progress')] }), () => `#${id} done`);
+  if (b.dataset.act === 'reopen') return act(() => api('tag', { id, patch: ['-@done', un('wontfix')] }), () => `#${id} reopened`);
   if (b.dataset.act === 'cancel') { ui.editing = null; return render(); }
   if (b.dataset.act === 'edit') { ui.editing = id; render(); $('#edtext').value = (await api('show', { id })).text; return $('#edtext').focus(); }
-  if (b.dataset.act === 'subtask') { const t = $('#replytext').value.trim(); if (t) await act(() => api('log', { text: `@todo @needs-triage ${t} @parent=#${id}` }), n => `subtask <a href="${eHref(n)}">#${n}</a>`); }
+  if (b.dataset.act === 'subtask') { const t = $('#replytext').value.trim(); if (t) await act(() => api('log', { text: `@todo ${at('needs-triage')} ${t} @parent=#${id}` }), n => `subtask <a href="${eHref(n)}">#${n}</a>`); }
 });
 document.addEventListener('submit', async e => {
   const f = e.target, id = +parse().a; if (f.id === 'capbox') return;
