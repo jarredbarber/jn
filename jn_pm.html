@@ -186,7 +186,7 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 <script>
 // The tags this page reads, by role. Defaults: mattpocock/skills triage roles + @in-progress; Settings renames them (localStorage jn.pmtags, per browser).
 // @todo @done @parent @agent @files are jn's own and stay fixed.
-const ROLES = { 'in-progress': 'in-progress', 'needs-triage': 'needs-triage', 'needs-info': 'needs-info', 'ready-for-human': 'ready-for-human', 'ready-for-agent': 'ready-for-agent',
+const ROLES = { 'in-progress': 'in-progress', 'needs-triage': 'needs-triage', 'needs-info': 'needs-info', 'ready-for-human': 'ready-for-human', 'ready-for-agent': 'ready-for-agent', backlog: 'backlog',
   wontfix: 'wontfix', project: 'project', blocked_by: 'blocked_by', decision: 'decision', experiment: 'experiment' };
 let T = { ...ROLES };
 try { const o = JSON.parse(localStorage.getItem('jn.pmtags') || '{}'); for (const k in ROLES) if (typeof o[k] === 'string' && /^[\w.:-]+$/.test(o[k])) T[k] = o[k]; } catch { }
@@ -197,6 +197,7 @@ const STATES = [  // key is the role; the tag it reads is T[key]
   { key: 'needs-info', label: 'needs info', cls: 'triage', you: true },
   { key: 'ready-for-human', label: 'ready for human', cls: 'human', you: true },
   { key: 'ready-for-agent', label: 'ready for agent', cls: 'agent' },
+  { key: 'backlog', label: 'backlog', cls: 'done' },  // tracked, not approved to work on
 ];
 const STUCK_H = 6, QUIET_D = 2, INACTIVE_D = 30;
 const SINFO = { ...Object.fromEntries(STATES.map(s => [s.key, s])), blocked: { label: 'blocked', cls: 'blocked' }, open: { label: 'open', cls: 'done' }, done: { label: 'done', cls: 'done' } };
@@ -383,13 +384,13 @@ function home() {
   const todos = [...E.values()].filter(r => isTodo(r) && !has(r, 'done'));
   const byAct = (x, y) => activity(y).localeCompare(activity(x));
   const sub = r => [project(r), who(r), ago(activity(r))].filter(Boolean).map(esc).join(' · ');
-  const untriage = [un('needs-triage'), un('needs-info')];
+  const untriage = [un('needs-triage'), un('needs-info'), un('backlog')];
   const groups = [
     ...STATES.filter(s => s.you).map(s => ({
       title: s.label, cls: s.cls, items: todos.filter(r => has(r, T[s.key])).sort(byAct),
       acts: s.key === 'ready-for-human'
         ? [['done', ['@done', un('ready-for-human')]], ['→ agent', [un('ready-for-human'), at('ready-for-agent')]]]
-        : [['→ agent', [...untriage, at('ready-for-agent')]], ['→ human', [...untriage, at('ready-for-human')]], ['won’t do', [...untriage, at('wontfix'), '@done']]],
+        : [['→ agent', [...untriage, at('ready-for-agent')]], ['→ human', [...untriage, at('ready-for-human')]], ['backlog', [un('needs-triage'), un('needs-info'), at('backlog')]], ['won’t do', [...untriage, at('wontfix'), '@done']]],
       q: at(s.key) + ' -@done'
     })),
     { title: `stuck · in progress, quiet over ${STUCK_H}h`, cls: 'blocked', items: todos.filter(r => has(r, T['in-progress']) && hours(activity(r)) > STUCK_H).sort(byAct), acts: [['→ triage', [un('in-progress'), at('needs-triage')]]], q: at('in-progress') + ' -@done' }
@@ -465,7 +466,7 @@ function subtree(root, mode) {
 }
 
 function status(todos, st, root) {
-  const SECTIONS = [['In progress', ['in-progress'], 'prog'], ['Needs you', STATES.filter(s => s.you).map(s => s.key), 'human'], ['Ready for agents', ['ready-for-agent'], 'agent'], ['Blocked', ['blocked'], 'blocked'], ['Open, no triage tag', ['open'], 'done'], ['Done', ['done'], 'done']];
+  const SECTIONS = [['In progress', ['in-progress'], 'prog'], ['Needs you', STATES.filter(s => s.you).map(s => s.key), 'human'], ['Ready for agents', ['ready-for-agent'], 'agent'], ['Blocked', ['blocked'], 'blocked'], ['Open, no triage tag', ['open'], 'done'], ['Backlog', ['backlog'], 'done'], ['Done', ['done'], 'done']];
   const inView = new Set(todos.map(r => r.id));
   let h = '';
   for (const [label, keys, cls] of SECTIONS) {
