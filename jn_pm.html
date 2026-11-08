@@ -15,7 +15,6 @@
 --prog:var(--base0B);--triage:var(--base09);--human:var(--base0E);--agent:var(--base0D);--blocked:var(--base08);--done:var(--mut);
 --prog-bg:color-mix(in srgb,var(--prog) 15%,var(--base00));--triage-bg:color-mix(in srgb,var(--triage) 15%,var(--base00));--human-bg:color-mix(in srgb,var(--human) 14%,var(--base00));
 --agent-bg:color-mix(in srgb,var(--agent) 15%,var(--base00));--blocked-bg:color-mix(in srgb,var(--blocked) 14%,var(--base00));--done-bg:color-mix(in srgb,var(--base05) 9%,var(--base00))}
-#gear{border:0;background:none;padding:2px 4px;color:var(--mut);font-size:15px;line-height:1}#classic{font-size:12px;color:var(--mut);white-space:nowrap}#gear:hover,#classic:hover{color:var(--acc);text-decoration:none}
 #settings{background:var(--bg2);color:var(--fg);border:1px solid var(--bd);border-radius:10px;padding:16px 18px 18px;width:min(460px,calc(100vw - 32px));box-shadow:0 12px 40px #0008}
 #settings::backdrop{background:color-mix(in srgb,var(--base00) 55%,transparent)}
 #settings .sh{display:flex;align-items:center;font-size:14px;font-weight:600}#settings .sh button{margin-left:auto;border:0;background:none;font-size:15px}
@@ -29,6 +28,24 @@
 .seg{display:inline-flex;border:1px solid var(--bd);border-radius:7px;overflow:hidden}
 .seg label{padding:5px 14px;cursor:pointer;color:var(--mut)}.seg label+label{border-left:1px solid var(--bd)}
 .seg label:has(input:checked){background:var(--acc-bg);color:var(--fg)}.seg label:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:-2px}
+/* the sidebar: same layout and classes as jn_web.html's nav, different contents */
+:root{--side:var(--bg2);--ink:var(--fg);--mute:var(--base04);--dim:var(--base03);--hover:color-mix(in srgb,var(--base05) 5%,var(--base00));--accbg:var(--acc-bg);--r:6px}
+.w{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}.w>div{min-width:0}
+nav.side{background:var(--side);border-right:1px solid var(--bd2);padding:12px 10px;position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:8px;padding:2px 8px 14px}
+.brand a{font:italic 700 20px/1 ui-serif,Georgia,serif;letter-spacing:-.02em;color:var(--ink);text-decoration:none}
+.brand a b{color:var(--acc);font-style:normal}
+.brand select{margin-left:auto;max-width:110px;padding:3px 6px;font-size:12px}
+.brand .pmlink{margin-left:auto;font:400 12px/1 system-ui,sans-serif;letter-spacing:0;color:var(--dim)}.brand .pmlink:hover{color:var(--acc)}#dbsel:not([hidden])+.pmlink,.pmlink+.gear{margin-left:0}
+.gear{border:0;background:none;padding:2px 4px;color:var(--dim);font-size:15px;line-height:1}.gear:hover{color:var(--acc)}
+.side .tab{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--r);color:var(--mute);text-decoration:none;border-left:2px solid transparent;white-space:nowrap}
+.side .tab:hover{background:var(--hover);color:var(--ink);text-decoration:none}
+.side .tab.on{background:var(--accbg);color:var(--ink);border-left-color:var(--acc)}
+.side .tab span:first-child{overflow:hidden;text-overflow:ellipsis}.side .n{color:var(--dim);font-variant-numeric:tabular-nums;font-size:12px}
+.side .lab{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;margin:18px 8px 6px}
+@media (max-width:760px){.w{grid-template-columns:minmax(0,1fr)}nav.side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--bd2);padding:10px 12px 6px}
+.brand{padding:0 0 8px}#ptabs{display:flex;flex-wrap:wrap;gap:2px 6px}#ptabs .lab{display:none}
+.side .tab{flex:0 0 auto;min-height:36px;padding:6px 10px;border-left:0;border-bottom:2px solid transparent;border-radius:0}.side .tab.on{border-bottom-color:var(--acc)}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
@@ -41,7 +58,6 @@ input[type=text],input[type=search],textarea,select{background:var(--bg);border:
 .id{font-size:12px;color:var(--mut)}
 .mut{color:var(--mut)}.sm{font-size:12px}
 header{display:flex;align-items:center;gap:12px;padding:8px 20px;border-bottom:1px solid var(--bd);background:var(--bg2);flex-wrap:wrap;position:sticky;top:0;z-index:5}
-header .logo{font:600 15px "JetBrains Mono",ui-monospace,monospace;color:var(--fg)}
 #crumbs{font-size:13px;color:var(--mut);display:flex;gap:6px;flex-wrap:wrap;min-width:0}
 #crumbs b{color:var(--fg)}
 #capbox{flex:1 1 360px;display:flex;gap:6px;align-items:center;min-width:0}
@@ -130,14 +146,6 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 .node:hover{text-decoration:none;border-color:var(--acc)}
 .node .t{font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .node.ext{border-style:dashed}
-#menu{position:relative}
-#menu summary{list-style:none;cursor:pointer;width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--bd);border-radius:6px;background:var(--bg)}
-#menu summary::-webkit-details-marker{display:none}
-#menu nav{position:absolute;top:38px;left:0;width:300px;max-height:70vh;overflow-y:auto;background:var(--bg);border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);padding:6px;z-index:10}
-#menu nav a{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:6px;color:var(--fg);font-size:13px}
-#menu nav a:hover,#menu nav a.on{background:var(--acc-bg);text-decoration:none}
-#menu nav a span{color:var(--mut);font-size:12px;white-space:nowrap}
-#menu nav .h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);padding:8px 10px 4px}
 #flash{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;display:none;z-index:9}
 #flash a{color:var(--bg);text-decoration:underline}
 .empty{color:var(--mut);padding:16px 0}
@@ -147,12 +155,13 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 </style>
 </head>
 <body>
+<div class="w">
+<nav class="side" aria-label="Projects">
+<div class="brand"><a href="#/">j<b>n</b></a><select id="dbsel" hidden aria-label="Journal"></select><a class="pmlink" href="/" title="Switch to the journal view">journal</a><button class="gear" id="gear" type="button" aria-label="Settings" title="Settings  ( , )">⚙</button></div>
+<div id="ptabs"></div>
+</nav>
+<div>
 <header>
-<details id="menu"><summary aria-label="Switch project" title="Projects (p)"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></summary><nav id="menunav" aria-label="Projects"></nav></details>
-<a class="logo" href="#/">jn</a>
-<select id="dbsel" hidden aria-label="Journal"></select>
-<a id="classic" href="/" title="Switch to the journal view">journal view</a>
-<button id="gear" type="button" aria-label="Settings" title="Settings  ( , )">⚙</button>
 <nav id="crumbs" aria-label="Breadcrumb"></nav>
 <form id="capbox" autocomplete="off">
 <label for="cap" hidden>New entry</label>
@@ -164,6 +173,8 @@ form.reply .bar2{display:flex;justify-content:space-between;align-items:center;g
 <input id="q" type="search" placeholder="Search or #id   /">
 </header>
 <main id="app"><p class="empty">Loading…</p></main>
+</div>
+</div>
 <div id="flash" role="status"></div>
 <dialog id="settings" aria-label="Settings"><form method="dialog">
 <div class="sh">Settings<button value="close" aria-label="Close">✕</button></div>
@@ -334,21 +345,21 @@ function render() {
     html = kind === 'p' ? subtree({ kind, name: a }, mode) : kind === 't' ? subtree({ kind, id: +a }, mode) : kind === 'e' ? entryPage(+a) : kind === 's' ? searchPage(a) : home();
   } catch (e) { html = `<p class="empty">${esc(e.message)}</p>`; }
   $('#app').innerHTML = html;
-  renderMenu(kind === 'p' ? a : kind === 't' || kind === 'e' ? (E.get(+a) ? project(E.get(+a)) : '') : '');
+  renderSide(kind, kind === 'p' ? a : kind === 't' || kind === 'e' ? (E.get(+a) ? project(E.get(+a)) : '') : '');
   $('#ctx').textContent = ctx.length ? '+ ' + ctx.join(' ') : '';
   window.scrollTo(0, y);
 }
 const crumbs = parts => { $('#crumbs').innerHTML = parts.map((p, i) => i === parts.length - 1 ? `<b>${p}</b>` : p).join('<span>/</span>'); };
 const homeLink = '<a href="#/">Home</a>';
 
-// ---- the project switcher: every project, most recently active first; inactive ones under a heading
-function renderMenu(cur) {
+// ---- the sidebar: Home, then every project (most recently active first, inactive ones under a heading)
+function renderSide(kind, cur) {
   const P = new Map();
   for (const r of E.values()) { const p = project(r); if (!p) continue; const v = P.get(p) || { open: 0, latest: '' }; if (isTodo(r) && !has(r, 'done')) v.open++; if (r.updated > v.latest) v.latest = r.updated; P.set(p, v); }
   const ps = [...P].sort((x, y) => y[1].latest.localeCompare(x[1].latest));
-  const a = ([n, v]) => `<a href="${pHref(n)}" class="${n === cur ? 'on' : ''}">${esc(n)}<span>${v.open} open · ${ago(v.latest)}</span></a>`;
+  const a = ([n, v]) => `<a href="${pHref(n)}" class="tab${n === cur ? ' on' : ''}" title="${v.open} open · ${ago(v.latest)}"><span>${esc(n)}</span><span class="n">${v.open || ''}</span></a>`;
   const act = ps.filter(([, v]) => hours(v.latest) < INACTIVE_D * 24), old = ps.filter(([, v]) => hours(v.latest) >= INACTIVE_D * 24);
-  $('#menunav').innerHTML = `<a href="#/">Home</a><div class="h">Projects</div>${act.map(a).join('')}${old.length ? '<div class="h">Inactive</div>' + old.map(a).join('') : ''}`;
+  $('#ptabs').innerHTML = `<a href="#/" class="tab${kind ? '' : ' on'}"><span>Home</span></a><div class="lab">projects</div>${act.map(a).join('')}${old.length ? '<div class="lab">inactive</div>' + old.map(a).join('') : ''}`;
 }
 
 // ---- Home: what waits on a human, then one row per project
@@ -595,7 +606,6 @@ $('#q').addEventListener('keydown', e => {
   location.hash = /^#?\d+$/.test(q) ? eHref(q.replace('#', '')) : '#/s/' + encodeURIComponent(q);
 });
 document.addEventListener('click', async e => {
-  if (!e.target.closest('#menu')) $('#menu').open = false;
   const b = e.target.closest('button'); if (!b) return;
   const { kind, a } = parse(), id = +a;
   if (b.dataset.tag) return act(() => api('tag', { id: +b.dataset.tag, patch: JSON.parse(b.dataset.patch) }), () => `#${b.dataset.tag} updated`);
@@ -617,16 +627,14 @@ document.addEventListener('submit', async e => {
   if (f.id === 'editform') { const t = $('#edtext').value; ui.editing = null; await act(() => api('edit', { id, text: t }), () => `#${id} saved`); }
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && $('#menu').open) { $('#menu').open = false; return; }
   if (e.target.id === 'replytext' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('#replyform').requestSubmit(); return; }
   if ($('#settings').open || e.target.closest('input,textarea,select') || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === ',') { e.preventDefault(); return $('#settings').showModal(); }
   if (e.key === '/') { e.preventDefault(); $('#q').focus(); }
   else if (e.key === 'c') { e.preventDefault(); $('#cap').focus(); }
   else if (e.key === 'g') location.hash = '#/';
-  else if (e.key === 'p') { e.preventDefault(); $('#menu').open = true; $('#menunav a')?.focus(); }
 });
-addEventListener('hashchange', () => { $('#menu').open = false; ui.editing = null; ui.tfilter = 'all'; render(); scrollTo(0, 0); });
+addEventListener('hashchange', () => { ui.editing = null; ui.tfilter = 'all'; render(); scrollTo(0, 0); });
 // live: re-read the journal every 30s while visible, unless you are typing. ponytail: polling; the server has no push
 setInterval(async () => {
   const a = document.activeElement;
