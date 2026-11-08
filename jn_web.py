@@ -19,6 +19,8 @@ def verbs(jn):
         """--tree[=tag] nests like the CLI: rows come back in forest order, newest root first, with a depth"""
         opts, pos = jn.parse_opts(list(args))
         rs = jn.select(pos, opts)
+        have = {r["id"] for r in rs}  # a searched id (42 or #42) always comes back, whatever the view's filters hide
+        rs += [r for i in dict.fromkeys(int(a.lstrip("#")) for a in pos if re.fullmatch(r"#?\d+", a)) if i not in have for r in jn.select([str(i)], {"all": True})]
         if t := opts.get("tree"):
             by = "parent" if t is True else t
             prog = progress(by, [r["id"] for r in rs])
@@ -204,8 +206,10 @@ def server(jn, host, port):
 
         def do_GET(self):
             path, _, qs = self.path.partition("?")  # the page keeps its query in the URL
-            if path == "/":
-                self.send(200, (HERE / "jn_web.html").read_text(), "text/html; charset=utf-8")
+            if path in ("/", "/pm"):  # /pm: the project-management page (jn_pm.html); same API
+                self.send(200, (HERE / ("jn_pm.html" if path == "/pm" else "jn_web.html")).read_text(), "text/html; charset=utf-8")
+            elif path == "/theme.js":  # base16 palettes, shared by both pages
+                self.send(200, (HERE / "jn_theme.js").read_text(), "text/javascript; charset=utf-8")
             elif path == "/manifest.json":
                 self.send(200, json.dumps({"name": "jn", "short_name": "jn", "start_url": "/", "display": "standalone",
                                            "background_color": "#111", "theme_color": "#111", "icons": []}), "application/manifest+json")

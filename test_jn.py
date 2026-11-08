@@ -208,6 +208,8 @@ def on_write(e):
     assert e["content"] == "from the web" and "x" in e["tags"], e
     assert post("show", id=1)[1]["text"].startswith("@todo @x") and post("tags", args=[])[1][0] == ["todo", 1]
     assert post("tag", id=1, patch=["@done"])[0] == 200 and post("ls")[1] == []      # closed, default filter hides it
+    assert [r["id"] for r in post("ls", args=["--tasks", "#1"])[1]] == [1] == [r["id"] for r in post("ls", args=["-@done", "1"])[1]]   # a searched id beats every filter
+    assert "<!doctype" in urllib.request.urlopen(url + "/pm").read().decode()
     assert "<!doctype" in urllib.request.urlopen(url + "/?q=%40todo&db=alt").read().decode() and {"name": "mine", "own": False} in post("config")[1]["filters"]
     v = post("vocab")[1]; assert v["done"] == [] and v["x"] == [] and "todo" in v, v
     c = post("config")[1]; assert c["colors"] == {"todo": "#ff0", "due": "#0ff"} and c["favorites"] == ["todo", "due", "home"], c

@@ -7,6 +7,7 @@
 <title>jn</title>
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230d1214'/%3E%3Ctext x='9' y='47' font-family='Georgia,serif' font-size='44' font-style='italic' fill='%23dbe4e4'%3Ej%3Ctspan font-style='normal' font-weight='bold' fill='%232dd4bf'%3En%3C/tspan%3E%3C/text%3E%3C/svg%3E">
+<script src="/theme.js"></script>
 <style>
 /* Colors are a base16 palette (--base00..--base0F) plus --acc, one of its slots. Every rule below reads the semantic
    names, which derive from those 16; a theme (see THEMES) only sets the 16 + the accent slot. These defaults are the
@@ -63,6 +64,7 @@ nav { background:var(--side); border-right:1px solid var(--line); padding:12px 1
 #cal .cell:hover::after { content:attr(aria-label); position:absolute; left:8px; bottom:calc(100% + 4px); z-index:10; padding:4px 8px; border-radius:var(--r); background:var(--ink); color:var(--bg); font-size:12px; white-space:nowrap; pointer-events:none }
 .gear { border:0; padding:2px 4px; color:var(--dim); font-size:15px; line-height:1 } .gear:hover { color:var(--acc) } #dbsel:not([hidden]) + .gear { margin-left:0 } .brand .gear { margin-left:auto }
 #dbsel:not([hidden]) { margin-left:auto }
+.brand .pmlink { margin-left:auto; font:400 12px/1 system-ui, sans-serif; letter-spacing:0; color:var(--dim) } .brand .pmlink:hover { color:var(--acc) } #dbsel:not([hidden]) + .pmlink, .pmlink + .gear { margin-left:0 }
 #settings { background:var(--side); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:16px 18px 18px; width:min(460px, calc(100vw - 32px)); box-shadow:0 12px 40px #0008 }
 #settings::backdrop { background:color-mix(in srgb, var(--base00) 55%, transparent) }
 #settings .sh { display:flex; align-items:center; font-size:14px; font-weight:600 } #settings .sh .x { margin-left:auto; border:0; font-size:15px; padding:0 4px }
@@ -194,7 +196,7 @@ a.ref, a.tag { color:var(--acc); text-decoration:none; cursor:pointer } a.ref:ho
 <body>
 <div class="w" id="w">
 <nav>
-  <div class="brand"><a href="/" id="home">j<b>n</b></a><select id="dbsel" hidden aria-label="Journal"></select><button class="gear" id="gear" aria-label="Settings" title="Settings  ( , )">⚙</button></div>
+  <div class="brand"><a href="/" id="home">j<b>n</b></a><select id="dbsel" hidden aria-label="Journal"></select><a class="pmlink" href="/pm" title="Switch to the project view">projects</a><button class="gear" id="gear" aria-label="Settings" title="Settings  ( , )">⚙</button></div>
   <div id="tabs"></div>
   <div id="pagebox" hidden><div class="lab">pages</div><div id="pages"></div></div>
   <div id="calbox"><div class="lab">activity</div><div id="cal"></div></div>
@@ -229,19 +231,7 @@ async function api(verb, body = {}) {
   return j.out;
 }
 
-// ---- themes: base16 palettes (base00 bg ... base05 fg ... base08-0F accents); acc names the slot used as the accent.
-// Sources: vague2k/vague.nvim lua/vague/config/internal.lua; sainnhe/everforest autoload/everforest.vim (medium);
-// projekt0n/github-nvim-theme palette/github_dark_default.lua + github_light_default.lua (primitives). Add one = add an entry.
-const THEMES = {
-  vague: { acc: 'base0D',
-    dark: { base00:'#141415', base01:'#1c1c24', base02:'#333738', base03:'#606079', base04:'#878787', base05:'#cdcdcd', base06:'#c3c3d5', base07:'#c3c3d5', base08:'#d8647e', base09:'#e0a363', base0A:'#f3be7c', base0B:'#7fa563', base0C:'#b4d4cf', base0D:'#6e94b2', base0E:'#bb9dbd', base0F:'#c48282' } },
-  everforest: { acc: 'base0B',
-    dark: { base00:'#2d353b', base01:'#343f44', base02:'#475258', base03:'#859289', base04:'#9da9a0', base05:'#d3c6aa', base06:'#d3c6aa', base07:'#d3c6aa', base08:'#e67e80', base09:'#e69875', base0A:'#dbbc7f', base0B:'#a7c080', base0C:'#83c092', base0D:'#7fbbb3', base0E:'#d699b6', base0F:'#7a8478' },
-    light: { base00:'#fdf6e3', base01:'#f4f0d9', base02:'#e6e2cc', base03:'#939f91', base04:'#829181', base05:'#5c6a72', base06:'#5c6a72', base07:'#5c6a72', base08:'#f85552', base09:'#f57d26', base0A:'#dfa000', base0B:'#8da101', base0C:'#35a77c', base0D:'#3a94c5', base0E:'#df69ba', base0F:'#a6b0a0' } },
-  github: { acc: 'base0D',
-    dark: { base00:'#0d1117', base01:'#161b22', base02:'#30363d', base03:'#6e7681', base04:'#8b949e', base05:'#e6edf3', base06:'#f0f6fc', base07:'#f0f6fc', base08:'#ff7b72', base09:'#f0883e', base0A:'#d29922', base0B:'#3fb950', base0C:'#76e3ea', base0D:'#58a6ff', base0E:'#bc8cff', base0F:'#f778ba' },
-    light: { base00:'#ffffff', base01:'#f6f8fa', base02:'#d0d7de', base03:'#57606a', base04:'#32383f', base05:'#1f2328', base06:'#24292f', base07:'#1f2328', base08:'#cf222e', base09:'#bc4c00', base0A:'#9a6700', base0B:'#116329', base0C:'#1b7c83', base0D:'#0969da', base0E:'#8250df', base0F:'#953800' } },
-};
+// ---- themes: THEMES (base16 palettes) comes from /theme.js, shared with /pm
 const pref = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const lightMq = matchMedia('(prefers-color-scheme: light)');
